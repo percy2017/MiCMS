@@ -54,3 +54,4 @@
 :root.dark [class*="ExternalInputModal-loadingBanner"] {
     background: color-mix(in srgb, #1a1a1a 90%, transparent);
 }
+

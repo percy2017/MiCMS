@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Media;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -44,8 +45,9 @@ class HandleInertiaRequests extends Middleware
             'site' => [
                 'name' => $site['site_name'] ?? config('app.name'),
                 'tagline' => $site['site_tagline'] ?? '',
-                'logo_url' => $site['site_logo'] ? \App\Models\Media::query()->whereKey($site['site_logo'])->value('id') : null,
+                'logo_url' => $site['site_logo'] ? Media::find($site['site_logo'])?->url() : null,
             ],
+            'appearance' => $request->user() ? null : 'light',
             'auth' => [
                 'user' => $request->user(),
             ],

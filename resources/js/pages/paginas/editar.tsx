@@ -55,7 +55,7 @@ export default function PaginaEdit({ page, menus }: PageProps) {
         <>
             <Head title={`Editar: ${page.title}`} />
 
-            <div className="h-[calc(100vh-4rem-2rem)]">
+            <div className="h-[calc(100vh-4rem)] overflow-hidden">
                 <MenuProvider menus={menus}>
                     <Puck
                         config={puckConfig}

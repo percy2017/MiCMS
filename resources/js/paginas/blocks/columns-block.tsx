@@ -1,4 +1,6 @@
 import type { ComponentConfig } from '@puckeditor/core';
+import type { SharedBlockProps } from './shared-block-fields';
+import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 
 type ColumnsBlockProps = {
     columns: number;
@@ -17,7 +19,7 @@ const gapClass: Record<string, string> = {
     lg: 'gap-8',
 };
 
-export const ColumnsBlock: ComponentConfig<ColumnsBlockProps> = {
+export const ColumnsBlock: ComponentConfig<ColumnsBlockProps & SharedBlockProps> = {
     label: 'Columnas',
     fields: {
         columns: {
@@ -36,27 +38,31 @@ export const ColumnsBlock: ComponentConfig<ColumnsBlockProps> = {
                 { label: 'Grande', value: 'lg' },
             ],
         },
+        ...sharedFields,
     },
     defaultProps: {
         columns: 2,
         gap: 'md',
+        ...sharedDefaultProps,
     },
-    render: ({ columns, gap }) => {
+    render: ({ columns, gap, ...shared }) => {
         const cols = Number(columns);
 
         return (
-            <div
-                className={`grid ${gridClass[cols] ?? gridClass[2]} ${gapClass[gap] ?? gapClass.md}`}
-            >
-                {Array.from({ length: cols }).map((_, i) => (
-                    <div
-                        key={i}
-                        className="min-h-[80px] rounded-md border-2 border-dashed border-muted-foreground/30 p-4 text-center text-sm text-muted-foreground"
-                    >
-                        Columna {i + 1}
-                    </div>
-                ))}
-            </div>
+            <BlockWrapper {...shared}>
+                <div
+                    className={`grid ${gridClass[cols] ?? gridClass[2]} ${gapClass[gap] ?? gapClass.md}`}
+                >
+                    {Array.from({ length: cols }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="min-h-[80px] rounded-md border-2 border-dashed border-muted-foreground/30 p-4 text-center text-sm text-muted-foreground"
+                        >
+                            Columna {i + 1}
+                        </div>
+                    ))}
+                </div>
+            </BlockWrapper>
         );
     },
 };

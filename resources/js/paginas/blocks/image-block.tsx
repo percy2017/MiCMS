@@ -1,4 +1,6 @@
 import type { ComponentConfig } from '@puckeditor/core';
+import type { SharedBlockProps } from './shared-block-fields';
+import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 import { MediaPickerField } from '@/paginas/blocks/media-picker-field';
 import { cn } from '@/lib/utils';
 
@@ -66,7 +68,7 @@ const aspectClass: Record<string, string> = {
 
 const isAspectFixed = (ar: string): boolean => ar !== 'auto';
 
-export const ImageBlock: ComponentConfig<ImageBlockProps> = {
+export const ImageBlock: ComponentConfig<ImageBlockProps & SharedBlockProps> = {
     label: 'Imagen',
     fields: {
         src: {
@@ -163,6 +165,7 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
                 { label: 'Extra grande', value: 'xl' },
             ],
         },
+        ...sharedFields,
     },
     defaultProps: {
         src: '',
@@ -177,6 +180,7 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
         max_width: '',
         link_url: '',
         link_target: '_self',
+        ...sharedDefaultProps,
     },
     render: ({
         src,
@@ -191,6 +195,7 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
         max_width,
         link_url,
         link_target,
+        ...shared
     }) => {
         if (!src) {
             return (
@@ -239,16 +244,18 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
         );
 
         return (
-            <figure className={figureClass}>
-                <div className={innerClass} style={maxWidthStyle}>
-                    {linkedElement}
-                    {caption ? (
-                        <figcaption className="mt-2 text-center text-sm text-muted-foreground">
-                            {caption}
-                        </figcaption>
-                    ) : null}
-                </div>
-            </figure>
+            <BlockWrapper {...shared}>
+                <figure className={figureClass}>
+                    <div className={innerClass} style={maxWidthStyle}>
+                        {linkedElement}
+                        {caption ? (
+                            <figcaption className="mt-2 text-center text-sm text-muted-foreground">
+                                {caption}
+                            </figcaption>
+                        ) : null}
+                    </div>
+                </figure>
+            </BlockWrapper>
         );
     },
 };
