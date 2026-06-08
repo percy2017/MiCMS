@@ -2,7 +2,6 @@
 
 use App\Models\Menu;
 use App\Models\MenuItem;
-use App\Models\User;
 
 test('guests cannot delete menus', function () {
     $menu = Menu::factory()->create();
@@ -14,7 +13,7 @@ test('guests cannot delete menus', function () {
 });
 
 test('authenticated users can delete a menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -25,7 +24,7 @@ test('authenticated users can delete a menu', function () {
 });
 
 test('deleting a menu cascades to items', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $menu->items()->create(['label' => 'X', 'url' => '/', 'order' => 0]);
 

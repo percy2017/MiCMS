@@ -1,3 +1,4 @@
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createInertiaApp } from '@inertiajs/react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -13,8 +14,22 @@ configureEcho({
     broadcaster: 'reverb',
 });
 
+const modulePages = import.meta.glob('/Modules/*/resources/js/Pages/**/*.{tsx,jsx}');
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    resolve: (name) => {
+        const parts = name.split('::');
+        if (parts.length === 2) {
+            const [moduleName, pageName] = parts;
+            const modulePage = `/Modules/${moduleName}/resources/js/Pages/${pageName}.tsx`;
+            if (modulePages[modulePage]) {
+                return modulePages[modulePage]();
+            }
+        }
+
+        return resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx'));
+    },
     layout: (name) => {
         switch (true) {
             case name === 'welcome':

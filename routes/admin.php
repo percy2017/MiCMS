@@ -6,8 +6,10 @@ use App\Http\Controllers\Menu\MenuController;
 use App\Http\Controllers\Menu\MenuItemController;
 use App\Http\Controllers\Package\PackageController;
 use App\Http\Controllers\Page\PageController;
+use App\Http\Controllers\Permission\PermissionController;
+use App\Http\Controllers\Role\RoleController;
 use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\PosWoo\PosWooController;
+use App\Http\Controllers\User\UserController;
 use App\Services\ReverbMonitorService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -72,22 +74,31 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::prefix('paquetes')->name('paquetes.')->group(function () {
         Route::get('/', [PackageController::class, 'index'])->name('index');
-        Route::get('/{package}/editar', [PackageController::class, 'edit'])->name('edit');
-        Route::patch('/{package}', [PackageController::class, 'update'])->name('update');
-        Route::patch('/{package}/toggle', [PackageController::class, 'toggle'])->name('toggle');
+        Route::get('/{slug}/editar', [PackageController::class, 'edit'])->name('edit');
+        Route::patch('/{slug}/toggle', [PackageController::class, 'toggle'])->name('toggle');
     });
 
-    Route::prefix('pos-woo')->group(function () {
-        Route::get('/', [PosWooController::class, 'dashboard']);
-        Route::get('/pedidos', [PosWooController::class, 'ordersPage']);
+    Route::prefix('usuarios')->name('usuarios.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/crear', [UserController::class, 'create'])->name('create');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::get('/{user}/editar', [UserController::class, 'edit'])->name('edit');
+        Route::patch('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
     });
-});
 
-// Pos Woo API routes (without names; wayfinder skips them)
-Route::middleware(['auth', 'verified'])->prefix('admin/pos-woo')->group(function () {
-    Route::get('/products', [PosWooController::class, 'searchProducts']);
-    Route::get('/products/{product}/variations', [PosWooController::class, 'productVariations']);
-    Route::get('/customers', [PosWooController::class, 'searchCustomers']);
-    Route::get('/orders', [PosWooController::class, 'orders']);
-    Route::post('/checkout', [PosWooController::class, 'checkout']);
+    Route::prefix('roles')->name('roles.')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+        Route::get('/crear', [RoleController::class, 'create'])->name('create');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+        Route::get('/{role}/editar', [RoleController::class, 'edit'])->name('edit');
+        Route::patch('/{role}', [RoleController::class, 'update'])->name('update');
+        Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('permisos')->name('permisos.')->group(function () {
+        Route::get('/', [PermissionController::class, 'index'])->name('index');
+        Route::post('/', [PermissionController::class, 'store'])->name('store');
+        Route::delete('/{permission}', [PermissionController::class, 'destroy'])->name('destroy');
+    });
 });

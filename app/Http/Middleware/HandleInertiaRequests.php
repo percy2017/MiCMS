@@ -3,42 +3,24 @@
 namespace App\Http\Middleware;
 
 use App\Models\Media;
-use App\Models\Package;
 use App\Models\Setting;
+use App\Services\PackageManager;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
     public function share(Request $request): array
     {
         $site = Setting::site();
+        $user = $request->user();
 
         return [
             ...parent::share($request),
@@ -50,20 +32,22 @@ class HandleInertiaRequests extends Middleware
             ],
             'appearance' => $request->user() ? null : 'light',
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'roles' => $user->roles->pluck('name')->all(),
+                    'permissions' => $user->getAllPermissions()->pluck('name')->all(),
+                ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'enabledPackages' => fn (): array => $request->user()
-                ? Package::query()
-                    ->enabled()
-                    ->installed()
-                    ->orderBy('name')
-                    ->get(['id', 'slug', 'name', 'menu_label', 'icon'])
-                    ->map(fn (Package $package): array => [
-                        'id' => $package->id,
-                        'slug' => $package->slug,
-                        'label' => $package->menuLabel(),
-                        'icon' => $package->icon,
+            'enabledPackages' => fn (): array => $user
+                ? app(PackageManager::class)->enabled()
+                    ->map(fn (array $pkg): array => [
+                        'slug' => $pkg['slug'],
+                        'label' => $pkg['menu_label'],
+                        'icon' => $pkg['icon'],
+                        'menu' => $pkg['menu'],
                     ])
                     ->values()
                     ->all()

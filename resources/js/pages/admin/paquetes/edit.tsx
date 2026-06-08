@@ -1,50 +1,31 @@
-import { Head, router, useForm } from '@inertiajs/react';
-import { Loader2, Power } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { Loader2, Power, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toggle, update } from '@/routes/admin/paquetes';
+import { toggle } from '@/routes/admin/paquetes';
 
-type PackageItem = {
-    id: number;
+type ModuleItem = {
     slug: string;
     name: string;
-    menu_label: string | null;
+    description: string;
     version: string;
-    description: string | null;
-    author: string | null;
-    category: string;
-    category_label: string;
-    icon: string | null;
     enabled: boolean;
     installed: boolean;
-    config: Record<string, unknown>;
+    icon: string | null;
 };
 
 type PageProps = {
-    package: PackageItem;
+    package: ModuleItem;
 };
 
 export default function PaquetesEdit({ package: pkg }: PageProps) {
-    const form = useForm({
-        name: pkg.name,
-    });
-
     const [toggling, setToggling] = useState(false);
-
-    function submit(e: React.FormEvent): void {
-        e.preventDefault();
-        form.patch(update({ package: pkg.id }).url, {
-            preserveScroll: true,
-        });
-    }
 
     function handleToggle(): void {
         setToggling(true);
-        router.patch(toggle({ package: pkg.id }).url, undefined, {
+        router.patch(toggle({ slug: pkg.slug }).url, undefined, {
             preserveScroll: true,
             onFinish: () => setToggling(false),
         });
@@ -54,50 +35,35 @@ export default function PaquetesEdit({ package: pkg }: PageProps) {
         <>
             <Head title={`${pkg.name} · Paquetes`} />
 
-            <div className="space-y-6 p-4">           
+            <div className="space-y-6 p-4">
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Información</CardTitle>
-                            <CardDescription>
-                                Cambia el nombre visible del paquete.
-                            </CardDescription>
+                            <div className="flex items-center gap-3">
+                                <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
+                                    <ShoppingCart className="size-5 text-foreground" />
+                                </div>
+                                <div>
+                                    <CardTitle>{pkg.name}</CardTitle>
+                                    <CardDescription>{pkg.description}</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submit} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Nombre</Label>
-                                    <Input
-                                        id="name"
-                                        value={form.data.name}
-                                        onChange={(e) => form.setData('name', e.target.value)}
-                                        required
-                                    />
-                                    {form.errors.name ? (
-                                        <p className="text-xs text-destructive">
-                                            {form.errors.name}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <Badge variant="outline">{pkg.category_label}</Badge>
-                                    <code className="rounded bg-muted px-1.5 py-0.5">
+                            <div className="space-y-3 text-sm">
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <Badge variant="outline">v{pkg.version}</Badge>
+                                    <code className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                                         {pkg.slug}
                                     </code>
-                                    <span>v{pkg.version}</span>
-                                    {pkg.author ? <span>· {pkg.author}</span> : null}
+                                    <Badge variant={pkg.enabled ? 'default' : 'secondary'}>
+                                        {pkg.enabled ? 'Activo' : 'Inactivo'}
+                                    </Badge>
                                 </div>
-
-                                <div className="flex justify-end">
-                                    <Button type="submit" disabled={form.processing}>
-                                        {form.processing ? (
-                                            <Loader2 className="mr-1 size-4 animate-spin" />
-                                        ) : null}
-                                        Guardar
-                                    </Button>
-                                </div>
-                            </form>
+                                <p className="text-xs text-muted-foreground">
+                                    Los módulos se configuran en su archivo <code>module.json</code> dentro de <code>Modules/{pkg.slug === 'poswoo' ? 'PosWoo' : pkg.slug}/</code>.
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -105,10 +71,10 @@ export default function PaquetesEdit({ package: pkg }: PageProps) {
                         <CardHeader>
                             <CardTitle>Estado</CardTitle>
                             <CardDescription>
-                                Activa o desactiva este paquete en el CMS.
+                                Activa o desactiva este módulo en el CMS.
                                 {pkg.enabled
-                                    ? ' Al desactivarlo, su sub-menú desaparecerá del sidebar.'
-                                    : ' Al activarlo, su sub-menú aparecerá en el sidebar.'}
+                                    ? ' Al desactivarlo, su menú desaparecerá del sidebar.'
+                                    : ' Al activarlo, su menú aparecerá en el sidebar.'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -124,7 +90,7 @@ export default function PaquetesEdit({ package: pkg }: PageProps) {
                                 ) : (
                                     <Power className="mr-1 size-4" />
                                 )}
-                                {pkg.enabled ? 'Desactivar paquete' : 'Activar paquete'}
+                                {pkg.enabled ? 'Desactivar módulo' : 'Activar módulo'}
                             </Button>
                         </CardContent>
                     </Card>

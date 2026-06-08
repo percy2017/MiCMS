@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Menu;
-use App\Models\User;
 
 test('guests cannot create menus', function () {
     $this->post(route('admin.menus.store'), [
@@ -15,7 +14,7 @@ test('authenticated users can create a menu', function () {
         'header' => 'Header',
         'footer' => 'Footer',
     ]);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->post(route('admin.menus.store'), [
@@ -30,7 +29,7 @@ test('authenticated users can create a menu', function () {
 
 test('menu name is required', function () {
     config()->set('menus.locations', ['header' => 'Header']);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.menus.index'))
@@ -43,7 +42,7 @@ test('menu name is required', function () {
 
 test('menu location must be in registered locations', function () {
     config()->set('menus.locations', ['header' => 'Header']);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.menus.index'))
@@ -57,7 +56,7 @@ test('menu location must be in registered locations', function () {
 test('multiple menus can share the same location', function () {
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
     Menu::factory()->create(['location' => 'header', 'name' => 'First']);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.menus.index'))

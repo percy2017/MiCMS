@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Media;
-use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,7 +16,7 @@ test('guests cannot upload', function () {
 });
 
 test('authenticated users can upload a file', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $file = UploadedFile::fake()->image('photo.jpg', 800, 600);
 
     $this->actingAs($user)
@@ -36,7 +35,7 @@ test('authenticated users can upload a file', function () {
 });
 
 test('files keep their original name', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $file = UploadedFile::fake()->create('mi-archivo.pdf', 10, 'application/pdf');
 
     $this->actingAs($user)
@@ -47,7 +46,7 @@ test('files keep their original name', function () {
 });
 
 test('duplicate filenames get a numeric suffix', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $file1 = UploadedFile::fake()->image('photo.jpg');
     $file2 = UploadedFile::fake()->image('photo.jpg');
 
@@ -63,7 +62,7 @@ test('duplicate filenames get a numeric suffix', function () {
 test('files exceeding the max size are rejected', function () {
     config()->set('media.max_size', 1024);
 
-    $user = User::factory()->create();
+    $user = adminUser();
     $file = UploadedFile::fake()->create('big.bin', 5);
 
     $this->actingAs($user)
@@ -76,7 +75,7 @@ test('files exceeding the max size are rejected', function () {
 test('files with blocked extensions are rejected', function () {
     config()->set('media.blocked_extensions', ['php']);
 
-    $user = User::factory()->create();
+    $user = adminUser();
     $file = UploadedFile::fake()->createWithContent('shell.php', '<?php echo 1;');
 
     $this->actingAs($user)
@@ -87,7 +86,7 @@ test('files with blocked extensions are rejected', function () {
 });
 
 test('upload requires a file', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->post(route('admin.media.store'), [])

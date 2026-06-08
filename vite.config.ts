@@ -28,4 +28,7 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    watch: {
+        ignored: ['!Modules/**'],
+    },
 });

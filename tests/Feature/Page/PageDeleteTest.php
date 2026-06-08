@@ -1,10 +1,9 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 
 test('a page can be deleted', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create();
 
     $this->actingAs($user)
@@ -15,7 +14,7 @@ test('a page can be deleted', function () {
 });
 
 test('a 404 is returned when deleting a non-existent page', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->delete(route('admin.paginas.destroy', ['page' => 999999]))

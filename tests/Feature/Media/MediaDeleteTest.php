@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Media;
-use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,7 +16,7 @@ test('guests cannot delete', function () {
 });
 
 test('deleting removes the file and the record', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Storage::disk('public')->put('photo.jpg', 'contents');
     $media = Media::factory()->create([
         'disk' => 'public',
@@ -34,7 +33,7 @@ test('deleting removes the file and the record', function () {
 });
 
 test('deleting a record whose file is already missing does not error', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $media = Media::factory()->create([
         'disk' => 'public',
         'path' => 'ghost.jpg',
@@ -49,7 +48,7 @@ test('deleting a record whose file is already missing does not error', function 
 });
 
 test('uploading a file with a previously deleted name reuses the slot', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $first = UploadedFile::fake()->image('photo.jpg');
     $this->actingAs($user)->post(route('admin.media.store'), ['file' => $first]);

@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to login', function () {
@@ -10,7 +9,7 @@ test('guests are redirected to login', function () {
 });
 
 test('authenticated users can see the pages list', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->get(route('admin.paginas.index'))
@@ -23,7 +22,7 @@ test('authenticated users can see the pages list', function () {
 });
 
 test('pages are listed paginated', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Page::factory()->count(3)->create();
 
     $this->actingAs($user)
@@ -35,7 +34,7 @@ test('pages are listed paginated', function () {
 });
 
 test('pages can be searched by title', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Page::factory()->create(['title' => 'Welcome page']);
     Page::factory()->create(['title' => 'About us']);
 
@@ -48,7 +47,7 @@ test('pages can be searched by title', function () {
 });
 
 test('pages can be filtered by status', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Page::factory()->published()->create();
     Page::factory()->draft()->create();
 

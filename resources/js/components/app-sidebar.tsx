@@ -7,9 +7,11 @@ import {
     Puzzle,
     Settings,
     ShoppingCart,
+    UserCog,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import AppLogo from '@/components/app-logo';
+import { useCan } from '@/hooks/use-can';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -24,19 +26,30 @@ import {
 import { admin } from '@/routes';
 import { index as mediaIndex } from '@/routes/admin/media';
 import { index as menusIndex } from '@/routes/admin/menus';
-import { index as paquetesIndex, edit as paquetesEdit } from '@/routes/admin/paquetes';
+import { index as paquetesIndex } from '@/routes/admin/paquetes';
 import { index as paginasIndex } from '@/routes/admin/paginas';
-import { reverb as reverbRoute } from '@/routes/admin';
+import { index as permisosIndex } from '@/routes/admin/permisos';
+import { index as rolesIndex } from '@/routes/admin/roles';
 import { index as scheduleIndex } from '@/routes/admin/schedule';
+import { index as usuariosIndex } from '@/routes/admin/usuarios';
+import { reverb as reverbRoute } from '@/routes/admin';
 import type { NavItem } from '@/types';
 
 type IconComponent = ComponentType<{ className?: string }>;
 
+type MenuChild = {
+    title: string;
+    route?: string;
+};
+
 type SharedPackage = {
-    id: number;
     slug: string;
     label: string;
     icon?: string | null;
+    menu?: {
+        icon?: string;
+        children?: MenuChild[];
+    };
 };
 
 type SharedProps = {
@@ -60,70 +73,109 @@ export function AppSidebar() {
     const { props } = usePage<SharedProps>();
     const enabledPackages = props.enabledPackages ?? [];
 
+    const can = {
+        viewPages: useCan('view pages'),
+        viewMedia: useCan('view media'),
+        viewMenus: useCan('view menus'),
+        viewPackages: useCan('view packages'),
+        viewSchedule: useCan('view schedule'),
+        viewUsers: useCan('view users'),
+        viewRoles: useCan('view roles'),
+        viewPermissions: useCan('view permissions'),
+        viewPosWoo: useCan('view pos-woo'),
+    };
+
     const mainNavItems: NavItem[] = [
         {
             title: 'Panel',
             href: admin(),
             icon: LayoutGrid,
         },
-        {
-            title: 'Páginas',
-            href: paginasIndex(),
+    ];
+
+    const pagesChildren: NavItem[] = [];
+    if (can.viewPages) {
+        pagesChildren.push({ title: 'Páginas', href: paginasIndex() });
+    }
+    if (can.viewMenus) {
+        pagesChildren.push({ title: 'Menús', href: menusIndex() });
+    }
+    if (pagesChildren.length > 0) {
+        mainNavItems.push({
+            title: 'Contenido',
+            href: pagesChildren[0].href,
             icon: LayoutTemplate,
-            children: [
-                {
-                    title: 'Páginas',
-                    href: paginasIndex(),
-                },
-                {
-                    title: 'Menús',
-                    href: menusIndex(),
-                },
-            ],
-        },
-        {
+            children: pagesChildren,
+        });
+    }
+
+    if (can.viewMedia) {
+        mainNavItems.push({
             title: 'Medios',
             href: mediaIndex(),
             icon: ImageIcon,
-        },
-        ...enabledPackages.map<NavItem>((pkg) => {
-            if (pkg.slug === 'pos-woo') {
-                return {
-                    title: pkg.label,
-                    icon: ShoppingCart,
-                    children: [
-                        { title: 'Terminal', href: '/admin/pos-woo' },
-                        { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
-                    ],
-                };
-            }
+        });
+    }
 
-            return {
-                title: pkg.label,
-                href: paquetesEdit({ package: pkg.id }).url,
-                icon: resolveIcon(pkg.icon),
-            };
-        }),
-        {
+    if (can.viewPosWoo) {
+        const posWooPkg = enabledPackages.find((p) => p.slug === 'pos-woo');
+        const moduleChildren = (posWooPkg?.menu?.children ?? []).map((child) => ({
+            title: child.title,
+            href: child.href ?? '#',
+        }));
+
+        const posWooChildren: NavItem[] = moduleChildren.length > 0
+            ? moduleChildren
+            : [
+                { title: 'Terminal', href: '/admin/pos-woo' },
+                { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
+            ];
+
+        if (posWooPkg || true) {
+            mainNavItems.push({
+                title: posWooPkg?.label ?? 'PosWoo',
+                href: posWooChildren[0].href,
+                icon: resolveIcon(posWooPkg?.menu?.icon ?? posWooPkg?.icon),
+                children: posWooChildren,
+            });
+        }
+    }
+
+    const userMgmtChildren: NavItem[] = [];
+    if (can.viewUsers) {
+        userMgmtChildren.push({ title: 'Usuarios', href: usuariosIndex() });
+    }
+    if (can.viewRoles) {
+        userMgmtChildren.push({ title: 'Roles', href: rolesIndex() });
+    }
+    if (can.viewPermissions) {
+        userMgmtChildren.push({ title: 'Permisos', href: permisosIndex() });
+    }
+    if (userMgmtChildren.length > 0) {
+        mainNavItems.push({
+            title: 'Usuarios y permisos',
+            href: userMgmtChildren[0].href,
+            icon: UserCog,
+            children: userMgmtChildren,
+        });
+    }
+
+    const configChildren: NavItem[] = [];
+    if (can.viewPackages) {
+        configChildren.push({ title: 'Paquetes', href: paquetesIndex() });
+    }
+    if (can.viewSchedule) {
+        configChildren.push({ title: 'Tareas', href: scheduleIndex() });
+    }
+    configChildren.push({ title: 'Socket', href: reverbRoute() });
+    if (configChildren.length > 0) {
+        mainNavItems.push({
             title: 'Configuración',
-            href: '#',
+            href: configChildren[0].href,
             icon: Settings,
-            children: [
-                {
-                    title: 'Paquetes',
-                    href: paquetesIndex(),
-                },
-                {
-                    title: 'Socket',
-                    href: reverbRoute(),
-                },
-                {
-                    title: 'Tareas',
-                    href: scheduleIndex(),
-                },
-            ],
-        },
-    ];
+            children: configChildren,
+        });
+    }
 
     return (
         <Sidebar collapsible="icon" variant="inset">

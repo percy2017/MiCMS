@@ -15,6 +15,8 @@ class GeneralSettingsController extends Controller
 {
     public function edit(Request $request): Response
     {
+        $this->authorize('view settings');
+
         $logoId = Setting::get('site_logo');
         $logo = $logoId ? Media::query()->find($logoId) : null;
 
@@ -30,6 +32,8 @@ class GeneralSettingsController extends Controller
 
     public function update(UpdateGeneralSettingsRequest $request): RedirectResponse
     {
+        $this->authorize('update settings');
+
         $data = $request->validated();
 
         Setting::set('site_name', (string) $data['site_name'], Setting::TYPE_STRING);

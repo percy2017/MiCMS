@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Menu;
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to login', function () {
@@ -10,7 +9,7 @@ test('guests are redirected to login', function () {
 });
 
 test('authenticated users can see the menus list', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->get(route('admin.menus.index'))
@@ -23,7 +22,7 @@ test('authenticated users can see the menus list', function () {
 });
 
 test('menus are listed with item counts', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create(['name' => 'Header menu']);
     $menu->items()->createMany([
         ['label' => 'Home', 'url' => '/', 'order' => 0],
@@ -43,7 +42,7 @@ test('locations config is passed to the view', function () {
         'header' => 'Header',
         'footer' => 'Footer',
     ]);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->get(route('admin.menus.index'))

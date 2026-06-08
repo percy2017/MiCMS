@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/poswoo",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\PosWoo\\": "app/",
+            "Modules\\PosWoo\\Database\\Factories\\": "database/factories/",
+            "Modules\\PosWoo\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\PosWoo\\Tests\\": "tests/"
+        }
+    }
+}

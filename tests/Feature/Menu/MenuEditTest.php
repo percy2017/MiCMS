@@ -3,7 +3,6 @@
 use App\Models\Menu;
 use App\Models\MenuItem;
 use App\Models\Page;
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to login', function () {
@@ -14,7 +13,7 @@ test('guests are redirected to login', function () {
 });
 
 test('authenticated users can edit a menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -30,7 +29,7 @@ test('authenticated users can edit a menu', function () {
 });
 
 test('menu items are nested in the response', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $parent = MenuItem::factory()->create(['menu_id' => $menu->id, 'label' => 'Parent']);
     MenuItem::factory()->create([
@@ -50,7 +49,7 @@ test('menu items are nested in the response', function () {
 });
 
 test('pages are available for page-type items', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     Page::factory()->create(['title' => 'About page', 'status' => Page::STATUS_PUBLISHED]);
 

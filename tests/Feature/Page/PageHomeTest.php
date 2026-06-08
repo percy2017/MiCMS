@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 use Illuminate\Database\QueryException;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -15,7 +14,7 @@ test('guests are redirected when trying to set a page as home', function () {
 });
 
 test('a page can be set as home', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create();
 
     $this->actingAs($user)
@@ -26,7 +25,7 @@ test('a page can be set as home', function () {
 });
 
 test('setting a new page as home removes the flag from the previous one', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $oldHome = Page::factory()->create(['is_home' => true]);
     $newHome = Page::factory()->create();
 
@@ -48,7 +47,7 @@ test('only one page can have is_home true at the database level', function () {
 });
 
 test('a page can be unset as home', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create(['is_home' => true]);
 
     $this->actingAs($user)
@@ -59,7 +58,7 @@ test('a page can be unset as home', function () {
 });
 
 test('deleting the home page clears the is_home flag without affecting others', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $home = Page::factory()->create(['is_home' => true]);
     $other = Page::factory()->create();
 
@@ -112,7 +111,7 @@ test('the public url helper returns the root for the home page', function () {
 });
 
 test('home indicator is exposed in the index response', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Page::factory()->create(['is_home' => true, 'title' => 'Mi home']);
     Page::factory()->create(['title' => 'Otra']);
 
@@ -125,7 +124,7 @@ test('home indicator is exposed in the index response', function () {
 });
 
 test('is_home indicator is exposed in the edit response', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create(['is_home' => true]);
 
     $this->actingAs($user)

@@ -145,7 +145,7 @@ class PageController extends Controller
 
     public function setHome(Request $request, Page $page): RedirectResponse
     {
-        $this->authorize('update', $page);
+        $this->authorize('setHome', $page);
 
         DB::transaction(function () use ($page): void {
             Page::query()->where('is_home', true)->where('id', '!=', $page->id)->update(['is_home' => false]);
@@ -158,7 +158,7 @@ class PageController extends Controller
 
     public function unsetHome(Request $request, Page $page): RedirectResponse
     {
-        $this->authorize('update', $page);
+        $this->authorize('setHome', $page);
 
         $page->is_home = false;
         $page->save();
@@ -208,11 +208,11 @@ class PageController extends Controller
             ],
             'menus' => $this->menusForLayout(),
             'enabledPackages' => $packages->enabled()
-                ->map(fn ($p): array => [
-                    'id' => $p->id,
-                    'slug' => $p->slug,
-                    'label' => $p->menuLabel(),
-                    'icon' => $p->icon,
+                ->map(fn (array $p): array => [
+                    'slug' => $p['slug'],
+                    'label' => $p['menu_label'],
+                    'icon' => $p['icon'],
+                    'menu' => $p['menu'],
                 ])
                 ->values()
                 ->all(),

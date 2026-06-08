@@ -1,0 +1,19 @@
+{
+    "name": "PosWoo",
+    "alias": "poswoo",
+    "description": "Punto de venta conectado a WooCommerce para cobros, facturación y gestión de pedidos en tienda.",
+    "keywords": ["woocommerce", "pos", "ventas"],
+    "priority": 0,
+    "providers": [
+        "Modules\\PosWoo\\Providers\\PosWooServiceProvider",
+        "Modules\\PosWoo\\Providers\\RouteServiceProvider"
+    ],
+    "files": [],
+    "menu": {
+        "icon": "ShoppingCart",
+        "children": [
+            { "title": "Terminal", "route": "pos-woo.dashboard" },
+            { "title": "Pedidos", "route": "pos-woo.orders" }
+        ]
+    }
+}

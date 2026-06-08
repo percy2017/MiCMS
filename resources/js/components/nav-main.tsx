@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import {
     Collapsible,
     CollapsibleContent,
@@ -46,11 +47,21 @@ function NavLeaf({ item, isCurrentUrl }: { item: NavItem; isCurrentUrl: (href: s
     );
 }
 
-function NavGroup({ item, isCurrentUrl }: { item: NavItem; isCurrentUrl: (href: string) => boolean }) {
+function NavGroup({
+    item,
+    isCurrentUrl,
+    open,
+    onOpenChange,
+}: {
+    item: NavItem;
+    isCurrentUrl: (href: string) => boolean;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
     const active = isItemActive(item, isCurrentUrl);
 
     return (
-        <Collapsible asChild defaultOpen={active}>
+        <Collapsible asChild open={open} onOpenChange={onOpenChange}>
             <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
                     <SidebarMenuButton
@@ -86,13 +97,35 @@ function NavGroup({ item, isCurrentUrl }: { item: NavItem; isCurrentUrl: (href: 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
 
+    const initialOpen = (() => {
+        const active = items.find((item) => isItemActive(item, isCurrentUrl));
+        return active ? active.title : null;
+    })();
+
+    const [openTitle, setOpenTitle] = useState<string | null>(initialOpen);
+
+    const handleOpenChange = useCallback((title: string, open: boolean) => {
+        setOpenTitle((current) => {
+            if (open) {
+                return title;
+            }
+            return current === title ? null : current;
+        });
+    }, []);
+
     return (
         <SidebarGroup className="px-2 py-0">
             <SidebarGroupLabel>{appName}</SidebarGroupLabel>
             <SidebarMenu>
                 {items.map((item) =>
                     item.children && item.children.length > 0 ? (
-                        <NavGroup key={item.title} item={item} isCurrentUrl={isCurrentUrl} />
+                        <NavGroup
+                            key={item.title}
+                            item={item}
+                            isCurrentUrl={isCurrentUrl}
+                            open={openTitle === item.title}
+                            onOpenChange={(open) => handleOpenChange(item.title, open)}
+                        />
                     ) : (
                         <NavLeaf key={item.title} item={item} isCurrentUrl={isCurrentUrl} />
                     ),

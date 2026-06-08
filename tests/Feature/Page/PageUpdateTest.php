@@ -1,10 +1,9 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 
 test('puck_data can be updated', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create();
     $newData = [
         'content' => [
@@ -28,7 +27,7 @@ test('puck_data can be updated', function () {
 });
 
 test('status can be changed to published', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->draft()->create();
 
     expect($page->status)->toBe(Page::STATUS_DRAFT);
@@ -46,7 +45,7 @@ test('status can be changed to published', function () {
 });
 
 test('publishing a page that was already published does not reset published_at', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->published()->create();
     $original = $page->published_at;
 
@@ -60,7 +59,7 @@ test('publishing a page that was already published does not reset published_at',
 });
 
 test('reverting to draft clears published_at', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->published()->create();
 
     $this->actingAs($user)
@@ -74,7 +73,7 @@ test('reverting to draft clears published_at', function () {
 });
 
 test('slug can be updated and must remain unique', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create(['slug' => 'old']);
     Page::factory()->create(['slug' => 'taken']);
 
@@ -97,7 +96,7 @@ test('slug can be updated and must remain unique', function () {
 });
 
 test('invalid status is rejected', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->create();
 
     $this->actingAs($user)

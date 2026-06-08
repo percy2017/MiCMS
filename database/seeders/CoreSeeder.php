@@ -19,7 +19,7 @@ class CoreSeeder extends Seeder
 
     protected function seedAdminUser(): void
     {
-        User::updateOrCreate(
+        $user = User::updateOrCreate(
             ['email' => 'admin@admin.com'],
             [
                 'name' => 'Admin',
@@ -27,6 +27,10 @@ class CoreSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+
+        if (! $user->hasRole('admin')) {
+            $user->assignRole('admin');
+        }
     }
 
     protected function seedLandingPage(): void

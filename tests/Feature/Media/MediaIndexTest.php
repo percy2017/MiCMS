@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Media;
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to login', function () {
@@ -10,7 +9,7 @@ test('guests are redirected to login', function () {
 });
 
 test('authenticated users can see the media library', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->get(route('admin.media.index'))
@@ -23,7 +22,7 @@ test('authenticated users can see the media library', function () {
 });
 
 test('library lists media paginated', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Media::factory()->count(3)->create();
 
     $this->actingAs($user)
@@ -36,7 +35,7 @@ test('library lists media paginated', function () {
 });
 
 test('library can be searched by name', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Media::factory()->create(['name' => 'vacation.jpg']);
     Media::factory()->create(['name' => 'invoice.pdf']);
 
@@ -49,7 +48,7 @@ test('library can be searched by name', function () {
 });
 
 test('library can be filtered by mime type', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Media::factory()->create(['mime_type' => 'image/jpeg']);
     Media::factory()->create(['mime_type' => 'application/pdf']);
 
@@ -62,7 +61,7 @@ test('library can be filtered by mime type', function () {
 });
 
 test('library returns json with proper structure for the media picker modal', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Media::factory()->create(['mime_type' => 'image/jpeg', 'name' => 'sample.jpg']);
     Media::factory()->create(['mime_type' => 'video/mp4', 'name' => 'clip.mp4']);
 

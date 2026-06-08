@@ -2,16 +2,17 @@
 
 namespace App\Services;
 
-use App\Models\Package;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Nwidart\Modules\Facades\Module;
+use Nwidart\Modules\Laravel\Module as ModuleInstance;
 
 class PackageManager
 {
     private const CACHE_KEY = 'packages:enabled';
 
     /**
-     * @return Collection<int, Package>
+     * @return Collection<int, array{slug: string, name: string, menu_label: string, icon: string, menu: array}>
      */
     public function enabled(): Collection
     {
@@ -25,11 +26,26 @@ class PackageManager
             Cache::forget(self::CACHE_KEY);
         }
 
-        $fresh = Package::query()
-            ->enabled()
-            ->installed()
-            ->orderBy('name')
-            ->get();
+        $fresh = collect(Module::allEnabled())->map(function (ModuleInstance $module): array {
+            $json = $module->json()->getAttributes();
+            $menu = $json['menu'] ?? [];
+
+            if (isset($menu['children'])) {
+                foreach ($menu['children'] as $i => $child) {
+                    if (isset($child['route'])) {
+                        $menu['children'][$i]['href'] = route($child['route'], [], false);
+                    }
+                }
+            }
+
+            return [
+                'slug' => $module->getLowerName(),
+                'name' => $module->getName(),
+                'menu_label' => $module->getName(),
+                'icon' => $menu['icon'] ?? 'Package',
+                'menu' => $menu,
+            ];
+        })->values();
 
         Cache::forever(self::CACHE_KEY, $fresh);
 
@@ -38,7 +54,7 @@ class PackageManager
 
     public function isEnabled(string $slug): bool
     {
-        return $this->enabled()->contains(fn (Package $p): bool => $p->slug === $slug);
+        return Module::isEnabled($slug);
     }
 
     public function forget(): void

@@ -72,7 +72,7 @@ test('email is not verified with invalid user id', function () {
 });
 
 test('verified user is redirected to admin from verification prompt', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     Event::fake();
 
@@ -83,7 +83,7 @@ test('verified user is redirected to admin from verification prompt', function (
 });
 
 test('already verified user visiting verification link is redirected without firing event again', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     Event::fake();
 

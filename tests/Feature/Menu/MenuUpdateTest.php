@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Menu;
-use App\Models\User;
 
 test('guests cannot update menus', function () {
     $menu = Menu::factory()->create(['name' => 'Old name']);
@@ -15,7 +14,7 @@ test('guests cannot update menus', function () {
 
 test('authenticated users can update a menu', function () {
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create(['name' => 'Old', 'location' => 'header']);
 
     $this->actingAs($user)
@@ -31,7 +30,7 @@ test('authenticated users can update a menu', function () {
 });
 
 test('menu name is required on update', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -46,7 +45,7 @@ test('updating to a location already used by another menu is allowed', function 
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
     Menu::factory()->create(['location' => 'footer', 'name' => 'Footer 1']);
     $menu = Menu::factory()->create(['location' => 'header', 'name' => 'Header 1']);
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.menus.edit', ['menu' => $menu->id]))

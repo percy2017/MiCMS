@@ -1,45 +1,33 @@
 import { Head, router } from '@inertiajs/react';
 import {
     Loader2,
-    MessageCircle,
     Package,
     PackageOpen,
     Power,
-    Settings,
     ShoppingCart,
-    Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { edit, toggle } from '@/routes/admin/paquetes';
+import { toggle } from '@/routes/admin/paquetes';
 
 type PackageItem = {
-    id: number;
     slug: string;
     name: string;
-    menu_label: string | null;
+    description: string;
     version: string;
-    description: string | null;
-    author: string | null;
-    category: string;
-    category_label: string;
-    icon: string | null;
     enabled: boolean;
     installed: boolean;
-    config: Record<string, unknown>;
+    icon: string | null;
 };
 
 type PageProps = {
     packages: PackageItem[];
-    categories: Record<string, string>;
 };
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-    MessageCircle,
-    Users,
     ShoppingCart,
     Package,
 };
@@ -50,13 +38,13 @@ function PackageIcon({ name, className }: { name: string | null; className?: str
 }
 
 export default function PaquetesIndex({ packages }: PageProps) {
-    const [pendingId, setPendingId] = useState<number | null>(null);
+    const [pendingSlug, setPendingSlug] = useState<string | null>(null);
 
     function handleToggle(pkg: PackageItem): void {
-        setPendingId(pkg.id);
-        router.patch(toggle({ package: pkg.id }).url, undefined, {
+        setPendingSlug(pkg.slug);
+        router.patch(toggle({ slug: pkg.slug }).url, undefined, {
             preserveScroll: true,
-            onFinish: () => setPendingId(null),
+            onFinish: () => setPendingSlug(null),
         });
     }
 
@@ -65,7 +53,6 @@ export default function PaquetesIndex({ packages }: PageProps) {
             <Head title="Paquetes" />
 
             <div className="space-y-6 p-4">
-                
                 {packages.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
@@ -78,10 +65,10 @@ export default function PaquetesIndex({ packages }: PageProps) {
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {packages.map((pkg) => {
-                            const isPending = pendingId === pkg.id;
+                            const isPending = pendingSlug === pkg.slug;
 
                             return (
-                                <Card key={pkg.id} className="flex flex-col">
+                                <Card key={pkg.slug} className="flex flex-col">
                                     <CardHeader>
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex items-center gap-3">
@@ -97,7 +84,6 @@ export default function PaquetesIndex({ packages }: PageProps) {
                                                     </CardTitle>
                                                     <p className="text-xs text-muted-foreground">
                                                         v{pkg.version}
-                                                        {pkg.author ? ` · ${pkg.author}` : null}
                                                     </p>
                                                 </div>
                                             </div>
@@ -117,7 +103,6 @@ export default function PaquetesIndex({ packages }: PageProps) {
                                             </CardDescription>
                                         ) : null}
                                         <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <Badge variant="outline">{pkg.category_label}</Badge>
                                             <code className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                                                 {pkg.slug}
                                             </code>
@@ -126,20 +111,10 @@ export default function PaquetesIndex({ packages }: PageProps) {
 
                                     <CardFooter className="flex items-center gap-2">
                                         <Button
-                                            asChild
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1"
-                                        >
-                                            <a href={edit({ package: pkg.id }).url}>
-                                                <Settings className="mr-1 size-4" />
-                                                Configurar
-                                            </a>
-                                        </Button>
-                                        <Button
                                             type="button"
                                             variant={pkg.enabled ? 'destructive' : 'default'}
                                             size="sm"
+                                            className="flex-1"
                                             disabled={isPending}
                                             onClick={() => handleToggle(pkg)}
                                         >

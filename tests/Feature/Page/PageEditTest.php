@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests cannot view the editor', function () {
@@ -12,7 +11,7 @@ test('guests cannot view the editor', function () {
 });
 
 test('authenticated users can view the editor with the page data', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $page = Page::factory()->withFixture()->create();
 
     $this->actingAs($user)

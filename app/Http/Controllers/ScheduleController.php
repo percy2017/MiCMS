@@ -16,6 +16,8 @@ class ScheduleController extends Controller
 {
     public function index(): Response
     {
+        $this->authorize('view schedule');
+
         $tasks = ScheduledTask::query()
             ->with('lastLog')
             ->orderByDesc('id')
@@ -38,6 +40,8 @@ class ScheduleController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('manage schedule');
+
         return Inertia::render('admin/schedule/create', [
             'commands' => $this->getAvailableCommands(),
         ]);
@@ -45,6 +49,8 @@ class ScheduleController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorize('manage schedule');
+
         $validated = $request->validate([
             'command' => ['required', 'string'],
             'description' => ['nullable', 'string', 'max:255'],
@@ -65,6 +71,8 @@ class ScheduleController extends Controller
 
     public function edit(ScheduledTask $task): Response
     {
+        $this->authorize('manage schedule');
+
         return Inertia::render('admin/schedule/edit', [
             'task' => $task,
             'commands' => $this->getAvailableCommands(),
@@ -73,6 +81,8 @@ class ScheduleController extends Controller
 
     public function update(Request $request, ScheduledTask $task): RedirectResponse
     {
+        $this->authorize('manage schedule');
+
         $validated = $request->validate([
             'command' => ['required', 'string'],
             'description' => ['nullable', 'string', 'max:255'],
@@ -93,6 +103,8 @@ class ScheduleController extends Controller
 
     public function destroy(ScheduledTask $task): RedirectResponse
     {
+        $this->authorize('manage schedule');
+
         $task->delete();
 
         return Redirect::route('admin.schedule.index')
@@ -101,6 +113,8 @@ class ScheduleController extends Controller
 
     public function toggle(ScheduledTask $task): RedirectResponse
     {
+        $this->authorize('manage schedule');
+
         $task->update(['active' => ! $task->active]);
 
         $status = $task->active ? 'activada' : 'desactivada';
@@ -111,6 +125,8 @@ class ScheduleController extends Controller
 
     public function run(ScheduledTask $task): RedirectResponse
     {
+        $this->authorize('run schedule');
+
         $output = new BufferedOutput;
         $params = $task->parameters ?? [];
 
@@ -142,6 +158,8 @@ class ScheduleController extends Controller
 
     public function history(ScheduledTask $task): Response
     {
+        $this->authorize('view schedule');
+
         $logs = $task->logs()
             ->orderByDesc('started_at')
             ->paginate(50);
@@ -165,6 +183,8 @@ class ScheduleController extends Controller
 
     public function commands(): array
     {
+        $this->authorize('manage schedule');
+
         return $this->getAvailableCommands();
     }
 

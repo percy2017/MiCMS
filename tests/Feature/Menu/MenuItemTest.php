@@ -3,14 +3,13 @@
 use App\Models\Menu;
 use App\Models\MenuItem;
 use App\Models\Page;
-use App\Models\User;
 
 beforeEach(function () {
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
 });
 
 test('can add a custom link to a menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -26,7 +25,7 @@ test('can add a custom link to a menu', function () {
 });
 
 test('can add a page link to a menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $page = Page::factory()->create();
 
@@ -46,7 +45,7 @@ test('can add a page link to a menu', function () {
 });
 
 test('custom link requires a url', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -61,7 +60,7 @@ test('custom link requires a url', function () {
 });
 
 test('page type requires a page_id', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
 
     $this->actingAs($user)
@@ -75,7 +74,7 @@ test('page type requires a page_id', function () {
 });
 
 test('parent_id must belong to the same menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menuA = Menu::factory()->create();
     $menuB = Menu::factory()->create();
     $otherItem = MenuItem::factory()->create(['menu_id' => $menuB->id]);
@@ -93,7 +92,7 @@ test('parent_id must belong to the same menu', function () {
 });
 
 test('can update an item', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $item = MenuItem::factory()->create(['menu_id' => $menu->id, 'label' => 'Old']);
 
@@ -111,7 +110,7 @@ test('can update an item', function () {
 });
 
 test('cannot update an item from a different menu', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menuA = Menu::factory()->create();
     $menuB = Menu::factory()->create();
     $item = MenuItem::factory()->create(['menu_id' => $menuB->id]);
@@ -124,7 +123,7 @@ test('cannot update an item from a different menu', function () {
 });
 
 test('can delete an item', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $item = MenuItem::factory()->create(['menu_id' => $menu->id]);
 
@@ -136,7 +135,7 @@ test('can delete an item', function () {
 });
 
 test('deleting a parent promotes children to root', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $parent = MenuItem::factory()->create(['menu_id' => $menu->id]);
     $child = MenuItem::factory()->create([
@@ -152,7 +151,7 @@ test('deleting a parent promotes children to root', function () {
 });
 
 test('can reorder items', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $a = MenuItem::factory()->create(['menu_id' => $menu->id, 'order' => 0, 'label' => 'A']);
     $b = MenuItem::factory()->create(['menu_id' => $menu->id, 'order' => 1, 'label' => 'B']);
@@ -174,7 +173,7 @@ test('can reorder items', function () {
 });
 
 test('reorder can change parent_id', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $menu = Menu::factory()->create();
     $parent = MenuItem::factory()->create(['menu_id' => $menu->id, 'order' => 0]);
     $child = MenuItem::factory()->create(['menu_id' => $menu->id, 'parent_id' => $parent->id, 'order' => 1]);

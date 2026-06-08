@@ -3,72 +3,66 @@
 namespace App\Http\Controllers\Package;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Package\UpdatePackageRequest;
-use App\Models\Package;
 use App\Services\PackageManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Nwidart\Modules\Facades\Module;
+use Nwidart\Modules\Laravel\Module as ModuleInstance;
 
 class PackageController extends Controller
 {
-    /**
-     * @return array<string, string>
-     */
-    private function categories(): array
+    public function index(): Response
     {
-        return [
-            Package::CATEGORY_COMMUNICATION => 'Comunicación',
-            Package::CATEGORY_BUSINESS => 'Negocios',
-            Package::CATEGORY_GENERAL => 'General',
-        ];
-    }
-
-    public function index(Request $request): Response
-    {
-        $this->authorize('viewAny', Package::class);
-
-        $packages = Package::query()
-            ->latest('id')
-            ->get()
-            ->map(fn (Package $package): array => $package->present())
+        $modules = collect(Module::all())
+            ->map(fn (ModuleInstance $module): array => [
+                'slug' => $module->getLowerName(),
+                'name' => $module->getName(),
+                'description' => $module->getDescription(),
+                'version' => $module->get('version', '1.0.0'),
+                'enabled' => $module->isEnabled(),
+                'installed' => true,
+                'icon' => $module->json()->get('menu.icon', 'Package'),
+            ])
+            ->values()
             ->all();
 
         return Inertia::render('admin/paquetes/index', [
-            'packages' => $packages,
-            'categories' => $this->categories(),
+            'packages' => $modules,
+            'categories' => [],
         ]);
     }
 
-    public function edit(Request $request, Package $package): Response
+    public function edit(Request $request, string $slug): Response
     {
-        $this->authorize('update', $package);
-
         return Inertia::render('admin/paquetes/edit', [
-            'package' => $package->present(),
+            'package' => [
+                'slug' => $slug,
+                'name' => $slug,
+                'enabled' => Module::isEnabled($slug),
+            ],
         ]);
     }
 
-    public function update(UpdatePackageRequest $request, Package $package): RedirectResponse
+    public function toggle(Request $request, string $slug, PackageManager $packages): RedirectResponse
     {
-        $this->authorize('update', $package);
+        $module = Module::find($slug);
 
-        $package->update($request->validated());
+        if (! $module) {
+            return back()->with('error', 'Módulo no encontrado.');
+        }
 
-        return to_route('admin.paquetes.index')
-            ->with('success', 'Paquete actualizado.');
-    }
+        if ($module->isEnabled()) {
+            $module->disable();
+            $state = 'desactivado';
+        } else {
+            $module->enable();
+            $state = 'activado';
+        }
 
-    public function toggle(Request $request, Package $package, PackageManager $packages): RedirectResponse
-    {
-        $this->authorize('toggle', $package);
-
-        $package->update(['enabled' => ! $package->enabled]);
         $packages->forget();
 
-        $state = $package->enabled ? 'activado' : 'desactivado';
-
-        return back()->with('success', "Paquete {$state}.");
+        return back()->with('success', "Módulo {$state}.");
     }
 }

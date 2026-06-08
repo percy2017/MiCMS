@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Page;
-use App\Models\User;
 
 test('guests cannot create pages', function () {
     $this->post(route('admin.paginas.store'), [
@@ -11,7 +10,7 @@ test('guests cannot create pages', function () {
 });
 
 test('authenticated users can create a page', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->post(route('admin.paginas.store'), [
@@ -26,7 +25,7 @@ test('authenticated users can create a page', function () {
 });
 
 test('page title is required', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.paginas.index'))
@@ -38,7 +37,7 @@ test('page title is required', function () {
 });
 
 test('page slug must be unique', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     Page::factory()->create(['slug' => 'taken']);
 
     $this->actingAs($user)
@@ -51,7 +50,7 @@ test('page slug must be unique', function () {
 });
 
 test('page slug must match the slug format', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->from(route('admin.paginas.index'))

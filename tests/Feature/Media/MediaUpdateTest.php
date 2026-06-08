@@ -1,11 +1,10 @@
 <?php
 
 use App\Models\Media;
-use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 test('edit page shows the media item', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $media = Media::factory()->create();
 
     $this->actingAs($user)
@@ -14,7 +13,7 @@ test('edit page shows the media item', function () {
 });
 
 test('metadata can be updated', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $media = Media::factory()->create();
 
     $this->actingAs($user)
@@ -35,7 +34,7 @@ test('metadata can be updated', function () {
 });
 
 test('metadata fields are optional', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $media = Media::factory()->create(['title' => 'Original']);
 
     $this->actingAs($user)
@@ -53,7 +52,7 @@ test('metadata fields are optional', function () {
 });
 
 test('updating does not touch the file on disk', function () {
-    $user = User::factory()->create();
+    $user = adminUser();
     $media = Media::factory()->create(['name' => 'photo.jpg']);
 
     Storage::disk('public')->put(

@@ -24,7 +24,7 @@ test('sends verification notification', function () {
 test('does not send verification notification if email is verified', function () {
     Notification::fake();
 
-    $user = User::factory()->create();
+    $user = adminUser();
 
     $this->actingAs($user)
         ->post(route('verification.send'))
