@@ -192,9 +192,7 @@ export default function MediaIndex({ media, filters, max_size }: PageProps) {
 
 MediaIndex.layout = {
     breadcrumbs: [
-        {
-            title: 'Medios',
-            href: mediaIndex().url,
-        },
+        { title: 'Admin', href: '/admin' },
+        { title: 'Medios', href: mediaIndex().url },
     ],
 };

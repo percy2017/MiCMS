@@ -65,13 +65,7 @@ export default function PaquetesIndex({ packages }: PageProps) {
             <Head title="Paquetes" />
 
             <div className="space-y-6 p-4">
-                <div className="flex flex-col gap-2">
-                    <Heading
-                        title="Paquetes"
-                        description="Activa o desactiva los módulos del CMS. Solo los paquetes activos aparecen en el menú lateral."
-                    />
-                </div>
-
+                
                 {packages.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">

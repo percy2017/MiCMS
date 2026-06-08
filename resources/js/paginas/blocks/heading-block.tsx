@@ -1,6 +1,4 @@
 import type { ComponentConfig } from '@puckeditor/core';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 
 type HeadingBlockProps = {
     children: string;
@@ -23,7 +21,7 @@ const alignClass: Record<string, string> = {
     right: 'text-right',
 };
 
-export const HeadingBlock: ComponentConfig<HeadingBlockProps & SharedBlockProps> = {
+export const HeadingBlock: ComponentConfig<HeadingBlockProps> = {
     fields: {
         children: { type: 'text' },
         level: {
@@ -45,23 +43,19 @@ export const HeadingBlock: ComponentConfig<HeadingBlockProps & SharedBlockProps>
                 { label: 'Derecha', value: 'right' },
             ],
         },
-        ...sharedFields,
     },
     defaultProps: {
         children: 'Título',
         level: 'h2',
         align: 'left',
-        ...sharedDefaultProps,
     },
-    render: ({ children, level, align, ...shared }) => {
+    render: ({ children, level, align }) => {
         const Tag = level;
 
         return (
-            <BlockWrapper {...shared}>
-                <Tag className={`${sizeClass[level] ?? sizeClass.h2} ${alignClass[align] ?? alignClass.left}`}>
-                    {children}
-                </Tag>
-            </BlockWrapper>
+            <Tag className={`${sizeClass[level] ?? sizeClass.h2} ${alignClass[align] ?? alignClass.left}`}>
+                {children}
+            </Tag>
         );
     },
 };

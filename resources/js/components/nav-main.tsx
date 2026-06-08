@@ -20,7 +20,7 @@ import { appName } from '@/lib/app-name';
 import type { NavItem } from '@/types';
 
 function isItemActive(item: NavItem, isCurrentUrl: (href: string) => boolean): boolean {
-    if (isCurrentUrl(item.href)) {
+    if (item.href && isCurrentUrl(item.href)) {
         return true;
     }
 
@@ -28,6 +28,8 @@ function isItemActive(item: NavItem, isCurrentUrl: (href: string) => boolean): b
 }
 
 function NavLeaf({ item, isCurrentUrl }: { item: NavItem; isCurrentUrl: (href: string) => boolean }) {
+    if (!item.href) return null;
+
     return (
         <SidebarMenuItem>
             <SidebarMenuButton

@@ -1,6 +1,4 @@
 import type { ComponentConfig } from '@puckeditor/core';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 import { MediaPickerField } from './media-picker-field';
 
 type FeatureBlockProps = {
@@ -17,7 +15,7 @@ const alignClass: Record<string, string> = {
 };
 
 export const FeatureBlock: ComponentConfig<
-    FeatureBlockProps & SharedBlockProps
+    FeatureBlockProps
 > = {
     label: 'Característica',
     fields: {
@@ -35,7 +33,6 @@ export const FeatureBlock: ComponentConfig<
                 { label: 'Centro', value: 'center' },
             ],
         },
-        ...sharedFields,
     },
     defaultProps: {
         icon_src: '',
@@ -43,7 +40,6 @@ export const FeatureBlock: ComponentConfig<
         title: 'Característica',
         description: 'Descripción de la característica',
         align: 'center',
-        ...sharedDefaultProps,
     },
     render: ({
         icon_src,
@@ -51,34 +47,31 @@ export const FeatureBlock: ComponentConfig<
         title,
         description,
         align,
-        ...shared
     }) => {
         const alignVal = align ?? 'center';
 
         return (
-            <BlockWrapper {...shared}>
-                <div
-                    className={`flex flex-col gap-3 ${alignClass[alignVal]}`}
-                >
-                    {icon_src ? (
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                            <img
-                                src={icon_src}
-                                alt={icon_alt || title}
-                                className="h-6 w-6 object-contain"
-                            />
-                        </div>
-                    ) : null}
+            <div
+                className={`flex flex-col gap-3 ${alignClass[alignVal]}`}
+            >
+                {icon_src ? (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <img
+                            src={icon_src}
+                            alt={icon_alt || title}
+                            className="h-6 w-6 object-contain"
+                        />
+                    </div>
+                ) : null}
 
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                <h3 className="text-lg font-semibold">{title}</h3>
 
-                    {description ? (
-                        <p className="text-sm text-muted-foreground">
-                            {description}
-                        </p>
-                    ) : null}
-                </div>
-            </BlockWrapper>
+                {description ? (
+                    <p className="text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                ) : null}
+            </div>
         );
     },
 };

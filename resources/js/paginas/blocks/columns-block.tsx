@@ -1,33 +1,35 @@
-import type { ComponentConfig } from '@puckeditor/core';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
+import type { ComponentConfig, Slot } from '@puckeditor/core';
 
-type ColumnsBlockProps = {
+type ColumnsProps = {
     columns: number;
     gap: 'sm' | 'md' | 'lg';
+    column1: Slot;
+    column2: Slot;
+    column3: Slot;
+    column4: Slot;
 };
 
-const gridClass: Record<number, string> = {
-    2: 'grid-cols-1 md:grid-cols-2',
-    3: 'grid-cols-1 md:grid-cols-3',
-    4: 'grid-cols-2 md:grid-cols-4',
+const gapSize: Record<string, number> = {
+    sm: 8,
+    md: 16,
+    lg: 32,
 };
 
-const gapClass: Record<string, string> = {
-    sm: 'gap-2',
-    md: 'gap-4',
-    lg: 'gap-8',
+const colLabel: Record<number, string> = {
+    2: '1fr 1fr',
+    3: '1fr 1fr 1fr',
+    4: '1fr 1fr 1fr 1fr',
 };
 
-export const ColumnsBlock: ComponentConfig<ColumnsBlockProps & SharedBlockProps> = {
+export const ColumnsBlock: ComponentConfig<ColumnsProps> = {
     label: 'Columnas',
     fields: {
         columns: {
             type: 'radio',
             options: [
-                { label: '2 columnas', value: 2 },
-                { label: '3 columnas', value: 3 },
-                { label: '4 columnas', value: 4 },
+                { label: '2', value: 2 },
+                { label: '3', value: 3 },
+                { label: '4', value: 4 },
             ],
         },
         gap: {
@@ -38,31 +40,32 @@ export const ColumnsBlock: ComponentConfig<ColumnsBlockProps & SharedBlockProps>
                 { label: 'Grande', value: 'lg' },
             ],
         },
-        ...sharedFields,
+        column1: { type: 'slot' },
+        column2: { type: 'slot' },
+        column3: { type: 'slot' },
+        column4: { type: 'slot' },
     },
     defaultProps: {
-        columns: 2,
+        columns: 3,
         gap: 'md',
-        ...sharedDefaultProps,
+        column1: [],
+        column2: [],
+        column3: [],
+        column4: [],
     },
-    render: ({ columns, gap, ...shared }) => {
+    render: ({ columns, gap, column1: Col1, column2: Col2, column3: Col3, column4: Col4 }) => {
         const cols = Number(columns);
+        const gapPx = gapSize[gap] ?? 16;
+        const colsArray = [Col1, Col2, Col3, Col4].slice(0, cols);
 
         return (
-            <BlockWrapper {...shared}>
-                <div
-                    className={`grid ${gridClass[cols] ?? gridClass[2]} ${gapClass[gap] ?? gapClass.md}`}
-                >
-                    {Array.from({ length: cols }).map((_, i) => (
-                        <div
-                            key={i}
-                            className="min-h-[80px] rounded-md border-2 border-dashed border-muted-foreground/30 p-4 text-center text-sm text-muted-foreground"
-                        >
-                            Columna {i + 1}
-                        </div>
-                    ))}
-                </div>
-            </BlockWrapper>
+            <div style={{ display: 'grid', gridTemplateColumns: colLabel[cols] ?? '1fr 1fr 1fr', gap: gapPx }}>
+                {colsArray.map((Col, i) => (
+                    <div key={i} style={{ minHeight: 80, padding: 8, border: '1px dashed hsl(var(--muted-foreground) / 0.3)', borderRadius: 6 }}>
+                        <Col />
+                    </div>
+                ))}
+            </div>
         );
     },
 };

@@ -1,6 +1,4 @@
 import type { ComponentConfig, Slot } from '@puckeditor/core';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 
 type GridBlockProps = {
     columns: number;
@@ -22,7 +20,7 @@ const gapMap: Record<string, string> = {
     lg: 'gap-8',
 };
 
-export const GridBlock: ComponentConfig<GridBlockProps & SharedBlockProps> = {
+export const GridBlock: ComponentConfig<GridBlockProps> = {
     label: 'Cuadrícula',
     fields: {
         columns: {
@@ -52,23 +50,17 @@ export const GridBlock: ComponentConfig<GridBlockProps & SharedBlockProps> = {
                 'TestimonialsBlock',
             ],
         },
-        ...sharedFields,
     },
     defaultProps: {
         columns: 3,
         gap: 'md',
         items: [],
-        ...sharedDefaultProps,
     },
-    render: ({ columns, gap, items, ...shared }) => {
+    render: ({ columns, gap, items }) => {
         const cols = Number(columns);
-        return (
-            <BlockWrapper {...shared}>
-                {items({
-                    className: `grid ${gridMap[cols] ?? gridMap[3]} ${gapMap[gap] ?? gapMap.md}`,
-                    minEmptyHeight: 120,
-                })}
-            </BlockWrapper>
-        );
+        return items({
+            className: `grid ${gridMap[cols] ?? gridMap[3]} ${gapMap[gap] ?? gapMap.md}`,
+            minEmptyHeight: 120,
+        });
     },
 };

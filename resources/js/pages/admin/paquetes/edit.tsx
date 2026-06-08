@@ -1,14 +1,12 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Loader2, MessageSquare, Power } from 'lucide-react';
+import { Loader2, Power } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { index, toggle, update } from '@/routes/admin/paquetes';
-import { index as messagesIndex } from '@/routes/admin/paquetes/messages';
+import { toggle, update } from '@/routes/admin/paquetes';
 
 type PackageItem = {
     id: number;
@@ -56,29 +54,7 @@ export default function PaquetesEdit({ package: pkg }: PageProps) {
         <>
             <Head title={`${pkg.name} · Paquetes`} />
 
-            <div className="space-y-6 p-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <a
-                        href={index().url}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                        <ArrowLeft className="size-4" />
-                        Volver a Paquetes
-                    </a>
-                </div>
-
-                <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                        <Heading
-                            title={pkg.name}
-                            description={pkg.description ?? 'Sin descripción.'}
-                        />
-                    </div>
-                    <Badge variant={pkg.enabled ? 'default' : 'secondary'} className="shrink-0">
-                        {pkg.enabled ? 'Activo' : 'Inactivo'}
-                    </Badge>
-                </div>
-
+            <div className="space-y-6 p-4">           
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card>
                         <CardHeader>
@@ -152,25 +128,6 @@ export default function PaquetesEdit({ package: pkg }: PageProps) {
                             </Button>
                         </CardContent>
                     </Card>
-
-                    {pkg.slug === 'chat-widget' ? (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Mensajes</CardTitle>
-                                <CardDescription>
-                                    Conversaciones recibidas desde el frontend en tiempo real.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Button asChild variant="outline" className="w-full">
-                                    <a href={messagesIndex({ package: pkg.id }).url}>
-                                        <MessageSquare className="mr-1 size-4" />
-                                        Ver mensajes recibidos
-                                    </a>
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ) : null}
                 </div>
             </div>
         </>

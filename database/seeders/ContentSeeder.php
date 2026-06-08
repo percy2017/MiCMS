@@ -6,7 +6,7 @@ use App\Models\Menu;
 use App\Models\MenuItem;
 use Illuminate\Database\Seeder;
 
-class MenuSeeder extends Seeder
+class ContentSeeder extends Seeder
 {
     public function run(): void
     {

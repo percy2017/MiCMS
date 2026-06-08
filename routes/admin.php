@@ -5,9 +5,9 @@ use App\Http\Controllers\Media\MediaUploadController;
 use App\Http\Controllers\Menu\MenuController;
 use App\Http\Controllers\Menu\MenuItemController;
 use App\Http\Controllers\Package\PackageController;
-use App\Http\Controllers\Package\PackageMessageController;
 use App\Http\Controllers\Page\PageController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\PosWoo\PosWooController;
 use App\Services\ReverbMonitorService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -75,8 +75,19 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('/{package}/editar', [PackageController::class, 'edit'])->name('edit');
         Route::patch('/{package}', [PackageController::class, 'update'])->name('update');
         Route::patch('/{package}/toggle', [PackageController::class, 'toggle'])->name('toggle');
-        Route::get('/{package}/mensajes', [PackageMessageController::class, 'index'])->name('messages.index');
-        Route::get('/{package}/mensajes/{sessionId}', [PackageMessageController::class, 'show'])->name('messages.show');
-        Route::post('/{package}/mensajes', [PackageMessageController::class, 'store'])->name('messages.store');
     });
+
+    Route::prefix('pos-woo')->group(function () {
+        Route::get('/', [PosWooController::class, 'dashboard']);
+        Route::get('/pedidos', [PosWooController::class, 'ordersPage']);
+    });
+});
+
+// Pos Woo API routes (without names; wayfinder skips them)
+Route::middleware(['auth', 'verified'])->prefix('admin/pos-woo')->group(function () {
+    Route::get('/products', [PosWooController::class, 'searchProducts']);
+    Route::get('/products/{product}/variations', [PosWooController::class, 'productVariations']);
+    Route::get('/customers', [PosWooController::class, 'searchCustomers']);
+    Route::get('/orders', [PosWooController::class, 'orders']);
+    Route::post('/checkout', [PosWooController::class, 'checkout']);
 });

@@ -1,16 +1,12 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    Activity,
-    CalendarClock,
     Image as ImageIcon,
     LayoutGrid,
     LayoutTemplate,
-    MessageCircle,
     Package,
     Puzzle,
     Settings,
     ShoppingCart,
-    Users,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import AppLogo from '@/components/app-logo';
@@ -48,8 +44,6 @@ type SharedProps = {
 };
 
 const PACKAGE_ICON_MAP: Record<string, IconComponent> = {
-    MessageCircle,
-    Users,
     ShoppingCart,
     Package,
 };
@@ -68,7 +62,7 @@ export function AppSidebar() {
 
     const mainNavItems: NavItem[] = [
         {
-            title: 'Admin',
+            title: 'Panel',
             href: admin(),
             icon: LayoutGrid,
         },
@@ -92,11 +86,24 @@ export function AppSidebar() {
             href: mediaIndex(),
             icon: ImageIcon,
         },
-        ...enabledPackages.map<NavItem>((pkg) => ({
-            title: pkg.label,
-            href: paquetesEdit({ package: pkg.id }).url,
-            icon: resolveIcon(pkg.icon),
-        })),
+        ...enabledPackages.map<NavItem>((pkg) => {
+            if (pkg.slug === 'pos-woo') {
+                return {
+                    title: pkg.label,
+                    icon: ShoppingCart,
+                    children: [
+                        { title: 'Terminal', href: '/admin/pos-woo' },
+                        { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
+                    ],
+                };
+            }
+
+            return {
+                title: pkg.label,
+                href: paquetesEdit({ package: pkg.id }).url,
+                icon: resolveIcon(pkg.icon),
+            };
+        }),
         {
             title: 'Configuración',
             href: '#',

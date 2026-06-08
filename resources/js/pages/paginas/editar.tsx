@@ -98,13 +98,9 @@ export default function PaginaEdit({ page, menus }: PageProps) {
 
 PaginaEdit.layout = {
     breadcrumbs: [
-        {
-            title: 'Pagina',
-            href: '/admin/paginas'
-        },
-        {
-            title: 'Editar',
-        },
+        { title: 'Admin', href: '/admin' },
+        { title: 'Pagina', href: '/admin/paginas' },
+        { title: 'Editar' },
     ],
 };
 

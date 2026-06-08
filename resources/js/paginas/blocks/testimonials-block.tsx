@@ -1,7 +1,5 @@
 import type { ComponentConfig } from '@puckeditor/core';
 import { Star } from 'lucide-react';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 import { MediaPickerField } from './media-picker-field';
 
 type TestimonialsBlockProps = {
@@ -14,7 +12,7 @@ type TestimonialsBlockProps = {
 };
 
 export const TestimonialsBlock: ComponentConfig<
-    TestimonialsBlockProps & SharedBlockProps
+    TestimonialsBlockProps
 > = {
     label: 'Testimonio',
     fields: {
@@ -37,7 +35,6 @@ export const TestimonialsBlock: ComponentConfig<
                 { label: '5 estrellas', value: 5 },
             ],
         },
-        ...sharedFields,
     },
     defaultProps: {
         avatar_src: '',
@@ -46,7 +43,6 @@ export const TestimonialsBlock: ComponentConfig<
         role: 'Cargo, Empresa',
         quote: 'Excelente servicio, completamente recomendado.',
         stars: 5,
-        ...sharedDefaultProps,
     },
     render: ({
         avatar_src,
@@ -55,57 +51,54 @@ export const TestimonialsBlock: ComponentConfig<
         role,
         quote,
         stars,
-        ...shared
     }) => {
         const starCount = Number(stars) || 0;
 
         return (
-            <BlockWrapper {...shared}>
-                <div className="flex flex-col gap-4 rounded-xl border border-border bg-background p-6 shadow-sm">
-                    {quote ? (
-                        <blockquote className="text-sm leading-relaxed text-foreground/90">
-                            &ldquo;{quote}&rdquo;
-                        </blockquote>
-                    ) : null}
+            <div className="flex flex-col gap-4 rounded-xl border border-border bg-background p-6 shadow-sm">
+                {quote ? (
+                    <blockquote className="text-sm leading-relaxed text-foreground/90">
+                        &ldquo;{quote}&rdquo;
+                    </blockquote>
+                ) : null}
 
-                    {starCount > 0 ? (
-                        <div className="flex gap-0.5">
-                            {Array.from({ length: starCount }).map(
-                                (_, i) => (
-                                    <Star
-                                        key={i}
-                                        className="size-4 fill-yellow-400 text-yellow-400"
-                                    />
-                                ),
-                            )}
-                        </div>
-                    ) : null}
-
-                    <div className="flex items-center gap-3">
-                        {avatar_src ? (
-                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
-                                <img
-                                    src={avatar_src}
-                                    alt={avatar_alt || name}
-                                    className="h-full w-full object-cover"
+                {starCount > 0 ? (
+                    <div className="flex gap-0.5">
+                        {Array.from({ length: starCount }).map(
+                            (_, i) => (
+                                <Star
+                                    key={i}
+                                    className="size-4 fill-yellow-400 text-yellow-400"
                                 />
-                            </div>
-                        ) : (
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                                {name?.charAt(0)?.toUpperCase() || '?'}
-                            </div>
+                            ),
                         )}
-                        <div>
-                            <p className="text-sm font-medium">{name}</p>
-                            {role ? (
-                                <p className="text-xs text-muted-foreground">
-                                    {role}
-                                </p>
-                            ) : null}
+                    </div>
+                ) : null}
+
+                <div className="flex items-center gap-3">
+                    {avatar_src ? (
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
+                            <img
+                                src={avatar_src}
+                                alt={avatar_alt || name}
+                                className="h-full w-full object-cover"
+                            />
                         </div>
+                    ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+                            {name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                    )}
+                    <div>
+                        <p className="text-sm font-medium">{name}</p>
+                        {role ? (
+                            <p className="text-xs text-muted-foreground">
+                                {role}
+                            </p>
+                        ) : null}
                     </div>
                 </div>
-            </BlockWrapper>
+            </div>
         );
     },
 };

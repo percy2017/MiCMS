@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ChatWidget\ChatWidgetController;
 use App\Http\Controllers\Page\PageController;
 use Illuminate\Support\Facades\Route;
 
@@ -9,12 +8,6 @@ Route::get('/', [PageController::class, 'home'])->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('admin', 'admin')->name('admin');
 });
-
-Route::post('chat-widget/messages', [ChatWidgetController::class, 'store'])
-    ->name('chat-widget.store');
-
-Route::get('chat-widget/history', [ChatWidgetController::class, 'history'])
-    ->name('chat-widget.history');
 
 Route::get('{slug}', [PageController::class, 'show'])
     ->where('slug', '^(?!admin|login|register|forgot-password|two-factor|user|settings|storage|livewire|build|up).*$')

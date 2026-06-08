@@ -156,16 +156,6 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
             <Head title="Páginas" />
             
             <div className="space-y-6 p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Heading
-                        title="Páginas"
-                        description="Crea y edita páginas con el editor visual Puck"
-                    />
-                    <Button onClick={openCreate}>
-                        <FilePlus className="mr-1 size-4" />
-                        Nueva página
-                    </Button>
-                </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <form onSubmit={onSearchSubmit} className="flex-1">
@@ -179,8 +169,10 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                             />
                         </div>
                     </form>
-
-                    <div className="w-full sm:w-56">
+             
+                    <div className="w-full sm:w-40">
+                        
+                       
                         <Select
                             value={filters.status ?? 'all'}
                             onValueChange={onStatusChange}
@@ -196,6 +188,12 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="w-full sm:w-40">
+                        <Button onClick={openCreate}>
+                            <FilePlus className="mr-1 size-4" />
+                            Nueva página
+                        </Button>
                     </div>
                 </div>
 
@@ -439,10 +437,8 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
 
 PaginasIndex.layout = {
     breadcrumbs: [
-        {
-            title: 'Paginas',
-            href: paginasIndex().url,
-        },
+        { title: 'Admin', href: '/admin' },
+        { title: 'Paginas', href: paginasIndex().url },
     ],
 };
 

@@ -4,8 +4,61 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4392b43ac6ad1d9f526533bbbbfa0c7b",
+    "content-hash": "01f0509c7353d38b4264735df027060f",
     "packages": [
+        {
+            "name": "automattic/woocommerce",
+            "version": "3.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/woocommerce/wc-api-php.git",
+                "reference": "e378120df655b7dacbeff4756e23b41b66fe9688"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/woocommerce/wc-api-php/zipball/e378120df655b7dacbeff4756e23b41b66fe9688",
+                "reference": "e378120df655b7dacbeff4756e23b41b66fe9688",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "php": ">= 7.4.0"
+            },
+            "require-dev": {
+                "doctrine/instantiator": "^1.5.0",
+                "phpunit/phpunit": "^9.5.0",
+                "squizlabs/php_codesniffer": "3.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Automattic\\WooCommerce\\": [
+                        "src/WooCommerce"
+                    ]
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Claudio Sanches",
+                    "email": "claudio.sanches@automattic.com"
+                }
+            ],
+            "description": "A PHP wrapper for the WooCommerce REST API",
+            "keywords": [
+                "api",
+                "woocommerce"
+            ],
+            "support": {
+                "issues": "https://github.com/woocommerce/wc-api-php/issues",
+                "source": "https://github.com/woocommerce/wc-api-php/tree/3.1.1"
+            },
+            "time": "2026-01-30T16:26:03+00:00"
+        },
         {
             "name": "aws/aws-crt-php",
             "version": "v1.2.7",
@@ -470,6 +523,93 @@
                 }
             ],
             "time": "2025-01-03T16:18:33+00:00"
+        },
+        {
+            "name": "codexshaper/laravel-woocommerce",
+            "version": "v3.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Codexshaper/laravel-woocommerce.git",
+                "reference": "4b8865d937699ed386818f2188e23ee9926c8100"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Codexshaper/laravel-woocommerce/zipball/4b8865d937699ed386818f2188e23ee9926c8100",
+                "reference": "4b8865d937699ed386818f2188e23ee9926c8100",
+                "shasum": ""
+            },
+            "require": {
+                "automattic/woocommerce": "^3.0"
+            },
+            "require-dev": {
+                "illuminate/support": "~5.5.40|~5.6.0|~5.7.0|~5.8.0|^6.0|^7.0|^8.0|^9.0|^10.0",
+                "phpunit/phpunit": "^7.0|^8.0|^9.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Tag": "Codexshaper\\WooCommerce\\Models\\Tag",
+                        "Tax": "Codexshaper\\WooCommerce\\Models\\Tax",
+                        "Note": "Codexshaper\\WooCommerce\\Models\\Note",
+                        "Term": "Codexshaper\\WooCommerce\\Models\\Term",
+                        "Order": "Codexshaper\\WooCommerce\\Models\\Order",
+                        "Query": "Codexshaper\\WooCommerce\\Facades\\Query",
+                        "Coupon": "Codexshaper\\WooCommerce\\Models\\Coupon",
+                        "Refund": "Codexshaper\\WooCommerce\\Models\\Refund",
+                        "Report": "Codexshaper\\WooCommerce\\Models\\Report",
+                        "Review": "Codexshaper\\WooCommerce\\Models\\Review",
+                        "System": "Codexshaper\\WooCommerce\\Models\\System",
+                        "Product": "Codexshaper\\WooCommerce\\Models\\Product",
+                        "Setting": "Codexshaper\\WooCommerce\\Models\\Setting",
+                        "Webhook": "Codexshaper\\WooCommerce\\Facades\\Webhook",
+                        "Category": "Codexshaper\\WooCommerce\\Models\\Category",
+                        "Customer": "Codexshaper\\WooCommerce\\Models\\Customer",
+                        "TaxClass": "Codexshaper\\WooCommerce\\Models\\TaxClass",
+                        "Attribute": "Codexshaper\\WooCommerce\\Models\\Attribute",
+                        "Variation": "Codexshaper\\WooCommerce\\Models\\Variation",
+                        "WooCommerce": "Codexshaper\\WooCommerce\\Facades\\WooCommerce",
+                        "ShippingZone": "Codexshaper\\WooCommerce\\Models\\ShippingZone",
+                        "WooAnalytics": "Codexshaper\\WooCommerce\\Facades\\WooAnalytics",
+                        "PaymentGateway": "Codexshaper\\WooCommerce\\Facades\\PaymentGateway",
+                        "ShippingMethod": "Codexshaper\\WooCommerce\\Models\\ShippingMethod",
+                        "ShippingZoneMethod": "Codexshaper\\WooCommerce\\Models\\ShippingZoneMethod"
+                    },
+                    "providers": [
+                        "Codexshaper\\WooCommerce\\WooCommerceServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Codexshaper\\WooCommerce\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Md Abu Ahsan Basir",
+                    "email": "maab.career@gmail.com"
+                }
+            ],
+            "description": "WooCommerce Rest API for Laravel",
+            "keywords": [
+                "laravel",
+                "laravel-woocommerce",
+                "laravel-woocommerce-api",
+                "laravel-woocommerce-rest-api",
+                "woocommerce",
+                "woocommerce-api",
+                "woocommerce-rest-api"
+            ],
+            "support": {
+                "issues": "https://github.com/Codexshaper/laravel-woocommerce/issues",
+                "source": "https://github.com/Codexshaper/laravel-woocommerce/tree/v3.0.4"
+            },
+            "time": "2024-03-05T11:43:18+00:00"
         },
         {
             "name": "dasprid/enum",

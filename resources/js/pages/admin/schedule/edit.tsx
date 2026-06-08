@@ -63,14 +63,6 @@ export default function ScheduleEdit({ task, commands }: { task: TaskData; comma
         <>
             <Head title="Editar Tarea Programada" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild className="shrink-0">
-                        <Link href={scheduleRoutes.index()}>
-                            <ArrowLeft className="size-4" />
-                        </Link>
-                    </Button>
-                    <h2 className="text-xl font-semibold tracking-tight">Editar Tarea Programada</h2>
-                </div>
 
                 <Card>
                     <CardHeader>

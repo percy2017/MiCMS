@@ -40,7 +40,6 @@ export default function ScheduleIndex({ tasks }: { tasks: Task[] }) {
             <Head title="Tareas Programadas" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold tracking-tight">Tareas Programadas</h2>
                     <Button asChild>
                         <Link href={create()}>
                             <Plus className="mr-1 size-4" />

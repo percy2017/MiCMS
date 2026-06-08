@@ -94,28 +94,15 @@ export default function MenusIndex({ menus, locations }: PageProps) {
             <Head title="Menús" />
 
             <div className="space-y-6 p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Heading
-                        title="Menús"
-                        description="Crea y edita menús de navegación dinámicos"
-                    />
-                    <Button
-                        onClick={openCreate}
-                        disabled={locationEntries.length === 0}
-                    >
-                        <FilePlus className="mr-1 size-4" />
-                        Nuevo menú
-                    </Button>
-                </div>
-
-                <div className="relative max-w-sm">
+                
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         type="search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Buscar por nombre o ubicación…"
-                        className="pl-9 pr-9"
+                        className="pl-9"
                     />
                     {search !== '' ? (
                         <button
@@ -127,6 +114,14 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                             <X className="size-4" />
                         </button>
                     ) : null}
+
+                    <Button
+                        onClick={openCreate}
+                        disabled={locationEntries.length === 0}
+                    >
+                        <FilePlus className="mr-1 size-4" />
+                        Nuevo menú
+                    </Button>
                 </div>
 
                 {locationEntries.length === 0 ? (
@@ -340,3 +335,11 @@ export default function MenusIndex({ menus, locations }: PageProps) {
         </>
     );
 }
+
+MenusIndex.layout = {
+    breadcrumbs: [
+        { title: 'Admin', href: '/admin' },
+        { title: 'Menus', href: '/admin/Menus'},
+    ],
+};
+

@@ -1,19 +1,11 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Render } from '@puckeditor/core';
 import type { Data } from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
-import { ChatWidget } from '@/components/chat/chat-widget';
 import Footer from '@/paginas/components/footer';
 import Header from '@/paginas/components/header';
 import { MenuProvider, type MenusByLocation } from '@/paginas/menu-context';
 import { puckConfig } from '@/paginas/puck-config';
-
-type EnabledPackage = {
-    id: number;
-    slug: string;
-    label: string;
-    icon?: string | null;
-};
 
 type PageProps = {
     page: {
@@ -23,15 +15,9 @@ type PageProps = {
         puck_data: Data;
     };
     menus: MenusByLocation;
-    enabledPackages: EnabledPackage[];
 };
 
 export default function PaginaShow({ page, menus }: PageProps) {
-    const { props } = usePage<PageProps>();
-    const hasChatWidget = (props.enabledPackages ?? []).some(
-        (pkg) => pkg.slug === 'chat-widget',
-    );
-
     return (
         <MenuProvider menus={menus}>
             <Head title={page.title}>
@@ -50,8 +36,6 @@ export default function PaginaShow({ page, menus }: PageProps) {
                 </main>
                 <Footer />
             </div>
-
-            {hasChatWidget ? <ChatWidget /> : null}
         </MenuProvider>
     );
 }

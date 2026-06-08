@@ -3,12 +3,33 @@
 namespace Database\Seeders;
 
 use App\Models\Page;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
-class DefaultLandingPageSeeder extends Seeder
+class CoreSeeder extends Seeder
 {
     public function run(): void
+    {
+        $this->seedAdminUser();
+        $this->seedLandingPage();
+        $this->seedDefaultSettings();
+    }
+
+    protected function seedAdminUser(): void
+    {
+        User::updateOrCreate(
+            ['email' => 'admin@admin.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('Admin2026$'),
+                'email_verified_at' => now(),
+            ],
+        );
+    }
+
+    protected function seedLandingPage(): void
     {
         Page::query()->update(['is_home' => false]);
 
@@ -36,6 +57,14 @@ class DefaultLandingPageSeeder extends Seeder
         );
 
         $this->command?->info("Página de inicio '{$page->title}' lista en /");
+    }
+
+    protected function seedDefaultSettings(): void
+    {
+        Setting::set('site_name', config('app.name'), Setting::TYPE_STRING);
+        Setting::set('site_tagline', 'CMS moderno · Laravel + Inertia + Puck', Setting::TYPE_STRING);
+
+        $this->command?->info('Settings por defecto insertadas.');
     }
 
     /**
@@ -141,16 +170,10 @@ class DefaultLandingPageSeeder extends Seeder
         return [
             'id' => $id,
             ...$block,
-            'padding' => ['top' => 24, 'right' => 24, 'bottom' => 24, 'left' => 24],
-            'margin' => ['top' => 0, 'bottom' => 0],
+            'padding' => 'md',
+            'marginBottom' => 'none',
             'backgroundColor' => 'transparent',
             'borderRadius' => 'none',
-            'boxShadow' => 'none',
-            'maxWidth' => '768px',
-            'hideOnMobile' => false,
-            'hideOnDesktop' => false,
-            'animation' => 'none',
-            'animationDelay' => 0,
         ];
     }
 }

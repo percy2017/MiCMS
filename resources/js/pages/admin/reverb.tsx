@@ -82,41 +82,8 @@ export default function ReverbMonitor() {
 
     return (
         <>
-            <Head title="Reverb Monitor" />
+            <Head title="Socket Monitor" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-hidden rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold tracking-tight">Reverb Monitor</h2>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                if (confirm('¿Limpiar cache y resetear contadores?')) {
-                                    router.post(reverbRoutes.reset());
-                                    setStats({
-                                        connections: 0,
-                                        peak_connections: 0,
-                                        messages: 0,
-                                        active_channels: 0,
-                                        events: [],
-                                        updated_at: new Date().toISOString(),
-                                    });
-                                }
-                            }}
-                            className="gap-1.5"
-                        >
-                            <RotateCcw className="size-3.5" />
-                            Limpiar Cache
-                        </Button>
-                        <Badge variant="outline" className="gap-1.5 text-xs">
-                            <span className="relative flex size-2">
-                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                            </span>
-                            Live
-                        </Badge>
-                    </div>
-                </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 shrink-0">
                     <Card>
@@ -172,6 +139,37 @@ export default function ReverbMonitor() {
                     </Card>
                 </div>
 
+               <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            if (confirm('¿Limpiar cache y resetear contadores?')) {
+                                router.post(reverbRoutes.reset());
+                                setStats({
+                                    connections: 0,
+                                    peak_connections: 0,
+                                    messages: 0,
+                                    active_channels: 0,
+                                    events: [],
+                                    updated_at: new Date().toISOString(),
+                                });
+                            }
+                        }}
+                        className="gap-1.5"
+                    >
+                        <RotateCcw className="size-3.5" />
+                        Limpiar Cache
+                    </Button>
+                    <Badge variant="outline" className="gap-1.5 text-xs">
+                        <span className="relative flex size-2">
+                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                        </span>
+                        Live
+                    </Badge>
+                </div>
+
                 <Card className="flex min-h-0 flex-1 flex-col">
                     <CardHeader className="shrink-0">
                         <CardTitle className="text-sm font-medium">
@@ -181,6 +179,7 @@ export default function ReverbMonitor() {
                             </span>
                         </CardTitle>
                     </CardHeader>
+              
                     <CardContent className="min-h-0 flex-1 p-0">
                         <div
                             ref={feedRef}
@@ -229,6 +228,6 @@ export default function ReverbMonitor() {
 ReverbMonitor.layout = {
     breadcrumbs: [
         { title: 'Admin', href: admin() },
-        { title: 'Reverb Monitor', href: reverbRoute() },
+        { title: 'Socket Monitor', href: reverbRoute() },
     ],
 };

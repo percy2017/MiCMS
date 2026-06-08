@@ -1,6 +1,4 @@
 import type { ComponentConfig } from '@puckeditor/core';
-import type { SharedBlockProps } from './shared-block-fields';
-import { sharedFields, sharedDefaultProps, BlockWrapper } from './shared-block-fields';
 import { MediaPickerField } from '@/paginas/blocks/media-picker-field';
 
 type VideoBlockProps = {
@@ -9,7 +7,7 @@ type VideoBlockProps = {
     loop: boolean;
 };
 
-export const VideoBlock: ComponentConfig<VideoBlockProps & SharedBlockProps> = {
+export const VideoBlock: ComponentConfig<VideoBlockProps> = {
     label: 'Video',
     fields: {
         src: {
@@ -31,39 +29,33 @@ export const VideoBlock: ComponentConfig<VideoBlockProps & SharedBlockProps> = {
                 { label: 'Sí', value: true },
             ],
         },
-        ...sharedFields,
     },
     defaultProps: {
         src: '',
         autoplay: false,
         loop: false,
-        ...sharedDefaultProps,
     },
-    render: ({ src, autoplay, loop, ...shared }) => {
+    render: ({ src, autoplay, loop }) => {
         if (!src) {
             return (
-                <BlockWrapper {...shared}>
-                    <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 text-sm text-muted-foreground">
-                        Selecciona un video desde Medios
-                    </div>
-                </BlockWrapper>
+                <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 text-sm text-muted-foreground">
+                    Selecciona un video desde Medios
+                </div>
             );
         }
 
         return (
-            <BlockWrapper {...shared}>
-                <video
-                    src={src}
-                    controls
-                    autoPlay={autoplay}
-                    loop={loop}
-                    muted={autoplay}
-                    playsInline
-                    className="w-full rounded-lg"
-                >
-                    Tu navegador no soporta el elemento video.
-                </video>
-            </BlockWrapper>
+            <video
+                src={src}
+                controls
+                autoPlay={autoplay}
+                loop={loop}
+                muted={autoplay}
+                playsInline
+                className="w-full rounded-lg"
+            >
+                Tu navegador no soporta el elemento video.
+            </video>
         );
     },
 };
