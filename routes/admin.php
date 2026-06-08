@@ -5,9 +5,43 @@ use App\Http\Controllers\Media\MediaUploadController;
 use App\Http\Controllers\Menu\MenuController;
 use App\Http\Controllers\Menu\MenuItemController;
 use App\Http\Controllers\Page\PageController;
+use App\Http\Controllers\ScheduleController;
+use App\Services\ReverbMonitorService;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('reverb', function () {
+        return Inertia::render('admin/reverb', [
+            'stats' => app(ReverbMonitorService::class)->getStats(),
+        ]);
+    })->name('reverb');
+
+    Route::get('reverb/stats', function () {
+        return response()->json(
+            app(ReverbMonitorService::class)->getStats()
+        );
+    })->name('reverb.stats');
+
+    Route::post('reverb/reset', function () {
+        app(ReverbMonitorService::class)->reset();
+
+        return back();
+    })->name('reverb.reset');
+
+    Route::prefix('schedule')->name('schedule.')->group(function () {
+        Route::get('/', [ScheduleController::class, 'index'])->name('index');
+        Route::get('/commands', [ScheduleController::class, 'commands'])->name('commands');
+        Route::get('/crear', [ScheduleController::class, 'create'])->name('create');
+        Route::post('/', [ScheduleController::class, 'store'])->name('store');
+        Route::get('/{task}/editar', [ScheduleController::class, 'edit'])->name('edit');
+        Route::patch('/{task}', [ScheduleController::class, 'update'])->name('update');
+        Route::delete('/{task}', [ScheduleController::class, 'destroy'])->name('destroy');
+        Route::patch('/{task}/toggle', [ScheduleController::class, 'toggle'])->name('toggle');
+        Route::post('/{task}/run', [ScheduleController::class, 'run'])->name('run');
+        Route::get('/{task}/history', [ScheduleController::class, 'history'])->name('history');
+    });
+
     Route::get('media', [MediaController::class, 'index'])->name('media.index');
     Route::post('media', [MediaUploadController::class, 'store'])->name('media.store');
     Route::get('media/{media}', [MediaController::class, 'show'])->name('media.show');

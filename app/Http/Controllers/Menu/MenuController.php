@@ -55,11 +55,6 @@ class MenuController extends Controller
 
         $items = $menu->items->map(fn ($item) => $item->present())->values();
 
-        $assignedLocations = Menu::query()
-            ->where('id', '!=', $menu->id)
-            ->pluck('location')
-            ->all();
-
         $availableLocations = collect((array) config('menus.locations', []))
             ->map(fn (string $label, string $key): array => [
                 'value' => $key,

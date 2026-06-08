@@ -54,16 +54,18 @@ test('menu location must be in registered locations', function () {
         ->assertSessionHasErrors('location');
 });
 
-test('menu location must be unique', function () {
+test('multiple menus can share the same location', function () {
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
-    Menu::factory()->create(['location' => 'header']);
+    Menu::factory()->create(['location' => 'header', 'name' => 'First']);
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->from(route('admin.menus.index'))
         ->post(route('admin.menus.store'), [
-            'name' => 'Duplicate',
+            'name' => 'Second',
             'location' => 'header',
         ])
-        ->assertSessionHasErrors('location');
+        ->assertRedirect(route('admin.menus.edit', ['menu' => Menu::query()->where('name', 'Second')->first()->id]));
+
+    expect(Menu::query()->where('location', 'header')->count())->toBe(2);
 });

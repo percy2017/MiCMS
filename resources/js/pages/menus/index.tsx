@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { FilePlus, Loader2, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { FilePlus, Loader2, Search, Trash2, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +40,7 @@ type PageProps = {
 export default function MenusIndex({ menus, locations }: PageProps) {
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
+    const [search, setSearch] = useState('');
 
     const form = useForm({
         name: '',
@@ -47,15 +48,27 @@ export default function MenusIndex({ menus, locations }: PageProps) {
     });
 
     const locationEntries = Object.entries(locations);
-    const usedLocations = new Set(menus.map((m) => m.location));
-    const availableLocations = locationEntries.filter(
-        ([key]) => !usedLocations.has(key),
-    );
+
+    const filteredMenus = useMemo(() => {
+        const q = search.trim().toLowerCase();
+
+        if (q === '') {
+            return menus;
+        }
+
+        return menus.filter((menu) => {
+            const haystack = [menu.name, menu.location, menu.location_label ?? '']
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(q);
+        });
+    }, [menus, search]);
 
     function openCreate(): void {
         form.reset();
         form.clearErrors();
-        form.setData('location', availableLocations[0]?.[0] ?? '');
+        form.setData('location', locationEntries[0]?.[0] ?? '');
         setCreateOpen(true);
     }
 
@@ -86,13 +99,37 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                         title="Menús"
                         description="Crea y edita menús de navegación dinámicos"
                     />
-                    <Button onClick={openCreate} disabled={availableLocations.length === 0}>
+                    <Button
+                        onClick={openCreate}
+                        disabled={locationEntries.length === 0}
+                    >
                         <FilePlus className="mr-1 size-4" />
                         Nuevo menú
                     </Button>
                 </div>
 
-                {availableLocations.length === 0 && menus.length === 0 ? (
+                <div className="relative max-w-sm">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar por nombre o ubicación…"
+                        className="pl-9 pr-9"
+                    />
+                    {search !== '' ? (
+                        <button
+                            type="button"
+                            onClick={() => setSearch('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label="Limpiar búsqueda"
+                        >
+                            <X className="size-4" />
+                        </button>
+                    ) : null}
+                </div>
+
+                {locationEntries.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         No hay ubicaciones configuradas. Añade ubicaciones en
                         <code className="mx-1 rounded bg-muted px-1.5 py-0.5">
@@ -108,16 +145,29 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                             <p className="text-sm text-muted-foreground">
                                 Aún no hay menús. Crea el primero.
                             </p>
-                            {availableLocations.length > 0 ? (
+                            {locationEntries.length > 0 ? (
                                 <Button variant="outline" onClick={openCreate}>
                                     <FilePlus className="mr-1 size-4" />
                                     Crear menú
                                 </Button>
                             ) : null}
                         </div>
+                    ) : filteredMenus.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                            <p className="text-sm text-muted-foreground">
+                                No se encontraron menús que coincidan con
+                                “{search}”.
+                            </p>
+                            <Button
+                                variant="outline"
+                                onClick={() => setSearch('')}
+                            >
+                                Limpiar búsqueda
+                            </Button>
+                        </div>
                     ) : (
                         <div className="divide-y">
-                            {menus.map((menu) => (
+                            {filteredMenus.map((menu) => (
                                 <div
                                     key={menu.id}
                                     className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30"
@@ -219,13 +269,11 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                                         <SelectValue placeholder="Selecciona una ubicación" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {availableLocations.map(
-                                            ([key, label]) => (
-                                                <SelectItem key={key} value={key}>
-                                                    {label}
-                                                </SelectItem>
-                                            ),
-                                        )}
+                                        {locationEntries.map(([key, label]) => (
+                                            <SelectItem key={key} value={key}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 {form.errors.location ? (

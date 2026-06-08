@@ -29,7 +29,6 @@ class UpdateMenuRequest extends FormRequest
                 'required',
                 'string',
                 Rule::in($locations),
-                Rule::unique('menus', 'location')->ignore($menu->id),
             ],
         ];
     }

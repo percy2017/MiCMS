@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { FileText, Image as ImageIcon, LayoutGrid, Menu as MenuIcon } from 'lucide-react';
+import { Activity, CalendarClock, Image as ImageIcon, LayoutGrid, LayoutTemplate } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -16,6 +16,8 @@ import { admin } from '@/routes';
 import { index as mediaIndex } from '@/routes/admin/media';
 import { index as menusIndex } from '@/routes/admin/menus';
 import { index as paginasIndex } from '@/routes/admin/paginas';
+import { reverb as reverbRoute } from '@/routes/admin';
+import { index as scheduleIndex } from '@/routes/admin/schedule';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -27,7 +29,17 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Páginas',
         href: paginasIndex(),
-        icon: FileText,
+        icon: LayoutTemplate,
+        children: [
+            {
+                title: 'Páginas',
+                href: paginasIndex(),
+            },
+            {
+                title: 'Menús',
+                href: menusIndex(),
+            },
+        ],
     },
     {
         title: 'Medios',
@@ -35,9 +47,14 @@ const mainNavItems: NavItem[] = [
         icon: ImageIcon,
     },
     {
-        title: 'Menús',
-        href: menusIndex(),
-        icon: MenuIcon,
+        title: 'Socket',
+        href: reverbRoute(),
+        icon: Activity,
+    },
+    {
+        title: 'Tareas',
+        href: scheduleIndex(),
+        icon: CalendarClock,
     },
 ];
 

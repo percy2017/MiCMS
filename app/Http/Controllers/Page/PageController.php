@@ -77,19 +77,16 @@ class PageController extends Controller
             ])
             ->whereIn('location', $locations)
             ->get()
-            ->mapWithKeys(function (Menu $menu) {
-                return [
-                    $menu->location => [
-                        'id' => $menu->id,
-                        'name' => $menu->name,
-                        'location' => $menu->location,
-                        'items' => $menu->items
-                            ->map(fn ($item) => $item->present())
-                            ->values()
-                            ->all(),
-                    ],
-                ];
-            })
+            ->groupBy('location')
+            ->map(fn ($group, $location) => [
+                'id' => $group->first()->id,
+                'name' => $group->first()->name,
+                'location' => $location,
+                'items' => $group->first()->items
+                    ->map(fn ($item) => $item->present())
+                    ->values()
+                    ->all(),
+            ])
             ->all();
 
         return Inertia::render('paginas/editar', [
@@ -232,19 +229,16 @@ class PageController extends Controller
             ])
             ->whereIn('location', $locations)
             ->get()
-            ->mapWithKeys(function (Menu $menu) {
-                return [
-                    $menu->location => [
-                        'id' => $menu->id,
-                        'name' => $menu->name,
-                        'location' => $menu->location,
-                        'items' => $menu->items
-                            ->map(fn ($item) => $item->present())
-                            ->values()
-                            ->all(),
-                    ],
-                ];
-            })
+            ->groupBy('location')
+            ->map(fn ($group, $location) => [
+                'id' => $group->first()->id,
+                'name' => $group->first()->name,
+                'location' => $location,
+                'items' => $group->first()->items
+                    ->map(fn ($item) => $item->present())
+                    ->values()
+                    ->all(),
+            ])
             ->all();
     }
 

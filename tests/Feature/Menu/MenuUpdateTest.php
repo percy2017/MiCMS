@@ -42,17 +42,20 @@ test('menu name is required on update', function () {
         ->assertSessionHasErrors('name');
 });
 
-test('updating to a taken location fails', function () {
+test('updating to a location already used by another menu is allowed', function () {
     config()->set('menus.locations', ['header' => 'Header', 'footer' => 'Footer']);
-    Menu::factory()->create(['location' => 'footer']);
-    $menu = Menu::factory()->create(['location' => 'header']);
+    Menu::factory()->create(['location' => 'footer', 'name' => 'Footer 1']);
+    $menu = Menu::factory()->create(['location' => 'header', 'name' => 'Header 1']);
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->from(route('admin.menus.edit', ['menu' => $menu->id]))
         ->patch(route('admin.menus.update', ['menu' => $menu->id]), [
-            'name' => 'Test',
+            'name' => 'Header 1 Renamed',
             'location' => 'footer',
         ])
-        ->assertSessionHasErrors('location');
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.menus.edit', ['menu' => $menu->id]));
+
+    expect(Menu::query()->where('location', 'footer')->count())->toBe(2);
 });

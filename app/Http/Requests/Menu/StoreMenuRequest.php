@@ -21,7 +21,7 @@ class StoreMenuRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'location' => ['required', 'string', Rule::in($locations), 'unique:menus,location'],
+            'location' => ['required', 'string', Rule::in($locations)],
         ];
     }
 }
