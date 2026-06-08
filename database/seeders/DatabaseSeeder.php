@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DefaultLandingPageSeeder::class,
             MenuSeeder::class,
+            PackageSeeder::class,
         ]);
     }
 }

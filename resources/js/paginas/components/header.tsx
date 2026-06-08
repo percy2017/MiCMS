@@ -103,7 +103,11 @@ export default function Header() {
                             className="h-7 w-auto rounded-md"
                         />
                     ) : (
-                        <span className="inline-block size-7 rounded-md bg-primary" aria-hidden="true" />
+                        <img
+                            src="/apple-touch-icon.png"
+                            alt={site.name}
+                            className="h-7 w-7 rounded-md"
+                        />
                     )}
                     {site.name}
                 </a>

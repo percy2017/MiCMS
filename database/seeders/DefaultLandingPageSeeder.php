@@ -24,80 +24,7 @@ class DefaultLandingPageSeeder extends Seeder
                 'is_home' => true,
                 'published_at' => now(),
                 'puck_data' => [
-                    'content' => [
-                        [
-                            'type' => 'HeadingBlock',
-                            'props' => [
-                                'id' => 'landing-hero-title',
-                                'level' => 'h1',
-                                'align' => 'center',
-                                'children' => 'Bienvenido a tu nuevo CMS',
-                            ],
-                        ],
-                        [
-                            'type' => 'TextBlock',
-                            'props' => [
-                                'id' => 'landing-hero-subtitle',
-                                'content' => '<p style="text-align:center">Una plataforma moderna construida con Laravel, Inertia y Puck para diseñar tus páginas visualmente.</p>',
-                                'align' => 'center',
-                            ],
-                        ],
-                        [
-                            'type' => 'SpacerBlock',
-                            'props' => [
-                                'id' => 'landing-spacer-1',
-                                'height' => 24,
-                            ],
-                        ],
-                        [
-                            'type' => 'ButtonBlock',
-                            'props' => [
-                                'id' => 'landing-cta',
-                                'text' => 'Ir al dashboard',
-                                'url' => '/admin',
-                                'variant' => 'primary',
-                                'align' => 'center',
-                            ],
-                        ],
-                        [
-                            'type' => 'SpacerBlock',
-                            'props' => [
-                                'id' => 'landing-spacer-2',
-                                'height' => 48,
-                            ],
-                        ],
-                        [
-                            'type' => 'DividerBlock',
-                            'props' => [
-                                'id' => 'landing-divider',
-                                'style' => 'solid',
-                            ],
-                        ],
-                        [
-                            'type' => 'SpacerBlock',
-                            'props' => [
-                                'id' => 'landing-spacer-3',
-                                'height' => 32,
-                            ],
-                        ],
-                        [
-                            'type' => 'HeadingBlock',
-                            'props' => [
-                                'id' => 'landing-features-title',
-                                'level' => 'h2',
-                                'align' => 'center',
-                                'children' => 'Características',
-                            ],
-                        ],
-                        [
-                            'type' => 'TextBlock',
-                            'props' => [
-                                'id' => 'landing-features-text',
-                                'content' => '<ul><li>Editor visual Puck</li><li>Biblioteca de medios</li><li>URLs personalizables</li><li>Modo oscuro</li></ul>',
-                                'align' => 'center',
-                            ],
-                        ],
-                    ],
+                    'content' => $this->content(),
                     'root' => [
                         'props' => [
                             'title' => 'Inicio',
@@ -109,5 +36,121 @@ class DefaultLandingPageSeeder extends Seeder
         );
 
         $this->command?->info("Página de inicio '{$page->title}' lista en /");
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function content(): array
+    {
+        return [
+            [
+                'type' => 'HeadingBlock',
+                'props' => $this->props(
+                    'landing-hero-eyebrow',
+                    ['level' => 'h4', 'align' => 'center', 'children' => 'CMS moderno · Laravel + Inertia + Puck'],
+                ),
+            ],
+            [
+                'type' => 'HeadingBlock',
+                'props' => $this->props(
+                    'landing-hero-title',
+                    [
+                        'level' => 'h1',
+                        'align' => 'center',
+                        'children' => 'Diseña tus páginas sin tocar código',
+                    ],
+                ),
+            ],
+            [
+                'type' => 'TextBlock',
+                'props' => $this->props(
+                    'landing-hero-subtitle',
+                    [
+                        'content' => '<p style="text-align:center">Una plataforma moderna construida con Laravel, Inertia.js y Puck. Crea landing pages, gestiona medios, organiza menús y más.</p>',
+                        'align' => 'center',
+                    ],
+                ),
+            ],
+            [
+                'type' => 'ButtonBlock',
+                'props' => $this->props(
+                    'landing-cta-primary',
+                    [
+                        'text' => 'Ir al dashboard',
+                        'url' => '/admin',
+                        'variant' => 'primary',
+                        'align' => 'center',
+                    ],
+                ),
+            ],
+            [
+                'type' => 'HeadingBlock',
+                'props' => $this->props(
+                    'landing-features-title',
+                    ['level' => 'h2', 'align' => 'center', 'children' => 'Todo lo que necesitas'],
+                ),
+            ],
+            [
+                'type' => 'TextBlock',
+                'props' => $this->props(
+                    'landing-features-subtitle',
+                    [
+                        'content' => '<p style="text-align:center">Un CMS completo con editor visual, medios, menús dinámicos y módulos extensibles.</p>',
+                        'align' => 'center',
+                    ],
+                ),
+            ],
+            [
+                'type' => 'ColumnsBlock',
+                'props' => $this->props(
+                    'landing-features-grid',
+                    ['columns' => 3, 'gap' => 'lg'],
+                ),
+            ],
+            [
+                'type' => 'ColumnsBlock',
+                'props' => $this->props(
+                    'landing-cta-row',
+                    ['columns' => 2, 'gap' => 'md'],
+                ),
+            ],
+            [
+                'type' => 'DividerBlock',
+                'props' => $this->props('landing-divider', ['style' => 'solid']),
+            ],
+            [
+                'type' => 'TextBlock',
+                'props' => $this->props(
+                    'landing-footer-note',
+                    [
+                        'content' => '<p style="text-align:center; font-size: 0.875rem; color: var(--muted-foreground);">Construido con Laravel 13, Inertia v3, Puck, React 19 y Tailwind 4.</p>',
+                        'align' => 'center',
+                    ],
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $block
+     * @return array<string, mixed>
+     */
+    private function props(string $id, array $block): array
+    {
+        return [
+            'id' => $id,
+            ...$block,
+            'padding' => ['top' => 24, 'right' => 24, 'bottom' => 24, 'left' => 24],
+            'margin' => ['top' => 0, 'bottom' => 0],
+            'backgroundColor' => 'transparent',
+            'borderRadius' => 'none',
+            'boxShadow' => 'none',
+            'maxWidth' => '768px',
+            'hideOnMobile' => false,
+            'hideOnDesktop' => false,
+            'animation' => 'none',
+            'animationDelay' => 0,
+        ];
     }
 }

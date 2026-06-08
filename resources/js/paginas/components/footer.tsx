@@ -24,19 +24,19 @@ export default function Footer() {
 
     return (
         <footer className="border-t border-border bg-background">
-            <div className="mx-auto flex flex-col items-center gap-2 px-4 py-4 lg:flex-row lg:justify-between lg:py-0">
+            <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-2 px-4 py-4 sm:min-h-16 sm:flex-row sm:justify-between sm:gap-4 sm:py-0">
                 {items.length > 0 ? (
-                    <nav aria-label="Menú del pie">
-                        <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1">
+                    <nav aria-label="Menú del pie" className="flex-1">
+                        <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 sm:justify-start">
                             {items.map((item) => (
                                 <FooterLink key={item.id} item={item} />
                             ))}
                         </ul>
                     </nav>
                 ) : (
-                    <div />
+                    <div className="flex-1" />
                 )}
-                <p className="text-center text-xs text-muted-foreground lg:text-left">
+                <p className="text-center text-xs text-muted-foreground sm:text-right">
                     © {year} {site.name}. Todos los derechos reservados.
                 </p>
             </div>

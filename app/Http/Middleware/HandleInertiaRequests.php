@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Media;
+use App\Models\Package;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -52,6 +53,21 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'enabledPackages' => fn (): array => $request->user()
+                ? Package::query()
+                    ->enabled()
+                    ->installed()
+                    ->orderBy('name')
+                    ->get(['id', 'slug', 'name', 'menu_label', 'icon'])
+                    ->map(fn (Package $package): array => [
+                        'id' => $package->id,
+                        'slug' => $package->slug,
+                        'label' => $package->menuLabel(),
+                        'icon' => $package->icon,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
         ];
     }
 }

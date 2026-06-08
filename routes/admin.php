@@ -4,6 +4,8 @@ use App\Http\Controllers\Media\MediaController;
 use App\Http\Controllers\Media\MediaUploadController;
 use App\Http\Controllers\Menu\MenuController;
 use App\Http\Controllers\Menu\MenuItemController;
+use App\Http\Controllers\Package\PackageController;
+use App\Http\Controllers\Package\PackageMessageController;
 use App\Http\Controllers\Page\PageController;
 use App\Http\Controllers\ScheduleController;
 use App\Services\ReverbMonitorService;
@@ -67,4 +69,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::patch('menus/{menu}/items/{item}', [MenuItemController::class, 'update'])->name('menus.items.update');
     Route::delete('menus/{menu}/items/{item}', [MenuItemController::class, 'destroy'])->name('menus.items.destroy');
     Route::post('menus/{menu}/items/reorder', [MenuItemController::class, 'reorder'])->name('menus.items.reorder');
+
+    Route::prefix('paquetes')->name('paquetes.')->group(function () {
+        Route::get('/', [PackageController::class, 'index'])->name('index');
+        Route::get('/{package}/editar', [PackageController::class, 'edit'])->name('edit');
+        Route::patch('/{package}', [PackageController::class, 'update'])->name('update');
+        Route::patch('/{package}/toggle', [PackageController::class, 'toggle'])->name('toggle');
+        Route::get('/{package}/mensajes', [PackageMessageController::class, 'index'])->name('messages.index');
+        Route::get('/{package}/mensajes/{sessionId}', [PackageMessageController::class, 'show'])->name('messages.show');
+        Route::post('/{package}/mensajes', [PackageMessageController::class, 'store'])->name('messages.store');
+    });
 });

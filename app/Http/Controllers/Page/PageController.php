@@ -7,6 +7,7 @@ use App\Http\Requests\Page\StorePageRequest;
 use App\Http\Requests\Page\UpdatePageRequest;
 use App\Models\Menu;
 use App\Models\Page;
+use App\Services\PackageManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -194,8 +195,10 @@ class PageController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function presentPublic(Page $page): array
+    protected function presentPublic(Page $page, ?PackageManager $packages = null): array
     {
+        $packages ??= app(PackageManager::class);
+
         return [
             'page' => [
                 'id' => $page->id,
@@ -204,6 +207,15 @@ class PageController extends Controller
                 'puck_data' => $page->puck_data ?? ['content' => [], 'root' => ['props' => []], 'zones' => []],
             ],
             'menus' => $this->menusForLayout(),
+            'enabledPackages' => $packages->enabled()
+                ->map(fn ($p): array => [
+                    'id' => $p->id,
+                    'slug' => $p->slug,
+                    'label' => $p->menuLabel(),
+                    'icon' => $p->icon,
+                ])
+                ->values()
+                ->all(),
         ];
     }
 

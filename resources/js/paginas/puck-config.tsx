@@ -13,8 +13,6 @@ import { SpacerBlock } from '@/paginas/blocks/spacer-block';
 import { TestimonialsBlock } from '@/paginas/blocks/testimonials-block';
 import { TextBlock } from '@/paginas/blocks/text-block';
 import { VideoBlock } from '@/paginas/blocks/video-block';
-import Footer from '@/paginas/components/footer';
-import Header from '@/paginas/components/header';
 
 export type PuckComponents = {
     HeadingBlock: {
@@ -208,13 +206,7 @@ export const puckConfig: Config<PuckComponents, PuckRootProps> = {
         defaultProps: {
             title: 'Sin título',
         },
-        render: ({ children }) => (
-            <div className="flex min-h-screen flex-col bg-background text-foreground">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
-            </div>
-        ),
+        render: ({ children }) => <div className="bg-background text-foreground">{children}</div>,
     },
 };
 
