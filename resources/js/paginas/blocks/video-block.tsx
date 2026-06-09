@@ -1,5 +1,6 @@
 import type { ComponentConfig } from '@puckeditor/core';
 import { MediaPickerField } from '@/paginas/blocks/media-picker-field';
+import { isSafeUrl } from '@/lib/safe-url';
 
 type VideoBlockProps = {
     src: string;
@@ -44,9 +45,19 @@ export const VideoBlock: ComponentConfig<VideoBlockProps> = {
             );
         }
 
+        const safe = isSafeUrl(src);
+
+        if (!safe) {
+            return (
+                <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-destructive/40 bg-destructive/10 text-sm text-destructive">
+                    URL de video no permitida.
+                </div>
+            );
+        }
+
         return (
             <video
-                src={src}
+                src={safe}
                 controls
                 autoPlay={autoplay}
                 loop={loop}

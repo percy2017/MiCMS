@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { FilePlus, Home, Loader2, Search, Trash2 } from 'lucide-react';
+import { FilePlus, Home, Loader2, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { destroy, setHome, store, unsetHome } from '@/routes/admin/paginas';
-import { index as paginasIndex } from '@/routes/admin/paginas';
+import {
+    destroy,
+    forceDestroy,
+    index as paginasIndex,
+    restore,
+    setHome,
+    store,
+    unsetHome,
+} from '@/routes/admin/paginas';
 import { Description } from '@radix-ui/react-dialog';
 
 type PageItem = {
@@ -56,6 +63,7 @@ type PageProps = {
     filters: {
         search: string;
         status: string | null;
+        trashed: boolean;
     };
 };
 
@@ -85,7 +93,11 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
         slug: '',
     });
 
-    function apply(overrides: Record<string, string | null> = {}): void {
+    function apply(overrides: Record<string, string | null | boolean> = {}): void {
+        const nextTrashed = overrides.trashed !== undefined
+            ? (overrides.trashed as boolean)
+            : (filters.trashed ?? false);
+
         router.get(
             '/admin/paginas',
             {
@@ -94,12 +106,17 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                     overrides.status !== undefined
                         ? overrides.status
                         : (filters.status ?? null),
+                trashed: nextTrashed ? 1 : null,
             },
             {
                 preserveState: true,
                 replace: true,
             },
         );
+    }
+
+    function toggleTrash(): void {
+        apply({ trashed: !filters.trashed });
     }
 
     function onStatusChange(value: string): void {
@@ -139,6 +156,26 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
         }
 
         router.delete(destroy.url({ page: deleteTarget.id }), {
+            onSuccess: () => setDeleteTarget(null),
+        });
+    }
+
+    function confirmRestore(): void {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.post(restore.url({ page: deleteTarget.id }), undefined, {
+            onSuccess: () => setDeleteTarget(null),
+        });
+    }
+
+    function confirmForceDelete(): void {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.delete(forceDestroy.url({ page: deleteTarget.id }), {
             onSuccess: () => setDeleteTarget(null),
         });
     }
@@ -195,6 +232,22 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                             Nueva página
                         </Button>
                     </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                        {filters.trashed
+                            ? 'Mostrando páginas eliminadas (papelera).'
+                            : 'Mostrando páginas activas.'}
+                    </p>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleTrash}
+                    >
+                        {filters.trashed ? 'Ver activas' : 'Ver papelera'}
+                    </Button>
                 </div>
 
                 <div className="overflow-hidden rounded-lg border bg-card">
@@ -269,6 +322,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                                 page.is_home ? 'default' : 'outline'
                                             }
                                             size="sm"
+                                            disabled={filters.trashed}
                                             onClick={() => toggleHome(page)}
                                         >
                                             <Home className="mr-1 size-4" />
@@ -291,9 +345,13 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => setDeleteTarget(page)}
-                                            aria-label="Eliminar página"
+                                            aria-label={filters.trashed ? 'Restaurar o eliminar permanentemente' : 'Eliminar página'}
                                         >
-                                            <Trash2 className="size-4 text-destructive" />
+                                            {filters.trashed ? (
+                                                <RotateCcw className="size-4 text-primary" />
+                                            ) : (
+                                                <Trash2 className="size-4 text-destructive" />
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
@@ -411,23 +469,44 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Eliminar página</DialogTitle>
+                        <DialogTitle>
+                            {filters.trashed
+                                ? 'Página en papelera'
+                                : 'Eliminar página'}
+                        </DialogTitle>
                         <DialogDescription>
-                            ¿Eliminar &quot;{deleteTarget?.title}&quot;? Esta acción no se
-                            puede deshacer.
+                            {filters.trashed
+                                ? `"${deleteTarget?.title}" está eliminada. Puedes restaurarla o borrarla permanentemente.`
+                                : `¿Eliminar "${deleteTarget?.title}"? Esta acción se puede deshacer desde la papelera.`}
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2">
                         <Button
                             variant="outline"
                             onClick={() => setDeleteTarget(null)}
                         >
                             Cancelar
                         </Button>
-                        <Button variant="destructive" onClick={confirmDelete}>
-                            <Trash2 className="mr-1 size-4" />
-                            Eliminar
-                        </Button>
+                        {filters.trashed ? (
+                            <>
+                                <Button
+                                    variant="destructive"
+                                    onClick={confirmForceDelete}
+                                >
+                                    <Trash2 className="mr-1 size-4" />
+                                    Eliminar permanente
+                                </Button>
+                                <Button onClick={confirmRestore}>
+                                    <RotateCcw className="mr-1 size-4" />
+                                    Restaurar
+                                </Button>
+                            </>
+                        ) : (
+                            <Button variant="destructive" onClick={confirmDelete}>
+                                <Trash2 className="mr-1 size-4" />
+                                Eliminar
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

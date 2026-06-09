@@ -59,6 +59,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('paginas/{page}/editar', [PageController::class, 'edit'])->name('paginas.edit');
     Route::patch('paginas/{page}', [PageController::class, 'update'])->name('paginas.update');
     Route::delete('paginas/{page}', [PageController::class, 'destroy'])->name('paginas.destroy');
+    Route::post('paginas/{page}/restore', [PageController::class, 'restore'])->name('paginas.restore');
+    Route::delete('paginas/{page}/force', [PageController::class, 'forceDestroy'])->name('paginas.force-destroy');
     Route::post('paginas/{page}/home', [PageController::class, 'setHome'])->name('paginas.set-home');
     Route::delete('paginas/{page}/home', [PageController::class, 'unsetHome'])->name('paginas.unset-home');
 

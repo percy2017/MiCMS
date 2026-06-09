@@ -8,9 +8,12 @@ use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Permission;
@@ -33,6 +36,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerPolicies();
+        $this->registerGates();
+        $this->registerRateLimiters();
     }
 
     /**
@@ -62,5 +67,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+    }
+
+    /**
+     * Define gates for feature-level authorization.
+     */
+    protected function registerGates(): void
+    {
+        Gate::define('viewApiDocs', function (User $user): bool {
+            return $user->hasRole('admin');
+        });
+    }
+
+    /**
+     * Configure rate limiters for public endpoints.
+     */
+    protected function registerRateLimiters(): void
+    {
+        RateLimiter::for('public-pages', function (Request $request): array {
+            $key = $request->ip() ?? 'unknown';
+
+            return [
+                Limit::perMinute(60)->by($key),
+                Limit::perHour(1000)->by($key),
+            ];
+        });
     }
 }

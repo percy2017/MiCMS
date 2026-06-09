@@ -19,6 +19,15 @@ class ChatBotAuthService
      */
     public function startSession(string $email, ?string $password, ?string $name, string $action, ?string $pageUrl = null): array
     {
+        if ($action === 'resume') {
+            $user = Auth::user();
+            if (! $user) {
+                throw ValidationException::withMessages(['auth' => 'No hay sesión activa.']);
+            }
+
+            return $this->resumeSession($user, $pageUrl);
+        }
+
         if ($action === 'login') {
             return $this->login($email, $password, $pageUrl);
         }

@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.3",
         "codexshaper/laravel-woocommerce": "^3.0",
+        "dedoc/scramble": "^0.13.26",
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/ai": "^0.7.2",
         "laravel/chisel": "^0.1.0",
@@ -19,6 +20,7 @@
         "laravel/reverb": "^1.0",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "mews/purifier": "^3.4",
         "nwidart/laravel-modules": "^13.0",
         "opcodesio/log-viewer": "^3.24",
         "spatie/laravel-permission": "^8.0"

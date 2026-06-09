@@ -100,7 +100,7 @@ class CoreSeeder extends Seeder
                 'props' => $this->props(
                     'landing-hero-subtitle',
                     [
-                        'content' => '<p style="text-align:center">Una plataforma moderna construida con Laravel, Inertia.js y Puck. Crea landing pages, gestiona medios, organiza menús y más.</p>',
+                        'content' => '<p>Una plataforma moderna construida con Laravel, Inertia.js y Puck. Crea landing pages, gestiona medios, organiza menús y más.</p>',
                         'align' => 'center',
                     ],
                 ),
@@ -129,7 +129,7 @@ class CoreSeeder extends Seeder
                 'props' => $this->props(
                     'landing-features-subtitle',
                     [
-                        'content' => '<p style="text-align:center">Un CMS completo con editor visual, medios, menús dinámicos y módulos extensibles.</p>',
+                        'content' => '<p>Un CMS completo con editor visual, medios, menús dinámicos y módulos extensibles.</p>',
                         'align' => 'center',
                     ],
                 ),
@@ -157,7 +157,7 @@ class CoreSeeder extends Seeder
                 'props' => $this->props(
                     'landing-footer-note',
                     [
-                        'content' => '<p style="text-align:center; font-size: 0.875rem; color: var(--muted-foreground);">Construido con Laravel 13, Inertia v3, Puck, React 19 y Tailwind 4.</p>',
+                        'content' => '<p>Construido con Laravel 13, Inertia v3, Puck, React 19 y Tailwind 4.</p>',
                         'align' => 'center',
                     ],
                 ),

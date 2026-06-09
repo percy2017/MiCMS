@@ -1,5 +1,6 @@
 import type { ComponentConfig } from '@puckeditor/core';
 import { MediaPickerField } from '@/paginas/blocks/media-picker-field';
+import { isSafeUrl } from '@/lib/safe-url';
 
 type ImageBlockProps = {
     src: string;
@@ -75,6 +76,9 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
             );
         }
 
+        const safeLink = isSafeUrl(link_url);
+        const isExternal = safeLink.startsWith('http://') || safeLink.startsWith('https://');
+
         const imgElement = (
             <img
                 src={src}
@@ -84,8 +88,13 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
             />
         );
 
-        const linkedElement = link_url ? (
-            <a href={link_url} target="_blank" rel="noopener noreferrer" className="block">
+        const linkedElement = safeLink ? (
+            <a
+                href={safeLink}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                className="block"
+            >
                 {imgElement}
             </a>
         ) : (

@@ -48,6 +48,7 @@ class SessionController extends Controller
         $conversation = $result['conversation']->load('messages');
 
         return response()->json([
+            'authenticated' => true,
             'is_new' => $result['is_new'],
             'user' => [
                 'id' => $result['user']->id,
@@ -65,24 +66,16 @@ class SessionController extends Controller
             return response()->json(['authenticated' => false], 401);
         }
 
-        $conversation = ChatBotConversation::query()
-            ->where('user_id', $user->id)
-            ->where('status', ChatBotConversation::STATUS_OPEN)
-            ->latest('last_message_at')
-            ->first();
-
-        if (! $conversation) {
-            return response()->json(['authenticated' => true, 'conversation' => null]);
-        }
-
-        $conversation->load('messages');
+        $result = $this->auth->resumeSession($user);
+        $conversation = $result['conversation']->load('messages');
 
         return response()->json([
             'authenticated' => true,
+            'is_new' => $result['is_new'],
             'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
+                'id' => $result['user']->id,
+                'name' => $result['user']->name,
+                'email' => $result['user']->email,
             ],
             'conversation' => $this->presentConversation($conversation),
         ]);

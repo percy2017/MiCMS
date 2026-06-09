@@ -1,4 +1,5 @@
 import type { ComponentConfig } from '@puckeditor/core';
+import { isSafeUrl } from '@/lib/safe-url';
 
 type ButtonBlockProps = {
     text: string;
@@ -47,17 +48,24 @@ export const ButtonBlock: ComponentConfig<ButtonBlockProps> = {
         variant: 'primary',
         align: 'left',
     },
-    render: ({ text, url, variant, align }) => (
-        <div className={alignClass[align] ?? alignClass.left}>
-            <a
-                href={url}
-                className={
-                    'inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors ' +
-                    (variantClass[variant] ?? variantClass.primary)
-                }
-            >
-                {text}
-            </a>
-        </div>
-    ),
+    render: ({ text, url, variant, align }) => {
+        const safe = isSafeUrl(url);
+        const isExternal = safe.startsWith('http://') || safe.startsWith('https://');
+
+        return (
+            <div className={alignClass[align] ?? alignClass.left}>
+                <a
+                    href={safe || '#'}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noopener noreferrer' : undefined}
+                    className={
+                        'inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors ' +
+                        (variantClass[variant] ?? variantClass.primary)
+                    }
+                >
+                    {text}
+                </a>
+            </div>
+        );
+    },
 };

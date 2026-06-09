@@ -1,14 +1,20 @@
 import type { ComponentConfig } from '@puckeditor/core';
+import DOMPurify from 'dompurify';
+import {
+    SPACING_FIELDS,
+    spacingClassName,
+    type SpacingProps,
+} from '@/paginas/blocks/spacing';
 
 type HeadingBlockProps = {
     children: string;
     level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
     align: 'left' | 'center' | 'right';
-};
+} & SpacingProps;
 
 const sizeClass: Record<string, string> = {
     h1: 'text-4xl font-bold md:text-5xl',
-    h2: 'text-3xl font-bold md:text-4xl',
+    h2: 'text-3xl font-bold md:text-5xl',
     h3: 'text-2xl font-semibold md:text-3xl',
     h4: 'text-xl font-semibold md:text-2xl',
     h5: 'text-lg font-semibold',
@@ -22,6 +28,7 @@ const alignClass: Record<string, string> = {
 };
 
 export const HeadingBlock: ComponentConfig<HeadingBlockProps> = {
+    label: 'Título',
     fields: {
         children: { type: 'text' },
         level: {
@@ -43,18 +50,26 @@ export const HeadingBlock: ComponentConfig<HeadingBlockProps> = {
                 { label: 'Derecha', value: 'right' },
             ],
         },
+        ...SPACING_FIELDS,
     },
     defaultProps: {
         children: 'Título',
         level: 'h2',
         align: 'left',
+        padding: 'md',
+        marginBottom: 'md',
+        backgroundColor: 'transparent',
+        borderRadius: 'none',
     },
-    render: ({ children, level, align }) => {
-        const Tag = level;
+    render: ({ children, level, align, ...spacing }) => {
+        const Tag = level as 'h1';
+        const text = typeof children === 'string' ? children : '';
 
         return (
-            <Tag className={`${sizeClass[level] ?? sizeClass.h2} ${alignClass[align] ?? alignClass.left}`}>
-                {children}
+            <Tag
+                className={`${sizeClass[level] ?? sizeClass.h2} ${alignClass[align] ?? alignClass.left} ${spacingClassName(spacing as SpacingProps)}`}
+            >
+                {text}
             </Tag>
         );
     },

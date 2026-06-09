@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import AppLogo from '@/components/app-logo';
-import { useCan } from '@/hooks/use-can';
+import { useCan, useIsAdmin } from '@/hooks/use-can';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -89,6 +89,8 @@ export function AppSidebar() {
         viewLogs: useCan('view logs'),
     };
 
+    const isAdmin = useIsAdmin();
+
     const mainNavItems: NavItem[] = [
         {
             title: 'Panel',
@@ -123,7 +125,7 @@ export function AppSidebar() {
 
     if (can.viewChatbot) {
         mainNavItems.push({
-            title: 'Chat Widget',
+            title: 'Canales',
             href: '/admin/chatbot/config',
             icon: MessageCircle,
             children: [
@@ -169,7 +171,7 @@ export function AppSidebar() {
     }
     if (userMgmtChildren.length > 0) {
         mainNavItems.push({
-            title: 'Usuarios y permisos',
+            title: 'Usuarios',
             href: userMgmtChildren[0].href,
             icon: UserCog,
             children: userMgmtChildren,
@@ -187,6 +189,9 @@ export function AppSidebar() {
         configChildren.push({ title: 'logs', href: '/admin/logs' });
     }
     configChildren.push({ title: 'Socket', href: reverbRoute() });
+    if (isAdmin) {
+        configChildren.push({ title: 'API Docs', href: '/docs/api#/' });
+    }
     if (configChildren.length > 0) {
         mainNavItems.push({
             title: 'Configuración',

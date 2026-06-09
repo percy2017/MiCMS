@@ -15,7 +15,6 @@ class RoleSeeder extends Seeder
         'view pages',
         'create pages',
         'update pages',
-        'set home pages',
         'view media',
         'create media',
         'update media',

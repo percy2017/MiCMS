@@ -55,41 +55,43 @@ export default function PaginaEdit({ page, menus }: PageProps) {
         <>
             <Head title={`Editar: ${page.title}`} />
 
-            <div className="h-[calc(100vh-4rem)] overflow-hidden">
+            <div className="flex h-[calc(100dvh-4rem)] w-full flex-col overflow-hidden">
                 <MenuProvider menus={menus}>
-                    <Puck
-                        config={puckConfig}
-                        data={data}
-                        headerTitle={page.title}
-                        onChange={(next) => setData(next)}
-                        onPublish={(next) => {
-                            setData(next);
-                            save('published');
-                        }}
-                        overrides={{
-                            headerActions: ({ children }) => (
-                                <>
-                                    {status === 'published' ? (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <a
-                                                href={publicUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
+                    <div className="min-h-0 flex-1">
+                        <Puck
+                            config={puckConfig}
+                            data={data}
+                            headerTitle={page.title}
+                            onChange={(next) => setData(next)}
+                            onPublish={(next) => {
+                                setData(next);
+                                save('published');
+                            }}
+                            overrides={{
+                                headerActions: ({ children }) => (
+                                    <>
+                                        {status === 'published' ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                asChild
                                             >
-                                                <Eye className="mr-1 size-4" />
-                                                Ver página
-                                            </a>
-                                        </Button>
-                                    ) : null}
-                                    {children}
-                                </>
-                            ),
-                        }}
-                    />
+                                                <a
+                                                    href={publicUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    <Eye className="mr-1 size-4" />
+                                                    Ver página
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                        {children}
+                                    </>
+                                ),
+                            }}
+                        />
+                    </div>
                 </MenuProvider>
             </div>
         </>

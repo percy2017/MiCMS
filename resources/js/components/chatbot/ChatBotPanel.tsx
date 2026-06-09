@@ -41,7 +41,7 @@ type Props = {
 type AuthState =
     | { kind: 'loading' }
     | { kind: 'guest' }
-    | { kind: 'authed'; user: { id: number; name: string; email: string }; conversation: Conversation };
+    | { kind: 'authed'; user: { id: number; name: string; email: string }; conversation: Conversation | null };
 
 function csrfHeaders(): Record<string, string> {
     const match = document.cookie.match(new RegExp('(^|;\\s*)XSRF-TOKEN=([^;]*)'));
@@ -97,7 +97,7 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
                     setAuth({
                         kind: 'authed',
                         user: data.user,
-                        conversation: data.conversation,
+                        conversation: data.conversation ?? null,
                     });
                 } else {
                     setAuth({ kind: 'guest' });
@@ -109,14 +109,33 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
     function refreshConversation(): void {
         apiGet('/api/chatbot/session')
             .then((data) => {
-                if (data.authenticated && data.conversation) {
-                    setAuth({
-                        kind: 'authed',
+                if (data.authenticated) {
+                    setAuth((prev) => prev.kind === 'authed' ? {
+                        ...prev,
                         user: data.user,
-                        conversation: data.conversation,
-                    });
+                        conversation: data.conversation ?? null,
+                    } : prev);
                 }
             });
+    }
+
+    function openConversation(): void {
+        if (auth.kind !== 'authed' || auth.conversation) {
+            return;
+        }
+        setSubmitting(true);
+        apiPost('/api/chatbot/session', { action: 'resume' })
+            .then((data) => {
+                if (data.authenticated && data.conversation) {
+                    setAuth((prev) => prev.kind === 'authed' ? {
+                        ...prev,
+                        user: data.user,
+                        conversation: data.conversation,
+                    } : prev);
+                }
+            })
+            .catch(() => {})
+            .finally(() => setSubmitting(false));
     }
 
     function handleAuthSubmit(e: React.FormEvent): void {
@@ -133,7 +152,7 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
                 setAuth({
                     kind: 'authed',
                     user: res.user,
-                    conversation: res.conversation,
+                    conversation: res.conversation ?? null,
                 });
             })
             .catch((err) => {
@@ -152,7 +171,7 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
 
     function handleSend(e: React.FormEvent): void {
         e.preventDefault();
-        if (auth.kind !== 'authed' || ! draft.trim()) {
+        if (auth.kind !== 'authed' || ! auth.conversation || ! draft.trim()) {
             return;
         }
         const text = draft;
@@ -213,7 +232,15 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
                     />
                 )}
 
-                {(auth.kind === 'authed' || isAdmin) && auth.kind === 'authed' && (
+                {auth.kind === 'authed' && auth.conversation === null && !isAdmin && (
+                    <StartConversation
+                        greeting={config.greeting}
+                        submitting={submitting}
+                        onStart={openConversation}
+                    />
+                )}
+
+                {auth.kind === 'authed' && auth.conversation && (
                     <MessageList
                         messages={auth.conversation.messages}
                         currentUserName={auth.user.name}
@@ -222,7 +249,7 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
                 )}
             </CardContent>
 
-            {auth.kind === 'authed' && (
+            {auth.kind === 'authed' && auth.conversation && (
                 <form
                     onSubmit={handleSend}
                     className="flex items-center gap-2 border-t bg-background p-2"
@@ -244,6 +271,25 @@ export function ChatBotPanel({ config, onClose, isAdmin = false }: Props) {
                 </form>
             )}
         </Card>
+    );
+}
+
+function StartConversation({
+    greeting,
+    submitting,
+    onStart,
+}: {
+    greeting?: string | null;
+    submitting: boolean;
+    onStart: () => void;
+}) {
+    return (
+        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            {greeting && <p className="text-sm text-muted-foreground">{greeting}</p>}
+            <Button type="button" onClick={onStart} disabled={submitting} className="w-full">
+                {submitting ? 'Iniciando…' : 'Iniciar conversación'}
+            </Button>
+        </div>
     );
 }
 
