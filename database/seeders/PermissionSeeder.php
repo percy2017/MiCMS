@@ -48,6 +48,14 @@ class PermissionSeeder extends Seeder
         'delete permissions',
         'view pos-woo',
         'manage pos-woo',
+        'view chatbot',
+        'view chats',
+        'reply chatbot',
+        'view chatbot conversations',
+        'delete chatbot conversations',
+        'update chatbot widget',
+        'view logs',
+        'delete logs',
     ];
 
     public function run(): void

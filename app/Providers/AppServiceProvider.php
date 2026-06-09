@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\LogViewer\LogViewerService;
 use App\Models\User;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
@@ -22,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton('log-viewer', LogViewerService::class);
     }
 
     /**

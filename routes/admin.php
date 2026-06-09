@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\LogViewerController;
 use App\Http\Controllers\Media\MediaController;
 use App\Http\Controllers\Media\MediaUploadController;
 use App\Http\Controllers\Menu\MenuController;
@@ -100,5 +101,18 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('/', [PermissionController::class, 'index'])->name('index');
         Route::post('/', [PermissionController::class, 'store'])->name('store');
         Route::delete('/{permission}', [PermissionController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('logs')->name('logs.')->group(function () {
+        Route::get('/', [LogViewerController::class, 'index'])->name('index');
+        Route::get('/{file}', [LogViewerController::class, 'show'])
+            ->where('file', '[A-Za-z0-9._\-]+')
+            ->name('show');
+        Route::get('/{file}/download', [LogViewerController::class, 'download'])
+            ->where('file', '[A-Za-z0-9._\-]+')
+            ->name('download');
+        Route::delete('/{file}', [LogViewerController::class, 'destroy'])
+            ->where('file', '[A-Za-z0-9._\-]+')
+            ->name('destroy');
     });
 });

@@ -26,6 +26,10 @@ class RoleSeeder extends Seeder
         'update menu items',
         'delete menu items',
         'view settings',
+        'view chatbot',
+        'view chats',
+        'view chatbot conversations',
+        'reply chatbot',
     ];
 
     public function run(): void

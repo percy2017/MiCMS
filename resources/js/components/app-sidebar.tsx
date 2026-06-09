@@ -3,8 +3,10 @@ import {
     Image as ImageIcon,
     LayoutGrid,
     LayoutTemplate,
+    MessageCircle,
     Package,
     Puzzle,
+    ScrollText,
     Settings,
     ShoppingCart,
     UserCog,
@@ -83,6 +85,8 @@ export function AppSidebar() {
         viewRoles: useCan('view roles'),
         viewPermissions: useCan('view permissions'),
         viewPosWoo: useCan('view pos-woo'),
+        viewChatbot: useCan('view chatbot'),
+        viewLogs: useCan('view logs'),
     };
 
     const mainNavItems: NavItem[] = [
@@ -114,6 +118,18 @@ export function AppSidebar() {
             title: 'Medios',
             href: mediaIndex(),
             icon: ImageIcon,
+        });
+    }
+
+    if (can.viewChatbot) {
+        mainNavItems.push({
+            title: 'Chat Widget',
+            href: '/admin/chatbot/config',
+            icon: MessageCircle,
+            children: [
+                { title: 'Config', href: '/admin/chatbot/config' },
+                { title: 'Chats', href: '/admin/chatbot/chats' },
+            ],
         });
     }
 
@@ -166,6 +182,9 @@ export function AppSidebar() {
     }
     if (can.viewSchedule) {
         configChildren.push({ title: 'Tareas', href: scheduleIndex() });
+    }
+    if (can.viewLogs) {
+        configChildren.push({ title: 'logs', href: '/admin/logs' });
     }
     configChildren.push({ title: 'Socket', href: reverbRoute() });
     if (configChildren.length > 0) {

@@ -2,6 +2,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createInertiaApp } from '@inertiajs/react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ChatBotWidget } from '@/components/chatbot/ChatBotWidget';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
@@ -50,6 +51,7 @@ createInertiaApp({
             <TooltipProvider delayDuration={0}>
                 {app}
                 <Toaster />
+                <ChatBotWidget />
             </TooltipProvider>
         );
     },

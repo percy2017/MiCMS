@@ -1,0 +1,19 @@
+{
+    "name": "ChatBot",
+    "alias": "chatbot",
+    "description": "Chat widget flotante con AI para atender visitantes en todas las páginas públicas.",
+    "keywords": ["chat", "ai", "support", "widget"],
+    "priority": 0,
+    "providers": [
+        "Modules\\ChatBot\\Providers\\ChatBotServiceProvider",
+        "Modules\\ChatBot\\Providers\\RouteServiceProvider"
+    ],
+    "files": [],
+    "menu": {
+        "icon": "MessageCircle",
+        "children": [
+            { "title": "Config", "route": "chatbot.admin.widget" },
+            { "title": "Chats", "route": "chatbot.admin.chats" }
+        ]
+    }
+}

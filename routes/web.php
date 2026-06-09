@@ -10,7 +10,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::get('{slug}', [PageController::class, 'show'])
-    ->where('slug', '^(?!admin|login|register|forgot-password|two-factor|user|settings|storage|livewire|build|up).*$')
+    ->where('slug', '^(?!admin|api|login|register|forgot-password|two-factor|user|settings|storage|livewire|build|up).*$')
     ->name('pages.show');
 
 require __DIR__.'/settings.php';

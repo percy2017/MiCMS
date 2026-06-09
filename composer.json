@@ -20,6 +20,7 @@
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "nwidart/laravel-modules": "^13.0",
+        "opcodesio/log-viewer": "^3.24",
         "spatie/laravel-permission": "^8.0"
     },
     "require-dev": {
@@ -39,7 +40,9 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "Modules\\": "Modules/"
+            "Modules\\": "Modules/",
+            "Modules\\ChatBot\\Database\\Factories\\": "Modules/ChatBot/database/factories/",
+            "Modules\\ChatBot\\Database\\Seeders\\": "Modules/ChatBot/database/seeders/"
         }
     },
     "autoload-dev": {

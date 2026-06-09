@@ -17,3 +17,16 @@ declare module '@inertiajs/core' {
         };
     }
 }
+
+declare global {
+    interface Window {
+        Echo?: {
+            private: (channel: string) => {
+                listen: (event: string, callback: (e: unknown) => void) => void;
+                stopListening: (event: string) => void;
+            };
+        };
+    }
+}
+
+export {};
