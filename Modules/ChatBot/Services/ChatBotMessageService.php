@@ -4,16 +4,16 @@ namespace Modules\ChatBot\Services;
 
 use Modules\ChatBot\Events\ChatBotMessageRead;
 use Modules\ChatBot\Events\ChatBotMessageReceived;
-use Modules\ChatBot\Models\ChatBotConversation;
-use Modules\ChatBot\Models\ChatBotMessage;
+use Modules\ChatBot\Models\Conversation;
+use Modules\ChatBot\Models\Message;
 
 class ChatBotMessageService
 {
-    public function sendUserMessage(ChatBotConversation $conversation, string $content, ?int $attachmentMediaId = null): ChatBotMessage
+    public function sendUserMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
     {
-        $message = ChatBotMessage::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
-            'role' => ChatBotMessage::ROLE_USER,
+            'role' => Message::ROLE_USER,
             'content' => $content,
             'attachment_media_id' => $attachmentMediaId,
         ]);
@@ -28,11 +28,11 @@ class ChatBotMessageService
         return $message;
     }
 
-    public function sendAdminMessage(ChatBotConversation $conversation, string $content, ?int $attachmentMediaId = null): ChatBotMessage
+    public function sendAdminMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
     {
-        $message = ChatBotMessage::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
-            'role' => ChatBotMessage::ROLE_ADMIN,
+            'role' => Message::ROLE_ADMIN,
             'content' => $content,
             'attachment_media_id' => $attachmentMediaId,
         ]);
@@ -47,11 +47,11 @@ class ChatBotMessageService
         return $message;
     }
 
-    public function markAsRead(ChatBotConversation $conversation, int $userId): void
+    public function markAsRead(Conversation $conversation, int $userId): void
     {
-        $unread = ChatBotMessage::query()
+        $unread = Message::query()
             ->where('conversation_id', $conversation->id)
-            ->where('role', ChatBotMessage::ROLE_USER)
+            ->where('role', Message::ROLE_USER)
             ->whereNull('read_at')
             ->get();
 
@@ -59,9 +59,9 @@ class ChatBotMessageService
             return;
         }
 
-        ChatBotMessage::query()
+        Message::query()
             ->where('conversation_id', $conversation->id)
-            ->where('role', ChatBotMessage::ROLE_USER)
+            ->where('role', Message::ROLE_USER)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 

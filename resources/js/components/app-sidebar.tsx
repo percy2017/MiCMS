@@ -125,12 +125,12 @@ export function AppSidebar() {
 
     if (can.viewChatbot) {
         mainNavItems.push({
-            title: 'Canales',
-            href: '/admin/chatbot/config',
+            title: 'Chatbots',
+            href: '/admin/canales',
             icon: MessageCircle,
             children: [
-                { title: 'Config', href: '/admin/chatbot/config' },
-                { title: 'Chats', href: '/admin/chatbot/chats' },
+                { title: 'Canales', href: '/admin/canales' },
+                { title: 'Chats', href: '/admin/chats' },
             ],
         });
     }

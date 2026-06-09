@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Page;
+use Illuminate\Support\Facades\Cache;
 
 use function Pest\Laravel\actingAs;
 
@@ -10,7 +11,7 @@ test('a published page is cached after first request', function () {
     $this->get(route('pages.show', ['slug' => $page->slug]))->assertSuccessful();
     $this->get(route('pages.show', ['slug' => $page->slug]))->assertSuccessful();
 
-    expect(\Illuminate\Support\Facades\Cache::has("page.show.{$page->slug}"))->toBeTrue();
+    expect(Cache::has("page.show.{$page->slug}"))->toBeTrue();
 });
 
 test('updating a page invalidates the public cache', function () {
@@ -18,7 +19,7 @@ test('updating a page invalidates the public cache', function () {
     $page = Page::factory()->published()->withFixture()->create();
 
     $this->get(route('pages.show', ['slug' => $page->slug]))->assertSuccessful();
-    expect(\Illuminate\Support\Facades\Cache::has("page.show.{$page->slug}"))->toBeTrue();
+    expect(Cache::has("page.show.{$page->slug}"))->toBeTrue();
 
     actingAs($user)
         ->patch(route('admin.paginas.update', ['page' => $page]), [
@@ -26,7 +27,7 @@ test('updating a page invalidates the public cache', function () {
         ])
         ->assertRedirect();
 
-    expect(\Illuminate\Support\Facades\Cache::has("page.show.{$page->slug}"))->toBeFalse();
+    expect(Cache::has("page.show.{$page->slug}"))->toBeFalse();
 });
 
 test('soft-deleting a published page invalidates cache and removes it from public view', function () {
@@ -34,13 +35,13 @@ test('soft-deleting a published page invalidates cache and removes it from publi
     $page = Page::factory()->published()->withFixture()->create();
 
     $this->get(route('pages.show', ['slug' => $page->slug]))->assertSuccessful();
-    expect(\Illuminate\Support\Facades\Cache::has("page.show.{$page->slug}"))->toBeTrue();
+    expect(Cache::has("page.show.{$page->slug}"))->toBeTrue();
 
     actingAs($user)
         ->delete(route('admin.paginas.destroy', ['page' => $page]))
         ->assertRedirect();
 
-    expect(\Illuminate\Support\Facades\Cache::has("page.show.{$page->slug}"))->toBeFalse();
+    expect(Cache::has("page.show.{$page->slug}"))->toBeFalse();
     $this->get(route('pages.show', ['slug' => $page->slug]))->assertNotFound();
 });
 
@@ -50,13 +51,13 @@ test('home page cache is invalidated when home page changes', function () {
     $newHome = Page::factory()->create();
 
     $this->get(route('home'))->assertSuccessful();
-    expect(\Illuminate\Support\Facades\Cache::has('page.home'))->toBeTrue();
+    expect(Cache::has('page.home'))->toBeTrue();
 
     actingAs($user)
         ->post(route('admin.paginas.set-home', ['page' => $newHome]))
         ->assertRedirect();
 
-    expect(\Illuminate\Support\Facades\Cache::has('page.home'))->toBeFalse();
+    expect(Cache::has('page.home'))->toBeFalse();
 });
 
 test('public pages include Cache-Control header', function () {

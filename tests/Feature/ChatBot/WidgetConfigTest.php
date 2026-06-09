@@ -1,9 +1,13 @@
 <?php
 
-use Modules\ChatBot\Models\ChatBotWidget;
+use Modules\ChatBot\Models\Channel;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
+
+beforeEach(function () {
+    Channel::factory()->webWidget()->create();
+});
 
 test('admin can view the widget config page', function () {
     actingAs(adminUser())
@@ -12,8 +16,6 @@ test('admin can view the widget config page', function () {
 });
 
 test('admin can update the widget config', function () {
-    $widget = ChatBotWidget::current();
-
     actingAs(adminUser())
         ->patch(route('chatbot.admin.widget.update'), [
             'enabled' => true,
@@ -28,9 +30,9 @@ test('admin can update the widget config', function () {
         ])
         ->assertRedirect();
 
-    $widget->refresh();
-    expect($widget->title)->toBe('Soporte');
-    expect($widget->position)->toBe('left');
+    $channel = Channel::where('type', 'web_widget')->first();
+    expect($channel->settings['title'])->toBe('Soporte');
+    expect($channel->settings['position'])->toBe('left');
 });
 
 test('a user without permission is forbidden', function () {
@@ -40,7 +42,10 @@ test('a user without permission is forbidden', function () {
 });
 
 test('public widget endpoint returns config', function () {
-    ChatBotWidget::current()->update(['title' => 'Ayuda']);
+    $channel = Channel::where('type', 'web_widget')->first();
+    $settings = $channel->settings;
+    $settings['title'] = 'Ayuda';
+    $channel->update(['settings' => $settings]);
 
     $response = get('/api/chatbot/widget')->assertOk();
 

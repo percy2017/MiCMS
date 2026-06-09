@@ -7,7 +7,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Modules\ChatBot\Models\ChatBotMessage;
+use Modules\ChatBot\Models\Message;
 
 class ChatBotAdminReplied implements ShouldBroadcastNow
 {
@@ -16,7 +16,7 @@ class ChatBotAdminReplied implements ShouldBroadcastNow
     use SerializesModels;
 
     public function __construct(
-        public ChatBotMessage $message,
+        public Message $message,
     ) {}
 
     /**

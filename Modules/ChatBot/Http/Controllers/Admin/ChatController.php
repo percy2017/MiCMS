@@ -8,8 +8,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\ChatBot\Http\Requests\ReplyMessageRequest;
-use Modules\ChatBot\Models\ChatBotConversation;
-use Modules\ChatBot\Models\ChatBotMessage;
+use Modules\ChatBot\Models\Conversation;
+use Modules\ChatBot\Models\Message;
 use Modules\ChatBot\Services\ChatBotMessageService;
 
 class ChatController extends Controller
@@ -22,7 +22,7 @@ class ChatController extends Controller
     {
         abort_unless($request->user()?->can('view chats'), 403);
 
-        $conversations = ChatBotConversation::query()
+        $conversations = Conversation::query()
             ->with(['user:id,name,email', 'assignedAdmin:id,name'])
             ->with(['messages' => function ($q) {
                 $q->latest()->limit(1);
@@ -40,7 +40,7 @@ class ChatController extends Controller
             ->orderByDesc('last_message_at')
             ->paginate(50)
             ->withQueryString()
-            ->through(fn (ChatBotConversation $c): array => [
+            ->through(fn (Conversation $c): array => [
                 'id' => $c->id,
                 'visitor_name' => $c->visitor_name,
                 'visitor_email' => $c->visitor_email,
@@ -58,15 +58,15 @@ class ChatController extends Controller
             ]);
 
         $stats = [
-            'open' => ChatBotConversation::where('status', ChatBotConversation::STATUS_OPEN)->count(),
-            'unread' => ChatBotConversation::where('unread_by_admin', '>', 0)->count(),
-            'total' => ChatBotConversation::count(),
+            'open' => Conversation::where('status', 'open')->count(),
+            'unread' => Conversation::where('unread_by_admin', '>', 0)->count(),
+            'total' => Conversation::count(),
         ];
 
         $activeId = $request->integer('active') ?: null;
         $active = null;
         if ($activeId) {
-            $conv = ChatBotConversation::with(['user', 'messages.attachment'])->find($activeId);
+            $conv = Conversation::with(['user', 'messages.attachment'])->find($activeId);
             if ($conv) {
                 $active = [
                     'id' => $conv->id,
@@ -76,7 +76,7 @@ class ChatController extends Controller
                     'status' => $conv->status,
                     'user_id' => $conv->user_id,
                     'last_message_at' => $conv->last_message_at?->toIso8601String(),
-                    'messages' => $conv->messages->map(fn (ChatBotMessage $m): array => [
+                    'messages' => $conv->messages->map(fn (Message $m): array => [
                         'id' => $m->id,
                         'role' => $m->role,
                         'content' => $m->content,
@@ -99,7 +99,7 @@ class ChatController extends Controller
         ]);
     }
 
-    public function show(ChatBotConversation $conversation)
+    public function show(Conversation $conversation)
     {
         abort_unless(request()->user()?->can('view chats'), 403);
 
@@ -114,7 +114,7 @@ class ChatController extends Controller
                 'status' => $conversation->status,
                 'user_id' => $conversation->user_id,
                 'last_message_at' => $conversation->last_message_at?->toIso8601String(),
-                'messages' => $conversation->messages->map(fn (ChatBotMessage $m): array => [
+                'messages' => $conversation->messages->map(fn (Message $m): array => [
                     'id' => $m->id,
                     'role' => $m->role,
                     'content' => $m->content,
@@ -126,7 +126,7 @@ class ChatController extends Controller
         ]);
     }
 
-    public function reply(ReplyMessageRequest $request, ChatBotConversation $conversation): RedirectResponse
+    public function reply(ReplyMessageRequest $request, Conversation $conversation): RedirectResponse
     {
         abort_unless($request->user()?->can('reply chatbot'), 403);
 
@@ -143,7 +143,7 @@ class ChatController extends Controller
         return back()->with('success', 'Respuesta enviada.');
     }
 
-    public function read(ChatBotConversation $conversation, Request $request): RedirectResponse
+    public function read(Conversation $conversation, Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('view chats'), 403);
 
@@ -152,25 +152,25 @@ class ChatController extends Controller
         return back();
     }
 
-    public function close(ChatBotConversation $conversation): RedirectResponse
+    public function close(Conversation $conversation): RedirectResponse
     {
         abort_unless(request()->user()?->can('reply chatbot'), 403);
 
-        $conversation->update(['status' => ChatBotConversation::STATUS_CLOSED]);
+        $conversation->update(['status' => 'closed']);
 
         return back()->with('success', 'Conversación cerrada.');
     }
 
-    public function reopen(ChatBotConversation $conversation): RedirectResponse
+    public function reopen(Conversation $conversation): RedirectResponse
     {
         abort_unless(request()->user()?->can('reply chatbot'), 403);
 
-        $conversation->update(['status' => ChatBotConversation::STATUS_OPEN]);
+        $conversation->update(['status' => 'open']);
 
         return back()->with('success', 'Conversación reabierta.');
     }
 
-    public function destroy(ChatBotConversation $conversation): RedirectResponse
+    public function destroy(Conversation $conversation): RedirectResponse
     {
         abort_unless(request()->user()?->can('delete chatbot conversations'), 403);
 

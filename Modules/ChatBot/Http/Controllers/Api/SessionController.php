@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\ChatBot\Http\Requests\StartSessionRequest;
-use Modules\ChatBot\Models\ChatBotConversation;
-use Modules\ChatBot\Models\ChatBotMessage;
-use Modules\ChatBot\Models\ChatBotWidget;
+use Modules\ChatBot\Models\Channel;
+use Modules\ChatBot\Models\Conversation;
+use Modules\ChatBot\Models\Message;
 use Modules\ChatBot\Services\ChatBotAuthService;
 
 class SessionController extends Controller
@@ -19,19 +19,24 @@ class SessionController extends Controller
 
     public function widget(): JsonResponse
     {
-        $widget = ChatBotWidget::current();
-        $widget->loadMissing('avatar');
+        $channel = Channel::where('type', 'web_widget')->first();
+
+        if (! $channel) {
+            return response()->json(['enabled' => false]);
+        }
+
+        $settings = $channel->settings ?? [];
 
         return response()->json([
-            'enabled' => $widget->enabled,
-            'title' => $widget->title,
-            'subtitle' => $widget->subtitle,
-            'greeting' => $widget->greeting,
-            'position' => $widget->position,
-            'require_auth' => $widget->require_auth,
-            'show_typing' => $widget->show_typing,
-            'offline_message' => $widget->offline_message,
-            'avatar_url' => $widget->avatar?->url(),
+            'enabled' => $channel->enabled,
+            'title' => $settings['title'] ?? 'Asistente virtual',
+            'subtitle' => $settings['subtitle'] ?? 'Te respondemos en minutos',
+            'greeting' => $settings['greeting'] ?? '¡Hola! ¿En qué podemos ayudarte?',
+            'position' => $settings['position'] ?? 'right',
+            'require_auth' => $settings['require_auth'] ?? true,
+            'show_typing' => $settings['show_typing'] ?? true,
+            'offline_message' => $settings['offline_message'] ?? null,
+            'avatar_url' => null,
         ]);
     }
 
@@ -84,12 +89,13 @@ class SessionController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function presentConversation(ChatBotConversation $conversation): array
+    private function presentConversation(Conversation $conversation): array
     {
         return [
             'id' => $conversation->id,
+            'channel_id' => $conversation->channel_id,
             'status' => $conversation->status,
-            'messages' => $conversation->messages->map(fn (ChatBotMessage $m): array => [
+            'messages' => $conversation->messages->map(fn (Message $m): array => [
                 'id' => $m->id,
                 'role' => $m->role,
                 'content' => $m->content,

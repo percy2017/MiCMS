@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Page;
+use App\Support\HtmlSanitizer;
 
 use function Pest\Laravel\actingAs;
 
@@ -170,7 +171,7 @@ test('disallowed block types are rejected by validation', function () {
 
 test('html sanitizer profile keeps safe tags and strips scripts', function () {
     $dirty = '<p>Hola</p><script>alert(1)</script><img src="x.jpg"><a href="javascript:alert(1)">link</a>';
-    $clean = \App\Support\HtmlSanitizer::safeHtml($dirty);
+    $clean = HtmlSanitizer::safeHtml($dirty);
 
     expect($clean)->toContain('<p>Hola</p>');
     expect($clean)->toContain('<img');
@@ -178,9 +179,9 @@ test('html sanitizer profile keeps safe tags and strips scripts', function () {
 });
 
 test('safe url blocks javascript: scheme', function () {
-    expect(\App\Support\HtmlSanitizer::safeUrl('javascript:alert(1)'))->toBe('');
-    expect(\App\Support\HtmlSanitizer::safeUrl('data:text/html,foo'))->toBe('');
-    expect(\App\Support\HtmlSanitizer::safeUrl('vbscript:msgbox(1)'))->toBe('');
-    expect(\App\Support\HtmlSanitizer::safeUrl('https://example.com'))->toBe('https://example.com');
-    expect(\App\Support\HtmlSanitizer::safeUrl('/relative'))->toBe('/relative');
+    expect(HtmlSanitizer::safeUrl('javascript:alert(1)'))->toBe('');
+    expect(HtmlSanitizer::safeUrl('data:text/html,foo'))->toBe('');
+    expect(HtmlSanitizer::safeUrl('vbscript:msgbox(1)'))->toBe('');
+    expect(HtmlSanitizer::safeUrl('https://example.com'))->toBe('https://example.com');
+    expect(HtmlSanitizer::safeUrl('/relative'))->toBe('/relative');
 });

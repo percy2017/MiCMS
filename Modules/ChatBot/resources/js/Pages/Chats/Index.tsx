@@ -74,7 +74,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
             return;
         }
 
-        fetch(`/admin/chatbot/chats/${activeId}`, {
+        fetch(`/admin/chats/${activeId}`, {
             headers: csrfHeaders(),
             credentials: 'same-origin',
         })
@@ -86,7 +86,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
             })
             .catch(() => {});
 
-        fetch(`/admin/chatbot/chats/${activeId}/read`, {
+        fetch(`/admin/chats/${activeId}/read`, {
             method: 'POST',
             headers: csrfHeaders(),
             credentials: 'same-origin',
@@ -119,7 +119,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
 
     function applyFilters(next: { search?: string; status?: string | null }): void {
         router.get(
-            '/admin/chatbot/chats',
+            '/admin/chats',
             { search: next.search ?? search, status: next.status ?? filters.status },
             { preserveState: true, replace: true },
         );
@@ -133,7 +133,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
         const content = draft;
         setDraft('');
 
-        fetch(`/admin/chatbot/chats/${activeId}/reply`, {
+        fetch(`/admin/chats/${activeId}/reply`, {
             method: 'POST',
             headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -142,7 +142,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
             .then((r) => (r.ok ? r.json() : null))
             .then(() => {
                 if (activeId) {
-                    return fetch(`/admin/chatbot/chats/${activeId}`, {
+                    return fetch(`/admin/chats/${activeId}`, {
                         headers: csrfHeaders(),
                         credentials: 'same-origin',
                     });
@@ -164,7 +164,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
         if (! activeId) {
             return;
         }
-        fetch(`/admin/chatbot/chats/${activeId}/close`, {
+        fetch(`/admin/chats/${activeId}/close`, {
             method: 'POST',
             headers: csrfHeaders(),
             credentials: 'same-origin',
@@ -178,7 +178,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
         if (! activeId) {
             return;
         }
-        fetch(`/admin/chatbot/chats/${activeId}/reopen`, {
+        fetch(`/admin/chats/${activeId}/reopen`, {
             method: 'POST',
             headers: csrfHeaders(),
             credentials: 'same-origin',
@@ -196,7 +196,7 @@ export default function ChatsIndex({ conversations, stats, filters, active }: Pa
             return;
         }
         setPendingId(activeId);
-        router.delete(`/admin/chatbot/chats/${activeId}`, {
+        router.delete(`/admin/chats/${activeId}`, {
             preserveScroll: true,
             onSuccess: () => {
                 setActiveId(null);

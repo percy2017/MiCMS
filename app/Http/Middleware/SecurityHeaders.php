@@ -43,7 +43,7 @@ class SecurityHeaders
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
                 "style-src 'self' 'unsafe-inline' https://rsms.me",
                 "style-src-elem 'self' 'unsafe-inline' https://rsms.me",
-                "img-src 'self' data: blob:",
+                "img-src 'self' data: blob: https://pps.whatsapp.net",
                 "font-src 'self' data: https://rsms.me",
                 "connect-src 'self' ws: wss:",
                 "media-src 'self'",

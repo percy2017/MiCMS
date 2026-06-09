@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\User;
-use Modules\ChatBot\Models\ChatBotConversation;
+use Modules\ChatBot\Models\Conversation;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\assertDatabaseHas;
@@ -23,7 +23,7 @@ test('guest can start a login session and send a message', function () {
     expect($response->json('user.email'))->toBe('visitor@x.com');
     expect($response->json('conversation.id'))->toBeInt();
 
-    assertDatabaseHas('chatbot_conversations', [
+    assertDatabaseHas('conversations', [
         'user_id' => $existing->id,
         'status' => 'open',
     ]);
@@ -68,7 +68,7 @@ test('registering with existing email returns 422', function () {
 
 test('authenticated user can send a message', function () {
     $user = User::factory()->create();
-    $conv = ChatBotConversation::factory()->create(['user_id' => $user->id]);
+    $conv = Conversation::factory()->create(['user_id' => $user->id]);
 
     actingAs($user)
         ->postJson("/api/chatbot/conversations/{$conv->id}/messages", [
@@ -76,7 +76,7 @@ test('authenticated user can send a message', function () {
         ])
         ->assertOk();
 
-    assertDatabaseHas('chatbot_messages', [
+    assertDatabaseHas('messages', [
         'conversation_id' => $conv->id,
         'role' => 'user',
         'content' => 'Hola, ¿a qué hora abren?',
@@ -88,7 +88,7 @@ test('authenticated user can send a message', function () {
 test('user cannot send to another users conversation', function () {
     $owner = User::factory()->create();
     $other = User::factory()->create();
-    $conv = ChatBotConversation::factory()->create(['user_id' => $owner->id]);
+    $conv = Conversation::factory()->create(['user_id' => $owner->id]);
 
     actingAs($other)
         ->postJson("/api/chatbot/conversations/{$conv->id}/messages", [
@@ -99,7 +99,7 @@ test('user cannot send to another users conversation', function () {
 
 test('cannot send to closed conversation', function () {
     $user = User::factory()->create();
-    $conv = ChatBotConversation::factory()->create([
+    $conv = Conversation::factory()->create([
         'user_id' => $user->id,
         'status' => 'closed',
     ]);

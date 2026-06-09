@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Modules\ChatBot\Models\ChatBotConversation;
+use Modules\ChatBot\Models\Channel;
+use Modules\ChatBot\Models\Conversation;
 use Spatie\Permission\Models\Role;
 
 class ChatBotAuthService
@@ -15,7 +16,7 @@ class ChatBotAuthService
     /**
      * Login or register a visitor and return the active conversation.
      *
-     * @return array{user: User, conversation: ChatBotConversation, is_new: bool}
+     * @return array{user: User, conversation: Conversation, is_new: bool}
      */
     public function startSession(string $email, ?string $password, ?string $name, string $action, ?string $pageUrl = null): array
     {
@@ -36,7 +37,7 @@ class ChatBotAuthService
     }
 
     /**
-     * @return array{user: User, conversation: ChatBotConversation, is_new: bool}
+     * @return array{user: User, conversation: Conversation, is_new: bool}
      */
     protected function login(string $email, ?string $password, ?string $pageUrl): array
     {
@@ -58,7 +59,7 @@ class ChatBotAuthService
     }
 
     /**
-     * @return array{user: User, conversation: ChatBotConversation, is_new: bool}
+     * @return array{user: User, conversation: Conversation, is_new: bool}
      */
     protected function register(string $email, ?string $password, ?string $name, ?string $pageUrl): array
     {
@@ -102,7 +103,7 @@ class ChatBotAuthService
     }
 
     /**
-     * @return array{user: User, conversation: ChatBotConversation, is_new: bool}
+     * @return array{user: User, conversation: Conversation, is_new: bool}
      */
     public function resumeSession(User $user, ?string $pageUrl = null): array
     {
@@ -113,11 +114,22 @@ class ChatBotAuthService
         ];
     }
 
-    protected function getOrCreateConversation(User $user, ?string $pageUrl, bool $isNew = false): ChatBotConversation
+    protected function getOrCreateConversation(User $user, ?string $pageUrl, bool $isNew = false): Conversation
     {
-        $existing = ChatBotConversation::query()
+        $channel = Channel::where('type', 'web_widget')->first();
+        if (! $channel) {
+            $channel = Channel::create([
+                'type' => 'web_widget',
+                'name' => 'Widget Web',
+                'enabled' => true,
+                'settings' => [],
+            ]);
+        }
+
+        $existing = Conversation::query()
+            ->where('channel_id', $channel->id)
             ->where('user_id', $user->id)
-            ->where('status', ChatBotConversation::STATUS_OPEN)
+            ->where('status', 'open')
             ->latest('last_message_at')
             ->first();
 
@@ -125,12 +137,13 @@ class ChatBotAuthService
             return $existing;
         }
 
-        return ChatBotConversation::create([
+        return Conversation::create([
+            'channel_id' => $channel->id,
             'user_id' => $user->id,
             'visitor_name' => $user->name,
             'visitor_email' => $user->email,
             'page_url' => $pageUrl,
-            'status' => ChatBotConversation::STATUS_OPEN,
+            'status' => 'open',
             'last_message_at' => now(),
             'unread_by_admin' => 0,
         ]);

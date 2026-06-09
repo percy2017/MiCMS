@@ -2,15 +2,15 @@
 
 use App\Models\User;
 use Modules\ChatBot\Events\ChatBotMessageReceived;
-use Modules\ChatBot\Models\ChatBotConversation;
-use Modules\ChatBot\Models\ChatBotMessage;
+use Modules\ChatBot\Models\Conversation;
+use Modules\ChatBot\Models\Message;
 use Modules\ChatBot\Services\ChatBotMessageService;
 
 test('sending a user message dispatches the broadcast event', function () {
     Event::fake([ChatBotMessageReceived::class]);
 
     $user = User::factory()->create();
-    $conv = ChatBotConversation::factory()->create(['user_id' => $user->id]);
+    $conv = Conversation::factory()->create(['user_id' => $user->id]);
 
     app(ChatBotMessageService::class)->sendUserMessage($conv, 'Hola');
 
@@ -24,7 +24,7 @@ test('sending a user message dispatches the broadcast event', function () {
 test('sending an admin message dispatches the broadcast event', function () {
     Event::fake([ChatBotMessageReceived::class]);
 
-    $conv = ChatBotConversation::factory()->create();
+    $conv = Conversation::factory()->create();
 
     app(ChatBotMessageService::class)->sendAdminMessage($conv, 'Bienvenido');
 
@@ -36,19 +36,19 @@ test('sending an admin message dispatches the broadcast event', function () {
 
 test('marking as read resets unread counter and marks user messages as read', function () {
     $user = User::factory()->create();
-    $conv = ChatBotConversation::factory()->create([
+    $conv = Conversation::factory()->create([
         'user_id' => $user->id,
         'unread_by_admin' => 2,
     ]);
 
-    $msg1 = ChatBotMessage::create([
+    $msg1 = Message::create([
         'conversation_id' => $conv->id,
-        'role' => ChatBotMessage::ROLE_USER,
+        'role' => Message::ROLE_USER,
         'content' => 'uno',
     ]);
-    $msg2 = ChatBotMessage::create([
+    $msg2 = Message::create([
         'conversation_id' => $conv->id,
-        'role' => ChatBotMessage::ROLE_USER,
+        'role' => Message::ROLE_USER,
         'content' => 'dos',
     ]);
 

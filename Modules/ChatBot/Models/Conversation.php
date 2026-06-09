@@ -8,25 +8,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Modules\ChatBot\Database\Factories\ChatBotConversationFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\ChatBot\Database\Factories\ConversationFactory;
+use Modules\ChatBot\Enums\ConversationStatus;
 
-class ChatBotConversation extends Model
+class Conversation extends Model
 {
+    /** @use HasFactory<ConversationFactory> */
     use HasFactory;
 
-    protected $table = 'chatbot_conversations';
+    use SoftDeletes;
+
+    protected $table = 'conversations';
 
     protected static function newFactory(): Factory
     {
-        return ChatBotConversationFactory::new();
+        return ConversationFactory::new();
     }
 
-    public const STATUS_OPEN = 'open';
-
-    public const STATUS_CLOSED = 'closed';
-
     protected $fillable = [
+        'channel_id',
         'user_id',
+        'external_id',
         'visitor_name',
         'visitor_email',
         'page_url',
@@ -37,8 +40,15 @@ class ChatBotConversation extends Model
     ];
 
     protected $casts = [
+        'status' => ConversationStatus::class,
         'last_message_at' => 'datetime',
+        'unread_by_admin' => 'integer',
     ];
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class);
+    }
 
     public function user(): BelongsTo
     {
@@ -52,6 +62,6 @@ class ChatBotConversation extends Model
 
     public function messages(): HasMany
     {
-        return $this->hasMany(ChatBotMessage::class, 'conversation_id');
+        return $this->hasMany(Message::class)->orderBy('created_at');
     }
 }

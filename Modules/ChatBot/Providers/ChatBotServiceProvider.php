@@ -2,44 +2,60 @@
 
 namespace Modules\ChatBot\Providers;
 
-use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Route;
+use Modules\ChatBot\Channels\ChannelRegistry;
+use Modules\ChatBot\Channels\EvolutionChannel;
+use Modules\ChatBot\Channels\WebWidgetChannel;
+use Modules\ChatBot\Services\ChannelManager;
+use Modules\ChatBot\Services\MessageIngestor;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ChatBotServiceProvider extends ModuleServiceProvider
 {
-    /**
-     * The name of the module.
-     */
     protected string $name = 'ChatBot';
 
-    /**
-     * The lowercase version of the module name.
-     */
     protected string $nameLower = 'chatbot';
 
-    /**
-     * Command classes to register.
-     *
-     * @var string[]
-     */
-    // protected array $commands = [];
-
-    /**
-     * Provider classes to register.
-     *
-     * @var string[]
-     */
     protected array $providers = [
         RouteServiceProvider::class,
     ];
 
-    /**
-     * Define module schedules.
-     *
-     * @param  $schedule
-     */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->registerChannels();
+        $this->registerWebhookRoutes();
+    }
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(ChannelRegistry::class, function () {
+            return new ChannelRegistry;
+        });
+
+        $this->app->singleton(ChannelManager::class, function ($app) {
+            return new ChannelManager($app->make(ChannelRegistry::class));
+        });
+
+        $this->app->singleton(MessageIngestor::class, function ($app) {
+            return new MessageIngestor($app->make(ChannelRegistry::class));
+        });
+    }
+
+    protected function registerChannels(): void
+    {
+        $registry = $this->app->make(ChannelRegistry::class);
+        $registry->register(new WebWidgetChannel);
+        $registry->register(new EvolutionChannel);
+    }
+
+    protected function registerWebhookRoutes(): void
+    {
+        Route::prefix('api')
+            ->middleware('api')
+            ->group(module_path($this->name, '/routes/webhooks.php'));
+    }
 }
