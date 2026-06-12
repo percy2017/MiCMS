@@ -1,11 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Loader2, Lock, Plus, Shield, Trash2 } from 'lucide-react';
+import { Loader2, Lock, Shield, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
+import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
+import { TablePagination } from '@/components/table-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import Heading from '@/components/heading';
 import { useCan } from '@/hooks/use-can';
+import { useClientTableSearch } from '@/hooks/use-client-table-search';
 import { admin } from '@/routes';
 import { destroy, index as indexRoute } from '@/routes/admin/roles';
 
@@ -23,10 +26,29 @@ export default function RolesIndex({ roles }: { roles: RoleItem[] }) {
     const canUpdate = useCan('update roles');
     const canDelete = useCan('delete roles');
 
+    const table = useClientTableSearch<RoleItem>({
+        initialData: roles,
+        searchFields: ['name'],
+        perPage: 10,
+        initialFilters: { is_protected: '' },
+    });
+
+    const filters: ToolbarFilter[] = [
+        {
+            key: 'is_protected',
+            label: 'Tipo',
+            value: table.filters.is_protected ?? '',
+            onChange: (v) => table.setFilter('is_protected', v),
+            placeholder: 'Todos',
+            options: [
+                { value: 'true', label: 'Protegidos' },
+                { value: 'false', label: 'Personalizados' },
+            ],
+        },
+    ];
+
     function handleDestroy(role: RoleItem): void {
-        if (! confirm(`¿Eliminar el rol "${role.name}"?`)) {
-            return;
-        }
+        if (!confirm(`¿Eliminar el rol "${role.name}"?`)) return;
         setPendingId(role.id);
         router.delete(destroy({ role: role.id }).url, {
             preserveScroll: true,
@@ -38,24 +60,29 @@ export default function RolesIndex({ roles }: { roles: RoleItem[] }) {
         <>
             <Head title="Roles" />
 
-            <div className="space-y-6 p-4">
+            <div className="space-y-4 p-4">
                 <div className="flex items-start justify-between gap-4">
                     <Heading title="Roles" description="Administra roles y sus permisos." />
-                    {canCreate && (
-                        <Button asChild>
-                            <Link href="/admin/roles/crear">
-                                <Plus className="mr-2 size-4" />
-                                Nuevo rol
-                            </Link>
-                        </Button>
-                    )}
                 </div>
 
-                {roles.length === 0 ? (
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar por nombre..."
+                    total={table.total}
+                    totalLabel={`rol${table.total !== 1 ? 'es' : ''}`}
+                    filters={filters}
+                    createHref={canCreate ? '/admin/roles/crear' : undefined}
+                    createLabel="Nuevo rol"
+                />
+
+                {table.data.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
                             <Shield className="size-12 text-muted-foreground/50" />
-                            <p className="text-sm text-muted-foreground">No hay roles.</p>
+                            <p className="text-sm text-muted-foreground">
+                                {table.search ? 'Sin resultados para la búsqueda' : 'No hay roles.'}
+                            </p>
                         </CardContent>
                     </Card>
                 ) : (
@@ -70,7 +97,7 @@ export default function RolesIndex({ roles }: { roles: RoleItem[] }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {roles.map((role) => {
+                                {table.data.map((role) => {
                                     const isPending = pendingId === role.id;
                                     return (
                                         <tr key={role.id} className="hover:bg-muted/30">
@@ -88,14 +115,14 @@ export default function RolesIndex({ roles }: { roles: RoleItem[] }) {
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    {canUpdate && ! role.is_protected && (
+                                                    {canUpdate && !role.is_protected && (
                                                         <Button asChild size="sm" variant="outline">
                                                             <Link href={`/admin/roles/${role.id}/editar`}>
                                                                 Editar
                                                             </Link>
                                                         </Button>
                                                     )}
-                                                    {canDelete && ! role.is_protected && role.users_count === 0 && (
+                                                    {canDelete && !role.is_protected && role.users_count === 0 && (
                                                         <Button
                                                             type="button"
                                                             size="sm"
@@ -119,6 +146,15 @@ export default function RolesIndex({ roles }: { roles: RoleItem[] }) {
                         </table>
                     </div>
                 )}
+
+                <TablePagination
+                    currentPage={table.currentPage}
+                    lastPage={table.lastPage}
+                    onPageChange={table.goPage}
+                    total={table.total}
+                    perPage={10}
+                    itemLabel={`rol${table.total !== 1 ? 'es' : ''}`}
+                />
             </div>
         </>
     );

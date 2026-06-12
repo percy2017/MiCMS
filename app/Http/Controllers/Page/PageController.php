@@ -10,6 +10,7 @@ use App\Models\Menu;
 use App\Models\Page;
 use App\Models\Setting;
 use App\Services\PackageManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -40,7 +41,7 @@ class PageController extends Controller
                 $query->where('status', (string) $request->input('status'));
             })
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString()
             ->through(fn (Page $page): array => $this->present($page));
 
@@ -52,6 +53,34 @@ class PageController extends Controller
                 'trashed' => $showTrashed,
             ],
         ]);
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Page::class);
+
+        $showTrashed = $request->boolean('trashed');
+
+        $pages = Page::query()
+            ->with('uploader:id,name')
+            ->when($showTrashed, fn ($q) => $q->onlyTrashed())
+            ->when(! $showTrashed, fn ($q) => $q->whereNull('deleted_at'))
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = (string) $request->input('search');
+                $query->where(function ($q) use ($search): void {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhere('slug', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('status'), function ($query) use ($request): void {
+                $query->where('status', (string) $request->input('status'));
+            })
+            ->latest()
+            ->paginate((int) $request->integer('per_page', 10))
+            ->withQueryString()
+            ->through(fn (Page $page): array => $this->present($page));
+
+        return response()->json($pages);
     }
 
     public function store(StorePageRequest $request): RedirectResponse

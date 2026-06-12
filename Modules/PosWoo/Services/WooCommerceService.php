@@ -5,6 +5,7 @@ namespace Modules\PosWoo\Services;
 use Automattic\WooCommerce\HttpClient\Response;
 use Codexshaper\WooCommerce\Facades\Customer;
 use Codexshaper\WooCommerce\Facades\Order;
+use Codexshaper\WooCommerce\Facades\PaymentGateway;
 use Codexshaper\WooCommerce\Facades\Product;
 use Codexshaper\WooCommerce\Facades\Variation;
 use Codexshaper\WooCommerce\Facades\WooCommerce as WooCommerceFacade;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 class WooCommerceService
 {
-    public function searchProducts(string $query = '', int $page = 1, int $perPage = 20): array
+    public function searchProducts(string $query = '', int $page = 1, int $perPage = 10): array
     {
         try {
             $options = [
@@ -161,19 +162,54 @@ class WooCommerceService
         }
     }
 
+    public function listPaymentGateways(bool $onlyEnabled = true): array
+    {
+        try {
+            $gateways = PaymentGateway::all();
+
+            $mapped = collect($gateways)->map(function (mixed $g): array {
+                $g = (array) $g;
+                $enabled = ($g['enabled'] ?? 'no') === 'yes' || $g['enabled'] === true || $g['enabled'] === '1' || $g['enabled'] === 1;
+
+                return [
+                    'id' => (string) ($g['id'] ?? ''),
+                    'title' => $g['title'] ?? ($g['method_title'] ?? $g['id'] ?? ''),
+                    'method_title' => $g['method_title'] ?? '',
+                    'method_description' => $g['method_description'] ?? '',
+                    'enabled' => $enabled,
+                ];
+            })->filter(fn (array $g): bool => $g['id'] !== '');
+
+            if ($onlyEnabled) {
+                $mapped = $mapped->filter(fn (array $g): bool => $g['enabled']);
+            }
+
+            return ['data' => $mapped->values()->all(), 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce listPaymentGateways failed: '.$e->getMessage());
+
+            return ['data' => [], 'error' => $e->getMessage()];
+        }
+    }
+
     /**
-     * @param  array{items: array, customer_id?: int, payment_method: string, payment_method_title: string, note?: string}  $data
+     * @param  array{items: array, customer?: array, payment_method: string, payment_method_title: string, note?: string}  $data
      */
     public function createOrder(array $data): array
     {
         try {
             $lineItems = [];
             foreach ($data['items'] as $item) {
-                $lineItems[] = [
+                $lineItem = [
                     'product_id' => $item['product_id'],
                     'variation_id' => $item['variation_id'] ?? 0,
                     'quantity' => $item['quantity'],
                 ];
+                if (isset($item['price']) && $item['price'] !== '' && (float) $item['price'] >= 0) {
+                    $lineItem['subtotal'] = (string) round(((float) $item['price']) * (int) $item['quantity'], 2);
+                    $lineItem['total'] = $lineItem['subtotal'];
+                }
+                $lineItems[] = $lineItem;
             }
 
             $orderData = [
@@ -182,14 +218,50 @@ class WooCommerceService
                 'status' => 'completed',
                 'set_paid' => true,
                 'line_items' => $lineItems,
+                'meta_data' => [
+                    ['key' => '_wc_order_attribution_device', 'value' => 'desktop'],
+                    ['key' => '_wc_order_attribution_medium', 'value' => 'pos'],
+                    ['key' => '_wc_order_attribution_source_type', 'value' => 'pos'],
+                    ['key' => '_wc_order_attribution_utm_source', 'value' => 'pos'],
+                    ['key' => '_pos_sale', 'value' => 'true'],
+                ],
             ];
 
-            if (! empty($data['customer_id'])) {
-                $orderData['customer_id'] = (int) $data['customer_id'];
+            $customer = $data['customer'] ?? null;
+            if (is_array($customer) && ! empty($customer['id'])) {
+                $fullName = trim((string) ($customer['name'] ?? ''));
+                $parts = $fullName !== '' ? explode(' ', $fullName, 2) : ['', ''];
+                $firstName = $parts[0] ?: 'Cliente';
+                $lastName = $parts[1] ?? '';
+                $email = $customer['email'] ?? null;
+                $phone = $customer['phone'] ?? null;
+
+                $orderData['billing'] = [
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'address_1' => '-',
+                    'city' => '-',
+                    'country' => 'BO',
+                ];
+
+                $orderData['meta_data'][] = ['key' => '_contact_id', 'value' => (string) $customer['id']];
+                $orderData['meta_data'][] = ['key' => '_contact_name', 'value' => $fullName];
+                if ($phone) {
+                    $orderData['meta_data'][] = ['key' => '_contact_phone', 'value' => (string) $phone];
+                }
             }
 
             if (! empty($data['note'])) {
                 $orderData['customer_note'] = $data['note'];
+            }
+
+            if (($data['type'] ?? 'direct') === 'subscription') {
+                $orderData['meta_data'][] = ['key' => '_is_pos_subscription', 'value' => 'true'];
+                $orderData['meta_data'][] = ['key' => '_subscription_title', 'value' => (string) ($data['subscription_title'] ?? '')];
+                $orderData['meta_data'][] = ['key' => '_subscription_end_date', 'value' => (string) ($data['subscription_end_date'] ?? '')];
+                $orderData['meta_data'][] = ['key' => '_sale_date', 'value' => now()->toDateString()];
             }
 
             $order = Order::create($orderData);
@@ -208,7 +280,7 @@ class WooCommerceService
         }
     }
 
-    public function listOrders(int $page = 1, int $perPage = 20, string $search = ''): array
+    public function listOrders(int $page = 1, int $perPage = 10, string $search = '', string $status = ''): array
     {
         try {
             $options = [
@@ -220,6 +292,9 @@ class WooCommerceService
 
             if ($search !== '') {
                 $options['search'] = $search;
+            }
+            if ($status !== '') {
+                $options['status'] = $status;
             }
 
             $orders = Order::all($options);
@@ -249,6 +324,7 @@ class WooCommerceService
                     'date_created' => $o['date_created'] ?? '',
                     'customer_name' => trim(($billing['first_name'] ?? '').' '.($billing['last_name'] ?? '')),
                     'customer_email' => $billing['email'] ?? '',
+                    'customer_phone' => $billing['phone'] ?? '',
                     'items' => $items,
                     'payment_method_title' => $o['payment_method_title'] ?? '',
                 ];
@@ -259,6 +335,9 @@ class WooCommerceService
                 'total' => (int) $total,
                 'totalPages' => (int) $totalPages,
                 'currentPage' => $page,
+                'current_page' => $page,
+                'lastPage' => (int) $totalPages,
+                'last_page' => (int) $totalPages,
                 'perPage' => $perPage,
                 'error' => null,
             ];
@@ -266,6 +345,123 @@ class WooCommerceService
             Log::warning('WooCommerce listOrders failed: '.$e->getMessage());
 
             return ['data' => [], 'total' => 0, 'totalPages' => 0, 'currentPage' => $page, 'perPage' => $perPage, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function listSubscriptions(): array
+    {
+        try {
+            $orders = Order::all(['meta_key' => '_is_pos_subscription', 'meta_value' => 'true', 'per_page' => 100]);
+
+            $mapped = collect($orders)->map(fn (mixed $o): array => (array) $o)->filter(function (array $o): bool {
+                $raw = $o['meta_data'] ?? [];
+                foreach ($raw as $m) {
+                    $item = is_array($m) ? $m : (array) $m;
+                    if (($item['key'] ?? '') === '_subscription_end_date') {
+                        return true;
+                    }
+                }
+
+                return false;
+            })->values()->all();
+
+            return ['data' => $mapped, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce listSubscriptions failed: '.$e->getMessage());
+
+            return ['data' => [], 'error' => $e->getMessage()];
+        }
+    }
+
+    public function getOrder(int $id): array
+    {
+        try {
+            $orders = Order::all(['include' => [$id]]);
+            $order = $orders[0] ?? null;
+            if (! $order) {
+                return ['data' => null, 'error' => 'Orden no encontrada'];
+            }
+
+            return ['data' => (array) $order, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce getOrder failed: '.$e->getMessage());
+
+            return ['data' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function updateOrderMeta(int $id, array $metaData): array
+    {
+        try {
+            $orders = Order::all(['include' => [$id]]);
+            $order = $orders[0] ?? null;
+            if (! $order) {
+                return ['data' => null, 'error' => 'Orden no encontrada'];
+            }
+
+            $existing = (array) $order;
+            $currentMeta = $existing['meta_data'] ?? [];
+
+            $filtered = collect($currentMeta)->reject(function (mixed $m) use ($metaData): bool {
+                $item = is_array($m) ? $m : (array) $m;
+
+                return isset($metaData[$item['key'] ?? '']);
+            })->values()->all();
+
+            foreach ($metaData as $key => $value) {
+                $filtered[] = ['key' => $key, 'value' => (string) $value];
+            }
+
+            $updated = Order::update($id, ['meta_data' => $filtered]);
+
+            return ['data' => (array) $updated, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce updateOrderMeta failed: '.$e->getMessage());
+
+            return ['data' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function updateOrderItems(int $id, array $items): array
+    {
+        try {
+            $orders = Order::all(['include' => [$id]]);
+            $order = $orders[0] ?? null;
+            if (! $order) {
+                return ['data' => null, 'error' => 'Orden no encontrada'];
+            }
+
+            $lineItems = [];
+            foreach ($items as $item) {
+                $qty = (int) ($item['quantity'] ?? 1);
+                $itemId = (int) ($item['id'] ?? 0);
+
+                if ($qty === 0 && $itemId > 0) {
+                    $lineItems[] = ['id' => $itemId, 'quantity' => 0];
+
+                    continue;
+                }
+
+                $entry = ['quantity' => $qty];
+                if ($itemId > 0) {
+                    $entry['id'] = $itemId;
+                }
+                if (isset($item['price'])) {
+                    $entry['price'] = (float) $item['price'];
+                }
+                if (! empty($item['product_id']) && $itemId === 0) {
+                    $entry['product_id'] = (int) $item['product_id'];
+                }
+                $lineItems[] = $entry;
+            }
+
+            $updated = Order::update($id, ['line_items' => $lineItems]);
+
+            return ['data' => (array) $updated, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce updateOrderItems failed: '.$e->getMessage());
+
+            return ['data' => null, 'error' => $e->getMessage()];
         }
     }
 

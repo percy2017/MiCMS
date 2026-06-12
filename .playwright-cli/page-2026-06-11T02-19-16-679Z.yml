@@ -1,0 +1,69 @@
+- generic [ref=e2]:
+  - generic [ref=e42]:
+    - generic [ref=e46]:
+      - list [ref=e48]:
+        - listitem [ref=e49]:
+          - link "MiCMS" [ref=e50] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e52]
+            - generic [ref=e55]: MiCMS
+      - generic [ref=e57]:
+        - generic [ref=e58]: MiCMS
+        - list [ref=e59]:
+          - listitem [ref=e60]:
+            - link "Panel" [ref=e61] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e62]
+              - generic [ref=e67]: Panel
+          - listitem [ref=e68]:
+            - button "Contenido" [ref=e69]:
+              - img [ref=e70]
+              - generic [ref=e74]: Contenido
+              - img [ref=e75]
+          - listitem [ref=e77]:
+            - link "Medios" [ref=e78] [cursor=pointer]:
+              - /url: /admin/media
+              - img [ref=e79]
+              - generic [ref=e83]: Medios
+          - listitem [ref=e84]:
+            - button "Chatbots" [ref=e85]:
+              - img [ref=e86]
+              - generic [ref=e88]: Chatbots
+              - img [ref=e89]
+          - listitem [ref=e91]:
+            - button "PosWoo" [ref=e92]:
+              - img [ref=e93]
+              - generic [ref=e95]: PosWoo
+              - img [ref=e96]
+          - listitem [ref=e98]:
+            - button "Usuarios" [ref=e99]:
+              - img [ref=e100]
+              - generic [ref=e112]: Usuarios
+              - img [ref=e113]
+          - listitem [ref=e115]:
+            - button "Configuración" [ref=e116]:
+              - img [ref=e117]
+              - generic [ref=e120]: Configuración
+              - img [ref=e121]
+      - list [ref=e124]:
+        - listitem [ref=e125]:
+          - button "A admin" [ref=e126]:
+            - generic [ref=e128]: A
+            - generic [ref=e130]: admin
+            - img [ref=e131]
+    - main [ref=e134]:
+      - generic [ref=e136]:
+        - button "Toggle sidebar" [ref=e137]:
+          - img
+          - generic [ref=e138]: Toggle sidebar
+        - navigation "breadcrumb" [ref=e139]:
+          - list [ref=e140]:
+            - listitem [ref=e141]:
+              - link "Admin" [disabled] [ref=e142]
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - img [ref=e146]
+          - img [ref=e149]
+          - img [ref=e152]
+        - img [ref=e155]
+  - region "Notifications alt+T"

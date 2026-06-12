@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MediaStorage
 {
@@ -55,6 +56,54 @@ class MediaStorage
             'size' => (int) $file->getSize(),
             'width' => $width,
             'height' => $height,
+        ];
+    }
+
+    /**
+     * Store raw bytes (e.g. base64-decoded content from a webhook) on the
+     * configured media disk under the configured directory using the given
+     * original name. If a file with the same name already exists, append
+     * a numeric suffix (-1, -2, ...). Used for media that arrives outside
+     * an HTTP upload (incoming WhatsApp media, etc.).
+     *
+     * @return array{path: string, name: string, mime_type: string, size: int, width: ?int, height: ?int}
+     */
+    public function storeBytes(string $body, string $mimeType, string $originalName): array
+    {
+        $disk = config('media.disk');
+        $directory = trim(config('media.directory'), '/');
+        $basename = pathinfo($originalName, PATHINFO_FILENAME) ?: Str::random(8);
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION) ?: '');
+        if ($extension === '' && $mimeType !== '') {
+            $extension = match (true) {
+                str_contains($mimeType, 'jpeg') || str_contains($mimeType, 'jpg') => 'jpg',
+                str_contains($mimeType, 'png') => 'png',
+                str_contains($mimeType, 'webp') => 'webp',
+                str_contains($mimeType, 'gif') => 'gif',
+                str_contains($mimeType, 'mp4') => 'mp4',
+                str_contains($mimeType, 'mp3') => 'mp3',
+                str_contains($mimeType, 'mpeg') => 'mp3',
+                str_contains($mimeType, 'ogg') || str_contains($mimeType, 'opus') => 'ogg',
+                str_contains($mimeType, 'wav') => 'wav',
+                str_contains($mimeType, 'pdf') => 'pdf',
+                str_starts_with($mimeType, 'audio/') => 'audio',
+                str_starts_with($mimeType, 'video/') => 'video',
+                default => 'bin',
+            };
+        }
+
+        $uniqueName = $this->uniqueFilename($disk, $directory, $basename, $extension);
+        $relativePath = $directory === '' ? $uniqueName : $directory.'/'.$uniqueName;
+
+        Storage::disk($disk)->put($relativePath, $body);
+
+        return [
+            'path' => $relativePath,
+            'name' => $originalName,
+            'mime_type' => $mimeType ?: 'application/octet-stream',
+            'size' => strlen($body),
+            'width' => null,
+            'height' => null,
         ];
     }
 

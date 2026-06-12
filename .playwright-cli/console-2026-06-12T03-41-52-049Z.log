@@ -1,0 +1,7 @@
+[     219ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=29:167
+[     486ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=29:226
+[  142031ms] [LOG] [ChatBotEcho] reaction event {action: added, message_id: 367, conversation_id: 29, reaction: Object} @ https://hostbol.lat/admin/chats?active=29:226
+[  199540ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=29:167
+[  199805ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=29:226
+[  228590ms] [LOG] [ChatBotEcho] link previews ready {message_id: 267, conversation_id: 27, link_previews: Object} @ https://hostbol.lat/admin/chats?active=29:226
+[  228606ms] [LOG] [ChatBotEcho] link previews ready {message_id: 288, conversation_id: 27, link_previews: Object} @ https://hostbol.lat/admin/chats?active=29:226

@@ -9,11 +9,6 @@ import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { appName } from '@/lib/app-name';
 import '../css/puck-dark.css';
-import { configureEcho } from '@laravel/echo-react';
-
-configureEcho({
-    broadcaster: 'reverb',
-});
 
 const modulePages = import.meta.glob('/Modules/*/resources/js/Pages/**/*.{tsx,jsx}');
 

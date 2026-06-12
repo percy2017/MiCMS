@@ -115,50 +115,6 @@ export function AppSidebar() {
         });
     }
 
-    if (can.viewMedia) {
-        mainNavItems.push({
-            title: 'Medios',
-            href: mediaIndex(),
-            icon: ImageIcon,
-        });
-    }
-
-    if (can.viewChatbot) {
-        mainNavItems.push({
-            title: 'Chatbots',
-            href: '/admin/canales',
-            icon: MessageCircle,
-            children: [
-                { title: 'Canales', href: '/admin/canales' },
-                { title: 'Chats', href: '/admin/chats' },
-            ],
-        });
-    }
-
-    if (can.viewPosWoo) {
-        const posWooPkg = enabledPackages.find((p) => p.slug === 'pos-woo');
-        const moduleChildren = (posWooPkg?.menu?.children ?? []).map((child) => ({
-            title: child.title,
-            href: child.href ?? '#',
-        }));
-
-        const posWooChildren: NavItem[] = moduleChildren.length > 0
-            ? moduleChildren
-            : [
-                { title: 'Terminal', href: '/admin/pos-woo' },
-                { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
-            ];
-
-        if (posWooPkg || true) {
-            mainNavItems.push({
-                title: posWooPkg?.label ?? 'PosWoo',
-                href: posWooChildren[0].href,
-                icon: resolveIcon(posWooPkg?.menu?.icon ?? posWooPkg?.icon),
-                children: posWooChildren,
-            });
-        }
-    }
-
     const userMgmtChildren: NavItem[] = [];
     if (can.viewUsers) {
         userMgmtChildren.push({ title: 'Usuarios', href: usuariosIndex() });
@@ -178,6 +134,53 @@ export function AppSidebar() {
         });
     }
 
+    if (can.viewMedia) {
+        mainNavItems.push({
+            title: 'Medios',
+            href: mediaIndex(),
+            icon: ImageIcon,
+        });
+    }
+
+    if (can.viewChatbot) {
+        mainNavItems.push({
+            title: 'Mensajeria',
+            href: '/admin/canales',
+            icon: MessageCircle,
+            children: [
+                { title: 'Chats', href: '/admin/chats' },
+                { title: 'Canales', href: '/admin/canales' },
+            ],
+        });
+    }
+
+    if (can.viewPosWoo) {
+        const posWooPkg = enabledPackages.find((p) => p.slug === 'pos-woo');
+        const moduleChildren = (posWooPkg?.menu?.children ?? []).map((child) => ({
+            title: child.title,
+            href: child.href ?? '#',
+        }));
+
+        const posWooChildren: NavItem[] = moduleChildren.length > 0
+            ? moduleChildren
+            : [
+                { title: 'Terminal', href: '/admin/pos-woo' },
+                { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
+                { title: 'Calendario', href: '/admin/pos-woo/calendario' },
+            ];
+
+        if (posWooPkg || true) {
+            mainNavItems.push({
+                title: posWooPkg?.label ?? 'PosWoo',
+                href: posWooChildren[0].href,
+                icon: resolveIcon(posWooPkg?.menu?.icon ?? posWooPkg?.icon),
+                children: posWooChildren,
+            });
+        }
+    }
+
+
+
     const configChildren: NavItem[] = [];
     if (can.viewPackages) {
         configChildren.push({ title: 'Paquetes', href: paquetesIndex() });
@@ -189,9 +192,7 @@ export function AppSidebar() {
         configChildren.push({ title: 'logs', href: '/admin/logs' });
     }
     configChildren.push({ title: 'Socket', href: reverbRoute() });
-    if (isAdmin) {
-        configChildren.push({ title: 'API Docs', href: '/docs/api#/' });
-    }
+    
     if (configChildren.length > 0) {
         mainNavItems.push({
             title: 'Configuración',

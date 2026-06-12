@@ -7,14 +7,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Create default web_widget channel from first widget config
         $oldWidget = DB::table('chatbot_widgets')->first();
+
+        if (! $oldWidget) {
+            return;
+        }
+
         $channelId = DB::table('channels')->insertGetId([
             'type' => 'web_widget',
             'name' => 'Widget Web',
             'enabled' => true,
             'config' => null,
-            'settings' => json_encode($oldWidget ? [
+            'settings' => json_encode([
                 'title' => $oldWidget->title ?? 'Asistente virtual',
                 'subtitle' => $oldWidget->subtitle ?? 'Te respondemos en minutos',
                 'greeting' => $oldWidget->greeting ?? '¡Hola! ¿En qué podemos ayudarte?',
@@ -23,13 +27,12 @@ return new class extends Migration
                 'require_auth' => $oldWidget->require_auth ?? true,
                 'show_typing' => $oldWidget->show_typing ?? true,
                 'offline_message' => $oldWidget->offline_message ?? null,
-            ] : []),
+            ]),
             'sort' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // 2. Migrate conversations
         $oldConversations = DB::table('chatbot_conversations')->get();
         $idMap = [];
         foreach ($oldConversations as $old) {
@@ -50,7 +53,6 @@ return new class extends Migration
             $idMap[$old->id] = $newId;
         }
 
-        // 3. Migrate messages
         $oldMessages = DB::table('chatbot_messages')->orderBy('id')->get();
         foreach ($oldMessages as $old) {
             $newConvId = $idMap[$old->conversation_id] ?? null;
@@ -72,7 +74,6 @@ return new class extends Migration
             ]);
         }
 
-        // 4. Update autoincrement
         $maxConv = DB::table('conversations')->max('id');
         if ($maxConv) {
             DB::statement('UPDATE SQLITE_SEQUENCE SET seq = ? WHERE name = ?', [$maxConv, 'conversations']);

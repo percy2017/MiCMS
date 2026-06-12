@@ -29,7 +29,7 @@ test('admin can reply to a conversation', function () {
         ->post(route('chatbot.admin.chats.reply', $conv), [
             'content' => 'Hola, ¿en qué te ayudo?',
         ])
-        ->assertRedirect();
+        ->assertOk();
 
     assertDatabaseHas('messages', [
         'conversation_id' => $conv->id,
@@ -42,7 +42,9 @@ test('admin can close a conversation', function () {
     $conv = Conversation::factory()->create();
 
     actingAs(adminUser())
-        ->post(route('chatbot.admin.chats.close', $conv))
+        ->patch(route('chatbot.admin.chats.update', $conv), [
+            'status' => 'closed',
+        ])
         ->assertRedirect();
 
     expect($conv->fresh()->status->value)->toBe('closed');
@@ -55,7 +57,7 @@ test('admin can delete a conversation', function () {
         ->delete(route('chatbot.admin.chats.destroy', $conv))
         ->assertRedirect(route('chatbot.admin.chats'));
 
-    assertDatabaseCount('conversations', 1);
+    assertDatabaseCount('conversations', 0);
 });
 
 test('editor can view but not delete', function () {

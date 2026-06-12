@@ -1,0 +1,241 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /admin
+                    - generic:
+                      - img
+                    - generic:
+                      - generic: MiCMS
+            - generic:
+              - generic:
+                - generic: MiCMS
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /admin
+                      - img
+                      - generic: Panel
+                  - listitem:
+                    - button:
+                      - img
+                      - generic: Contenido
+                      - img
+                  - listitem:
+                    - link:
+                      - /url: /admin/media
+                      - img
+                      - generic: Medios
+                  - listitem:
+                    - button:
+                      - img
+                      - generic: Chatbots
+                      - img
+                  - listitem:
+                    - button [expanded]:
+                      - img
+                      - generic: PosWoo
+                      - img
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /admin/pos-woo
+                            - generic: Terminal
+                        - listitem:
+                          - link:
+                            - /url: /admin/pos-woo/pedidos
+                            - generic: Pedidos
+                  - listitem:
+                    - button:
+                      - img
+                      - generic: Usuarios
+                      - img
+                  - listitem:
+                    - button:
+                      - img
+                      - generic: Configuración
+                      - img
+            - generic:
+              - list:
+                - listitem:
+                  - button:
+                    - generic:
+                      - generic: A
+                    - generic:
+                      - generic: admin
+                    - img
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - img
+              - generic: Toggle sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /admin
+                    - text: Admin
+                - listitem:
+                  - img
+                - listitem:
+                  - link [disabled]: Pos Woo
+        - generic:
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: Buscar producto por nombre...
+              - img
+            - button:
+              - img
+              - generic: 🤗
+              - generic: Cambiar
+          - generic:
+            - generic:
+              - generic:
+                - button:
+                  - generic:
+                    - generic: P
+                  - generic:
+                    - generic:
+                      - paragraph: Product Test
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: Sin precio
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: GxMax
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $40.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Mastv
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $30.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: YouTube Premium
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $30.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: FlujoTv
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $30.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Combo Netflix + HBO
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $40.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: HBO Max
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $20.00
+                      - generic: +
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Netflix Premium
+                      - generic: Sin categorizar
+                    - generic:
+                      - generic: $30.00
+                      - generic: +
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=2]: Carrito
+                  - paragraph: 1 artículo
+                - generic:
+                  - list:
+                    - listitem:
+                      - generic:
+                        - generic:
+                          - paragraph: Netflix Premium — 1 mes
+                          - button:
+                            - generic: $30.00 c/u
+                            - img
+                        - generic:
+                          - button: −
+                          - generic: "1"
+                          - button: +
+                      - generic:
+                        - button: Quitar
+                        - generic: $30.00
+                - generic:
+                  - generic:
+                    - generic: Método de pago
+                    - combobox
+                  - generic:
+                    - generic: Total
+                    - generic: $30.00
+                  - button:
+                    - img
+                    - text: Cobrar $30.00
+    - region "Notifications alt+T"
+  - dialog "Confirmar venta" [ref=e280]:
+    - generic [ref=e281]:
+      - heading "Confirmar venta" [level=2] [ref=e282]
+      - paragraph [ref=e283]: Revisa los datos antes de registrar la orden en WooCommerce.
+    - generic [ref=e284]:
+      - generic [ref=e285]:
+        - generic [ref=e286]: Cliente
+        - generic [ref=e287]: 🤗
+      - generic [ref=e288]:
+        - generic [ref=e289]: Artículos (1)
+        - list [ref=e290]:
+          - listitem [ref=e291]:
+            - generic [ref=e292]:
+              - text: Netflix Premium — 1 mes
+              - generic [ref=e293]: x1
+            - generic [ref=e294]: $30.00
+      - generic [ref=e295]:
+        - generic [ref=e296]: Método de pago
+        - generic [ref=e297]: Transferencia bancaria directa
+      - generic [ref=e298]:
+        - generic [ref=e299]: Total
+        - generic [ref=e300]: $30.00
+    - generic [ref=e301]:
+      - button "Cancelar" [active] [ref=e302]
+      - button "Confirmar y cobrar" [ref=e303]
+    - button "Close" [ref=e304]:
+      - img
+      - generic [ref=e305]: Close

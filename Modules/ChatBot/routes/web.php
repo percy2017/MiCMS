@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatBot\MessageReactionController;
 use Illuminate\Support\Facades\Route;
 use Modules\ChatBot\Http\Controllers\Admin\ChannelAdminController;
 use Modules\ChatBot\Http\Controllers\Admin\ChatController;
@@ -35,13 +36,21 @@ Route::middleware(['auth', 'verified'])
             ->name('evolution.edit');
         Route::patch('/canales/evolution/{evolution}', [ChannelAdminController::class, 'updateEvolution'])
             ->name('evolution.update');
+        Route::delete('/canales/evolution/{evolution}', [ChannelAdminController::class, 'destroy'])
+            ->name('evolution.destroy');
 
         // Unified chats
         Route::get('/chats', [ChatController::class, 'index'])->name('chats');
-        Route::get('/chats/{conversation}', [ChatController::class, 'show'])->name('chats.show');
+        Route::get('/chats/search', [ChatController::class, 'search'])->name('chats.search');
+        Route::get('/chats/{conversation}/messages', [ChatController::class, 'show'])->name('chats.show');
+        Route::get('/chats/{conversation}', [ChatController::class, 'index'])->name('chats.open');
         Route::post('/chats/{conversation}/reply', [ChatController::class, 'reply'])->name('chats.reply');
         Route::post('/chats/{conversation}/read', [ChatController::class, 'read'])->name('chats.read');
-        Route::post('/chats/{conversation}/close', [ChatController::class, 'close'])->name('chats.close');
-        Route::post('/chats/{conversation}/reopen', [ChatController::class, 'reopen'])->name('chats.reopen');
+        Route::patch('/chats/{conversation}', [ChatController::class, 'update'])->name('chats.update');
         Route::delete('/chats/{conversation}', [ChatController::class, 'destroy'])->name('chats.destroy');
+
+        Route::post('/chats/{conversation}/messages/{message}/reactions', [MessageReactionController::class, 'store'])
+            ->name('chats.reactions.store');
+        Route::delete('/chats/{conversation}/messages/{message}/reactions', [MessageReactionController::class, 'destroy'])
+            ->name('chats.reactions.destroy');
     });

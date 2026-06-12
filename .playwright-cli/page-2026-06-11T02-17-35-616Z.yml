@@ -1,0 +1,41 @@
+- generic [ref=e2]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - link "Logo Log in to your account" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "Logo" [ref=e9]
+        - generic [ref=e10]: Log in to your account
+      - generic [ref=e11]:
+        - heading "Log in to your account" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Enter your email and password below to log in
+    - button "Sign in with a passkey" [ref=e15]:
+      - img
+      - text: Sign in with a passkey
+    - generic [ref=e19]: Or continue with email
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: Email address
+          - textbox "Email address" [ref=e24]:
+            - /placeholder: email@example.com
+            - text: admin@admin.com
+          - paragraph [ref=e41]: auth.failed
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: Password
+            - link "Forgot your password?" [ref=e28] [cursor=pointer]:
+              - /url: /forgot-password
+          - generic [ref=e29]:
+            - textbox "Password" [ref=e30]: admin
+            - button "Show password" [ref=e31]:
+              - img [ref=e32]
+        - generic [ref=e35]:
+          - checkbox "Remember me" [ref=e36]
+          - checkbox
+          - generic [ref=e37]: Remember me
+        - button "Log in" [ref=e38]
+      - generic [ref=e39]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e40] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications alt+T"

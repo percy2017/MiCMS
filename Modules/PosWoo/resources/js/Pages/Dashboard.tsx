@@ -1,11 +1,21 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useEscapeKey } from '@/hooks/use-escape-key';
 import { CartPanel } from '../Components/cart-panel';
-import { CheckoutModal } from '../Components/checkout-modal';
 import { ProductGrid } from '../Components/product-grid';
 import type {
     CartItem,
     Customer,
+    PaymentGateway,
     Product,
     WooVariation,
 } from '../Components/types';
@@ -22,7 +32,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
     const [error, setError] = useState<string | null>(serverError ?? null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [customer, setCustomer] = useState<Customer | null>(null);
-    const [showCheckout, setShowCheckout] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [showCustomerSearch, setShowCustomerSearch] = useState(false);
     const [customerQuery, setCustomerQuery] = useState('');
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -31,12 +41,35 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
         product: Product;
         variations: WooVariation[];
     } | null>(null);
+    const [gateways, setGateways] = useState<PaymentGateway[]>([]);
+    const [gatewaysLoading, setGatewaysLoading] = useState(false);
+    const [gatewaysError, setGatewaysError] = useState<string | null>(null);
+    const [customersShown, setCustomersShown] = useState(false);
+    const [saleType, setSaleType] = useState<'direct' | 'subscription'>('direct');
+    const [subscriptionTitle, setSubscriptionTitle] = useState('');
+    const [subscriptionEndDate, setSubscriptionEndDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().slice(0, 10);
+    });
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const customerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEscapeKey(!!variationPicker, () => setVariationPicker(null));
+    useEscapeKey(showCustomerSearch, () => {
+        setShowCustomerSearch(false);
+        setCustomerQuery('');
+        setCustomersShown(false);
+    });
+
+    useEffect(() => {
+        loadGateways();
+    }, []);
 
     const doSearch = useCallback((query: string) => {
         setLoading(true);
         setError(null);
-        fetch(`/admin/pos-woo/products?search=${encodeURIComponent(query)}&per_page=50`)
+        fetch(`/admin/pos-woo/products?search=${encodeURIComponent(query)}&per_page=10`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.error) {
@@ -124,6 +157,16 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
         );
     }
 
+    function updatePrice(cartKey: string, price: number) {
+        setCart((prev) =>
+            prev.map((item) =>
+                item.cartKey === cartKey
+                    ? { ...item, price, subtotal: price * item.quantity }
+                    : item,
+            ),
+        );
+    }
+
     function removeFromCart(cartKey: string) {
         setCart((prev) => prev.filter((item) => item.cartKey !== cartKey));
     }
@@ -131,21 +174,82 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
     const total = cart.reduce((sum, item) => sum + item.subtotal, 0);
 
     function loadCustomers(query: string) {
+        if (query.length < 4) {
+            setCustomers([]);
+            setCustomersLoading(false);
+            return;
+        }
         setCustomersLoading(true);
         fetch(`/admin/pos-woo/customers?search=${encodeURIComponent(query)}`)
             .then((r) => r.json())
             .then((data) => {
                 setCustomers(data.data ?? []);
+                setCustomersShown(true);
             })
             .catch(() => {})
             .finally(() => setCustomersLoading(false));
     }
 
-    function handleCheckoutConfirm(paymentMethod: string) {
+    function loadGateways() {
+        setGatewaysLoading(true);
+        setGatewaysError(null);
+        fetch('/admin/pos-woo/payment-gateways')
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.error) {
+                    setGatewaysError(data.error);
+                    setGateways([]);
+                } else {
+                    setGateways(data.data ?? []);
+                }
+            })
+            .catch(() => setGatewaysError('Error al cargar métodos de pago'))
+            .finally(() => setGatewaysLoading(false));
+    }
+
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [pendingCheckout, setPendingCheckout] = useState<{ method: string; title: string } | null>(null);
+
+    function openConfirmDialog(paymentMethod: string, paymentMethodTitle: string) {
+        if (!customer) {
+            setError('Debes asignar un cliente antes de cobrar.');
+            return;
+        }
+        if (saleType === 'subscription') {
+            if (!subscriptionTitle.trim()) {
+                setError('Debes asignar un título a la suscripción.');
+                return;
+            }
+            if (subscriptionEndDate <= new Date().toISOString().slice(0, 10)) {
+                setError('La fecha de vencimiento debe ser posterior a hoy.');
+                return;
+            }
+        }
+        setPendingCheckout({ method: paymentMethod, title: paymentMethodTitle });
+        setConfirmOpen(true);
+    }
+
+    function cancelConfirm() {
+        setConfirmOpen(false);
+        setPendingCheckout(null);
+    }
+
+    function submitCheckout() {
+        if (!pendingCheckout) {
+            return;
+        }
+        if (!customer) {
+            setError('Debes asignar un cliente antes de cobrar.');
+            cancelConfirm();
+            return;
+        }
+        setSubmitting(true);
+        setError(null);
         const items = cart.map((item) => ({
             product_id: item.productId,
             variation_id: item.variationId ?? undefined,
             quantity: item.quantity,
+            price: item.price,
         }));
 
         fetch('/admin/pos-woo/checkout', {
@@ -153,8 +257,12 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') ?? '' },
             body: JSON.stringify({
                 items,
-                customer_id: customer?.id ?? undefined,
-                payment_method: paymentMethod,
+                customer_id: customer.id,
+                payment_method: pendingCheckout.method,
+                payment_method_title: pendingCheckout.title,
+                type: saleType,
+                subscription_title: saleType === 'subscription' ? subscriptionTitle : undefined,
+                subscription_end_date: saleType === 'subscription' ? subscriptionEndDate : undefined,
             }),
         })
             .then((r) => r.json())
@@ -165,10 +273,19 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                 }
                 setCart([]);
                 setCustomer(null);
-                setShowCheckout(false);
-                router.reload({ only: ['initialProducts'] });
+                setCustomerQuery('');
+                setCustomers([]);
+                setSaleType('direct');
+                setSubscriptionTitle('');
+                const d = new Date();
+                d.setDate(d.getDate() + 30);
+                setSubscriptionEndDate(d.toISOString().slice(0, 10));
             })
-            .catch(() => setError('Error al procesar el cobro'));
+            .catch(() => setError('Error al procesar el cobro'))
+            .finally(() => {
+                setSubmitting(false);
+                cancelConfirm();
+            });
     }
 
     return (
@@ -176,7 +293,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
             <Head title="Pos Woo - Terminal POS" />
 
             <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
-                {/* Search bar */}
+                {/* Top bar: search + customer */}
                 <div className="flex items-center gap-3 border-b bg-background px-4 py-3">
                     <div className="relative flex-1">
                         <input
@@ -202,16 +319,40 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                         )}
                     </div>
 
-                    <Link
-                        href="/admin/paquetes"
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCustomerSearch(true);
+                            setCustomersShown(false);
+                            setCustomers([]);
+                        }}
+                        className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-dashed px-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                     >
-                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Configuración
-                    </Link>
+                        {customer ? (
+                            <>
+                                {customer.avatar_url ? (
+                                    <img
+                                        src={customer.avatar_url}
+                                        alt={customer.name}
+                                        className="size-6 shrink-0 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                        {customer.name?.charAt(0)?.toUpperCase() ?? '?'}
+                                    </div>
+                                )}
+                                <span className="max-w-[160px] truncate">{customer.name}</span>
+                                <span className="text-xs text-muted-foreground">Cambiar</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span>Seleccionar cliente</span>
+                            </>
+                        )}
+                    </button>
                 </div>
 
                 {/* Error banner */}
@@ -244,13 +385,17 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                             cart={cart}
                             total={total}
                             customer={customer}
+                            gateways={gateways}
                             onUpdateQuantity={updateQuantity}
+                            onUpdatePrice={updatePrice}
                             onRemoveFromCart={removeFromCart}
-                            onCheckout={() => setShowCheckout(true)}
-                            onCustomerSearch={() => {
-                                setShowCustomerSearch(true);
-                                loadCustomers('');
-                            }}
+                            onCheckout={openConfirmDialog}
+                            saleType={saleType}
+                            onSaleTypeChange={setSaleType}
+                            subscriptionTitle={subscriptionTitle}
+                            onSubscriptionTitleChange={setSubscriptionTitle}
+                            subscriptionEndDate={subscriptionEndDate}
+                            onSubscriptionEndDateChange={setSubscriptionEndDate}
                         />
                     </div>
                 </div>
@@ -258,7 +403,14 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
 
             {/* Variation picker modal */}
             {variationPicker && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setVariationPicker(null);
+                    }}
+                >
                     <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl">
                         <div className="mb-1 flex items-center justify-between">
                             <h3 className="text-lg font-semibold">{variationPicker.product.name}</h3>
@@ -308,17 +460,33 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
 
             {/* Customer search modal */}
             {showCustomerSearch && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowCustomerSearch(false);
+                            setCustomerQuery('');
+                            setCustomersShown(false);
+                        }
+                    }}
+                >
                     <div className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl">
                         <h3 className="mb-4 text-lg font-semibold">Buscar cliente</h3>
                         <input
                             type="text"
                             value={customerQuery}
                             onChange={(e) => {
-                                setCustomerQuery(e.target.value);
-                                loadCustomers(e.target.value);
+                                const value = e.target.value;
+                                setCustomerQuery(value);
+                                setCustomersShown(value.length >= 4);
+                                if (customerTimer.current) clearTimeout(customerTimer.current);
+                                customerTimer.current = setTimeout(() => {
+                                    loadCustomers(value);
+                                }, 250);
                             }}
-                            placeholder="Nombre o email..."
+                            placeholder="Nombre, email o teléfono (mín. 4 caracteres)..."
                             className="mb-4 h-10 w-full rounded-lg border bg-muted/50 px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                             autoFocus
                         />
@@ -327,8 +495,8 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                                 <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                             </div>
                         )}
-                        <div className="mb-4 max-h-48 space-y-1 overflow-y-auto">
-                            {!customersLoading && customers.length === 0 && (
+                        <div className="mb-4 max-h-64 space-y-1 overflow-y-auto">
+                            {!customersLoading && customers.length === 0 && customersShown && (
                                 <p className="py-3 text-center text-sm text-muted-foreground">
                                     Sin resultados. La venta se hará como invitado.
                                 </p>
@@ -340,15 +508,26 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                                         setCustomer(c);
                                         setShowCustomerSearch(false);
                                         setCustomerQuery('');
+                                        setCustomersShown(false);
                                     }}
                                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                                 >
-                                    <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                                        {c.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <div className="font-medium">{c.name}</div>
-                                        <div className="text-xs text-muted-foreground">{c.email}</div>
+                                    {c.avatar_url ? (
+                                        <img
+                                            src={c.avatar_url}
+                                            alt={c.name}
+                                            className="size-10 shrink-0 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                                            {c.name?.charAt(0)?.toUpperCase() ?? '?'}
+                                        </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate font-medium">{c.name || 'Sin nombre'}</div>
+                                        <div className="truncate text-xs text-muted-foreground">
+                                            {c.phone || c.email || '—'}
+                                        </div>
                                     </div>
                                 </button>
                             ))}
@@ -358,6 +537,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                                 onClick={() => {
                                     setShowCustomerSearch(false);
                                     setCustomerQuery('');
+                                    setCustomersShown(false);
                                 }}
                                 className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
                             >
@@ -368,16 +548,78 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                 </div>
             )}
 
-            {/* Checkout modal */}
-            {showCheckout && (
-                <CheckoutModal
-                    cart={cart}
-                    total={total}
-                    customer={customer}
-                    onClose={() => setShowCheckout(false)}
-                    onConfirm={handleCheckoutConfirm}
-                />
-            )}
+            {/* Confirm checkout dialog */}
+            <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) cancelConfirm(); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Confirmar venta</DialogTitle>
+                        <DialogDescription>
+                            Revisa los datos antes de registrar la orden en WooCommerce.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 text-sm">
+                        <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                            <span className="text-muted-foreground">Cliente</span>
+                            <span className="font-medium">{customer?.name ?? '—'}</span>
+                        </div>
+
+                        <div className="rounded-md border">
+                            <div className="border-b bg-muted/30 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Artículos ({cart.reduce((s, i) => s + i.quantity, 0)})
+                            </div>
+                            <ul className="divide-y">
+                                {cart.map((item) => (
+                                    <li key={item.cartKey} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                                        <span className="min-w-0 truncate">
+                                            {item.label}
+                                            <span className="ml-1.5 text-muted-foreground">x{item.quantity}</span>
+                                        </span>
+                                        <span className="shrink-0 font-mono tabular-nums">${item.subtotal.toFixed(2)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {saleType === 'subscription' && (
+                            <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                                <p className="font-semibold text-primary">Suscripción</p>
+                                <p className="text-muted-foreground">{subscriptionTitle}</p>
+                                <p className="text-muted-foreground">Vence: {new Date(subscriptionEndDate).toLocaleDateString('es')}</p>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                            <span className="text-muted-foreground">Método de pago</span>
+                            <span className="font-medium">{pendingCheckout?.title ?? '—'}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-md bg-primary/5 px-3 py-2">
+                            <span className="font-semibold">Total</span>
+                            <span className="text-xl font-bold tabular-nums">${total.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={cancelConfirm}
+                            disabled={submitting}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={submitCheckout}
+                            disabled={submitting}
+                        >
+                            {submitting ? 'Procesando…' : 'Confirmar y cobrar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </>
     );
 }

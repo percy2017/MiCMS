@@ -23,7 +23,8 @@
         "mews/purifier": "^3.4",
         "nwidart/laravel-modules": "^13.0",
         "opcodesio/log-viewer": "^3.24",
-        "spatie/laravel-permission": "^8.0"
+        "spatie/laravel-permission": "^8.0",
+        "symfony/filesystem": "^7.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",
@@ -119,6 +120,9 @@
             "pestphp/pest-plugin": true,
             "php-http/discovery": true,
             "wikimedia/composer-merge-plugin": true
+        },
+        "platform": {
+            "php": "8.3.31"
         }
     },
     "minimum-stability": "stable",

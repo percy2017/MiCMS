@@ -1,0 +1,3 @@
+[     150ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/login:167
+[     224ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://hostbol.lat/apple-touch-icon.png:0
+[    1680ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/login:226

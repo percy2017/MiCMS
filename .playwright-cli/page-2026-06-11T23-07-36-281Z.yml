@@ -1,0 +1,354 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - list [ref=e9]:
+        - listitem [ref=e10]:
+          - link "MiCMS" [ref=e11] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e13]
+            - generic [ref=e16]: MiCMS
+      - generic [ref=e18]:
+        - generic [ref=e19]: MiCMS
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Panel" [ref=e22] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e23]
+              - generic [ref=e28]: Panel
+          - listitem [ref=e29]:
+            - button "Contenido" [ref=e30]:
+              - img [ref=e31]
+              - generic [ref=e35]: Contenido
+              - img [ref=e36]
+          - listitem [ref=e38]:
+            - button "Usuarios" [ref=e39]:
+              - img [ref=e40]
+              - generic [ref=e52]: Usuarios
+              - img [ref=e53]
+          - listitem [ref=e55]:
+            - link "Medios" [ref=e56] [cursor=pointer]:
+              - /url: /admin/media
+              - img [ref=e57]
+              - generic [ref=e61]: Medios
+          - listitem [ref=e62]:
+            - button "Mensajeria" [ref=e63]:
+              - img [ref=e64]
+              - generic [ref=e66]: Mensajeria
+              - img [ref=e67]
+          - listitem [ref=e69]:
+            - button "PosWoo" [expanded] [ref=e70]:
+              - img [ref=e71]
+              - generic [ref=e73]: PosWoo
+              - img [ref=e74]
+            - list [ref=e77]:
+              - listitem [ref=e78]:
+                - link "Terminal" [ref=e79] [cursor=pointer]:
+                  - /url: /admin/pos-woo
+                  - generic [ref=e80]: Terminal
+              - listitem [ref=e81]:
+                - link "Pedidos" [ref=e82] [cursor=pointer]:
+                  - /url: /admin/pos-woo/pedidos
+                  - generic [ref=e83]: Pedidos
+              - listitem [ref=e84]:
+                - link "Calendario" [ref=e85] [cursor=pointer]:
+                  - /url: /admin/pos-woo/calendario
+                  - generic [ref=e86]: Calendario
+          - listitem [ref=e87]:
+            - button "Configuración" [ref=e88]:
+              - img [ref=e89]
+              - generic [ref=e92]: Configuración
+              - img [ref=e93]
+      - list [ref=e96]:
+        - listitem [ref=e97]:
+          - button "A admin" [ref=e98]:
+            - generic [ref=e100]: A
+            - generic [ref=e102]: admin
+            - img [ref=e103]
+    - main [ref=e106]:
+      - generic [ref=e108]:
+        - button "Toggle sidebar" [ref=e109]:
+          - img
+          - generic [ref=e110]: Toggle sidebar
+        - navigation "breadcrumb" [ref=e111]:
+          - list [ref=e112]:
+            - listitem [ref=e113]:
+              - link "Admin" [ref=e114] [cursor=pointer]:
+                - /url: /admin
+            - listitem [ref=e115]:
+              - img [ref=e116]
+            - listitem [ref=e118]:
+              - link "PosWoo" [ref=e119] [cursor=pointer]:
+                - /url: /admin/pos-woo
+            - listitem [ref=e120]:
+              - img [ref=e121]
+            - listitem [ref=e123]:
+              - link "Pedidos" [disabled] [ref=e124]
+      - generic [ref=e125]:
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - img [ref=e128]
+            - textbox "Buscar por cliente, email, teléfono o ID..." [ref=e131]
+          - combobox "Estado" [ref=e132]:
+            - option "Todos los estados" [selected]
+            - option "Completado"
+            - option "Procesando"
+            - option "Pendiente"
+            - option "En espera"
+            - option "Cancelado"
+            - option "Reembolsado"
+            - option "Falló"
+            - option "Papelera"
+          - paragraph [ref=e133]: 1327 pedidos
+        - table [ref=e135]:
+          - rowgroup [ref=e136]:
+            - row "Orden Cliente Productos Total Pago Estado Acciones" [ref=e137]:
+              - columnheader "Orden" [ref=e138]
+              - columnheader "Cliente" [ref=e139]
+              - columnheader "Productos" [ref=e140]
+              - columnheader "Total" [ref=e141]
+              - columnheader "Pago" [ref=e142]
+              - columnheader "Estado" [ref=e143]
+              - columnheader "Acciones" [ref=e144]
+          - rowgroup [ref=e145]:
+            - row "#1406 11/06/2026 07:04 p.m. L Laboratorio Clínico Rocha 59173917889@whatsapp.local 1 artículo $30.00 Transferencia bancaria directa Completado" [ref=e146]:
+              - cell "#1406 11/06/2026 07:04 p.m." [ref=e147]:
+                - generic [ref=e148]: "#1406"
+                - generic [ref=e149]: 11/06/2026
+                - generic [ref=e150]: 07:04 p.m.
+              - cell "L Laboratorio Clínico Rocha 59173917889@whatsapp.local" [ref=e151]:
+                - generic [ref=e152]:
+                  - generic [ref=e153]: L
+                  - generic [ref=e154]:
+                    - link "Laboratorio Clínico Rocha" [ref=e155] [cursor=pointer]:
+                      - /url: /admin/usuarios/35/editar
+                    - generic [ref=e156]: 59173917889@whatsapp.local
+              - cell "1 artículo" [ref=e157]:
+                - button "1 artículo" [ref=e158]:
+                  - img [ref=e159]
+                  - text: 1 artículo
+              - cell "$30.00" [ref=e161]
+              - cell "Transferencia bancaria directa" [ref=e162]
+              - cell "Completado" [ref=e163]:
+                - generic [ref=e164]: Completado
+              - cell [ref=e165]:
+                - button "Editar metadatos" [ref=e166]:
+                  - img
+                - button "Enviar mensaje" [ref=e167]:
+                  - img
+            - row "#1405 11/06/2026 07:02 p.m. Jzc 59178498294@whatsapp.local 1 artículo $30.00 Transferencia bancaria directa Completado" [ref=e168]:
+              - cell "#1405 11/06/2026 07:02 p.m." [ref=e169]:
+                - generic [ref=e170]: "#1405"
+                - generic [ref=e171]: 11/06/2026
+                - generic [ref=e172]: 07:02 p.m.
+              - cell "Jzc 59178498294@whatsapp.local" [ref=e173]:
+                - generic [ref=e175]:
+                  - link "Jzc" [ref=e176] [cursor=pointer]:
+                    - /url: /admin/usuarios/11/editar
+                  - generic [ref=e177]: 59178498294@whatsapp.local
+              - cell "1 artículo" [ref=e178]:
+                - button "1 artículo" [ref=e179]:
+                  - img [ref=e180]
+                  - text: 1 artículo
+              - cell "$30.00" [ref=e182]
+              - cell "Transferencia bancaria directa" [ref=e183]
+              - cell "Completado" [ref=e184]:
+                - generic [ref=e185]: Completado
+              - cell [ref=e186]:
+                - button "Editar metadatos" [ref=e187]:
+                  - img
+                - button "Enviar mensaje" [ref=e188]:
+                  - img
+            - row "#1404 11/06/2026 07:01 p.m. Lorena V.T. 59172830903@whatsapp.local 1 artículo $30.00 Transferencia bancaria directa Completado" [ref=e189]:
+              - cell "#1404 11/06/2026 07:01 p.m." [ref=e190]:
+                - generic [ref=e191]: "#1404"
+                - generic [ref=e192]: 11/06/2026
+                - generic [ref=e193]: 07:01 p.m.
+              - cell "Lorena V.T. 59172830903@whatsapp.local" [ref=e194]:
+                - generic [ref=e196]:
+                  - link "Lorena V.T." [ref=e197] [cursor=pointer]:
+                    - /url: /admin/usuarios/40/editar
+                  - generic [ref=e198]: 59172830903@whatsapp.local
+              - cell "1 artículo" [ref=e199]:
+                - button "1 artículo" [ref=e200]:
+                  - img [ref=e201]
+                  - text: 1 artículo
+              - cell "$30.00" [ref=e203]
+              - cell "Transferencia bancaria directa" [ref=e204]
+              - cell "Completado" [ref=e205]:
+                - generic [ref=e206]: Completado
+              - cell [ref=e207]:
+                - button "Editar metadatos" [ref=e208]:
+                  - img
+                - button "Enviar mensaje" [ref=e209]:
+                  - img
+            - row "#1403 11/06/2026 06:59 p.m. Anita Ortiz 59167270500@whatsapp.local 1 artículo $170.00 Transferencia bancaria directa Completado" [ref=e210]:
+              - cell "#1403 11/06/2026 06:59 p.m." [ref=e211]:
+                - generic [ref=e212]: "#1403"
+                - generic [ref=e213]: 11/06/2026
+                - generic [ref=e214]: 06:59 p.m.
+              - cell "Anita Ortiz 59167270500@whatsapp.local" [ref=e215]:
+                - generic [ref=e217]:
+                  - link "Anita Ortiz" [ref=e218] [cursor=pointer]:
+                    - /url: /admin/usuarios/16/editar
+                  - generic [ref=e219]: 59167270500@whatsapp.local
+              - cell "1 artículo" [ref=e220]:
+                - button "1 artículo" [ref=e221]:
+                  - img [ref=e222]
+                  - text: 1 artículo
+              - cell "$170.00" [ref=e224]
+              - cell "Transferencia bancaria directa" [ref=e225]
+              - cell "Completado" [ref=e226]:
+                - generic [ref=e227]: Completado
+              - cell [ref=e228]:
+                - button "Editar metadatos" [ref=e229]:
+                  - img
+                - button "Enviar mensaje" [ref=e230]:
+                  - img
+            - row "#1402 11/06/2026 06:57 p.m. Jesus 34698684267@whatsapp.local 1 artículo $60.00 Transferencia bancaria directa Completado" [ref=e231]:
+              - cell "#1402 11/06/2026 06:57 p.m." [ref=e232]:
+                - generic [ref=e233]: "#1402"
+                - generic [ref=e234]: 11/06/2026
+                - generic [ref=e235]: 06:57 p.m.
+              - cell "Jesus 34698684267@whatsapp.local" [ref=e236]:
+                - generic [ref=e238]:
+                  - link "Jesus" [ref=e239] [cursor=pointer]:
+                    - /url: /admin/usuarios/49/editar
+                  - generic [ref=e240]: 34698684267@whatsapp.local
+              - cell "1 artículo" [ref=e241]:
+                - button "1 artículo" [ref=e242]:
+                  - img [ref=e243]
+                  - text: 1 artículo
+              - cell "$60.00" [ref=e245]
+              - cell "Transferencia bancaria directa" [ref=e246]
+              - cell "Completado" [ref=e247]:
+                - generic [ref=e248]: Completado
+              - cell [ref=e249]:
+                - button "Editar metadatos" [ref=e250]:
+                  - img
+                - button "Enviar mensaje" [ref=e251]:
+                  - img
+            - row "#1401 11/06/2026 06:20 p.m. 😎 59178082844@whatsapp.local 1 artículo $30.00 Transferencia bancaria directa Completado" [ref=e252]:
+              - cell "#1401 11/06/2026 06:20 p.m." [ref=e253]:
+                - generic [ref=e254]: "#1401"
+                - generic [ref=e255]: 11/06/2026
+                - generic [ref=e256]: 06:20 p.m.
+              - cell "😎 59178082844@whatsapp.local" [ref=e257]:
+                - generic [ref=e259]:
+                  - link "😎" [ref=e260] [cursor=pointer]:
+                    - /url: /admin/usuarios/42/editar
+                  - generic [ref=e261]: 59178082844@whatsapp.local
+              - cell "1 artículo" [ref=e262]:
+                - button "1 artículo" [ref=e263]:
+                  - img [ref=e264]
+                  - text: 1 artículo
+              - cell "$30.00" [ref=e266]
+              - cell "Transferencia bancaria directa" [ref=e267]
+              - cell "Completado" [ref=e268]:
+                - generic [ref=e269]: Completado
+              - cell [ref=e270]:
+                - button "Editar metadatos" [ref=e271]:
+                  - img
+                - button "Enviar mensaje" [ref=e272]:
+                  - img
+            - row "#1400 11/06/2026 01:26 a.m. Ing Carlos Valbuena 584143688614@whatsapp.local 1 artículo $70.00 Transferencia bancaria directa Completado" [ref=e273]:
+              - cell "#1400 11/06/2026 01:26 a.m." [ref=e274]:
+                - generic [ref=e275]: "#1400"
+                - generic [ref=e276]: 11/06/2026
+                - generic [ref=e277]: 01:26 a.m.
+              - cell "Ing Carlos Valbuena 584143688614@whatsapp.local" [ref=e278]:
+                - generic [ref=e280]:
+                  - link "Ing Carlos Valbuena" [ref=e281] [cursor=pointer]:
+                    - /url: /admin/usuarios/14/editar
+                  - generic [ref=e282]: 584143688614@whatsapp.local
+              - cell "1 artículo" [ref=e283]:
+                - button "1 artículo" [ref=e284]:
+                  - img [ref=e285]
+                  - text: 1 artículo
+              - cell "$70.00" [ref=e287]
+              - cell "Transferencia bancaria directa" [ref=e288]
+              - cell "Completado" [ref=e289]:
+                - generic [ref=e290]: Completado
+              - cell [ref=e291]:
+                - button "Editar metadatos" [ref=e292]:
+                  - img
+                - button "Enviar mensaje" [ref=e293]:
+                  - img
+            - row "#1399 11/06/2026 01:19 a.m. Carla Portales Román 59163290098@whatsapp.local 2 artículos $60.00 Transferencia bancaria directa Completado" [ref=e294]:
+              - cell "#1399 11/06/2026 01:19 a.m." [ref=e295]:
+                - generic [ref=e296]: "#1399"
+                - generic [ref=e297]: 11/06/2026
+                - generic [ref=e298]: 01:19 a.m.
+              - cell "Carla Portales Román 59163290098@whatsapp.local" [ref=e299]:
+                - generic [ref=e301]:
+                  - link "Carla Portales Román" [ref=e302] [cursor=pointer]:
+                    - /url: /admin/usuarios/33/editar
+                  - generic [ref=e303]: 59163290098@whatsapp.local
+              - cell "2 artículos" [ref=e304]:
+                - button "2 artículos" [ref=e305]:
+                  - img [ref=e306]
+                  - text: 2 artículos
+              - cell "$60.00" [ref=e308]
+              - cell "Transferencia bancaria directa" [ref=e309]
+              - cell "Completado" [ref=e310]:
+                - generic [ref=e311]: Completado
+              - cell [ref=e312]:
+                - button "Editar metadatos" [ref=e313]:
+                  - img
+                - button "Enviar mensaje" [ref=e314]:
+                  - img
+            - row "#1398 11/06/2026 01:15 a.m. Nieve Estefany Cuellar 59169389858@whatsapp.local 1 artículo $30.00 Transferencia bancaria directa Completado" [ref=e315]:
+              - cell "#1398 11/06/2026 01:15 a.m." [ref=e316]:
+                - generic [ref=e317]: "#1398"
+                - generic [ref=e318]: 11/06/2026
+                - generic [ref=e319]: 01:15 a.m.
+              - cell "Nieve Estefany Cuellar 59169389858@whatsapp.local" [ref=e320]:
+                - generic [ref=e322]:
+                  - link "Nieve Estefany Cuellar" [ref=e323] [cursor=pointer]:
+                    - /url: /admin/usuarios/32/editar
+                  - generic [ref=e324]: 59169389858@whatsapp.local
+              - cell "1 artículo" [ref=e325]:
+                - button "1 artículo" [ref=e326]:
+                  - img [ref=e327]
+                  - text: 1 artículo
+              - cell "$30.00" [ref=e329]
+              - cell "Transferencia bancaria directa" [ref=e330]
+              - cell "Completado" [ref=e331]:
+                - generic [ref=e332]: Completado
+              - cell [ref=e333]:
+                - button "Editar metadatos" [ref=e334]:
+                  - img
+                - button "Enviar mensaje" [ref=e335]:
+                  - img
+            - row "#1397 11/06/2026 01:09 a.m. W Diva 59176939617@whatsapp.local 1 artículo $165.00 Transferencia bancaria directa Completado" [ref=e336]:
+              - cell "#1397 11/06/2026 01:09 a.m." [ref=e337]:
+                - generic [ref=e338]: "#1397"
+                - generic [ref=e339]: 11/06/2026
+                - generic [ref=e340]: 01:09 a.m.
+              - cell "W Diva 59176939617@whatsapp.local" [ref=e341]:
+                - generic [ref=e343]:
+                  - link "W Diva" [ref=e344] [cursor=pointer]:
+                    - /url: /admin/usuarios/13/editar
+                  - generic [ref=e345]: 59176939617@whatsapp.local
+              - cell "1 artículo" [ref=e346]:
+                - button "1 artículo" [ref=e347]:
+                  - img [ref=e348]
+                  - text: 1 artículo
+              - cell "$165.00" [ref=e350]
+              - cell "Transferencia bancaria directa" [ref=e351]
+              - cell "Completado" [ref=e352]:
+                - generic [ref=e353]: Completado
+              - cell [ref=e354]:
+                - button "Editar metadatos" [ref=e355]:
+                  - img
+                - button "Enviar mensaje" [ref=e356]:
+                  - img
+        - generic [ref=e357]:
+          - paragraph [ref=e358]: 1-10 de 1327 pedidos
+          - generic [ref=e359]:
+            - button "Anterior" [disabled]
+            - button "1" [ref=e360]
+            - button "2" [ref=e361]
+            - generic [ref=e362]: ...
+            - button "133" [ref=e363]
+            - button "Siguiente" [ref=e364]
+  - region "Notifications alt+T"

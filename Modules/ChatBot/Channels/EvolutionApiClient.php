@@ -50,4 +50,63 @@ class EvolutionApiClient
         return Http::withHeaders($this->headers())
             ->post("{$this->serverUrl}/message/sendMedia/{$this->instanceName}", $params);
     }
+
+    /**
+     * @param  array{url: string, webhook_by_events?: bool, webhook_base64?: bool, webhook_events?: list<string>}  $params
+     */
+    public function setWebhook(array $params): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->put("{$this->serverUrl}/webhook/setWebhook/{$this->instanceName}", $params);
+    }
+
+    public function getBase64FromMediaMessage(string $messageKey): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/chat/getBase64FromMediaMessage/{$this->instanceName}", [
+                'message' => ['key' => ['id' => $messageKey]],
+                'convertToMp4' => false,
+            ]);
+    }
+
+    public function disconnectInstance(): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->delete("{$this->serverUrl}/instance/logout/{$this->instanceName}");
+    }
+
+    /**
+     * @param  list<string>  $numbers
+     */
+    public function checkWhatsappNumbers(array $numbers): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/chat/whatsappNumbers/{$this->instanceName}", [
+                'numbers' => array_values($numbers),
+            ]);
+    }
+
+    public function fetchProfile(string $number): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/chat/fetchProfile/{$this->instanceName}", [
+                'number' => $number,
+            ]);
+    }
+
+    public function fetchBusinessProfile(string $number): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/chat/fetchBusinessProfile/{$this->instanceName}", [
+                'number' => $number,
+            ]);
+    }
+
+    public function fetchProfilePictureUrl(string $number): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/chat/fetchProfilePictureUrl/{$this->instanceName}", [
+                'number' => $number,
+            ]);
+    }
 }

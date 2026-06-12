@@ -55,4 +55,13 @@ export type Customer = {
     name: string;
     email: string;
     phone?: string;
+    avatar_url?: string | null;
+};
+
+export type PaymentGateway = {
+    id: string;
+    title: string;
+    method_title: string;
+    method_description: string;
+    enabled: boolean;
 };

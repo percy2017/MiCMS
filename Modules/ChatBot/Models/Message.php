@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\ChatBot\Database\Factories\MessageFactory;
 use Modules\ChatBot\Enums\MessageType;
 
@@ -14,6 +16,8 @@ class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
     use HasFactory;
+
+    use SoftDeletes;
 
     protected $table = 'messages';
 
@@ -37,6 +41,7 @@ class Message extends Model
         'content',
         'external_id',
         'metadata',
+        'link_previews',
         'attachment_media_id',
         'delivered_at',
         'read_at',
@@ -45,6 +50,7 @@ class Message extends Model
     protected $casts = [
         'type' => MessageType::class,
         'metadata' => 'array',
+        'link_previews' => 'array',
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
     ];
@@ -57,5 +63,10 @@ class Message extends Model
     public function attachment(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'attachment_media_id');
+    }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(MessageReaction::class, 'message_id');
     }
 }

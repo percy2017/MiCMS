@@ -42,7 +42,7 @@ class UserApiController extends Controller
                 });
             })
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return UserResource::collection($users);

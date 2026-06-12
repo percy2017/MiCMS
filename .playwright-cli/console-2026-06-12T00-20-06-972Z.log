@@ -1,0 +1,3 @@
+[     211ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=32:167
+[     500ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=32:226
+[   51071ms] [LOG] [ChatBotEcho] reaction event {action: added, message_id: 323, conversation_id: 32, reaction: Object} @ https://hostbol.lat/admin/chats?active=32:226

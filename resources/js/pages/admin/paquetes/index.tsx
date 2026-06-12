@@ -1,16 +1,12 @@
 import { Head, router } from '@inertiajs/react';
-import {
-    Loader2,
-    Package,
-    PackageOpen,
-    Power,
-    ShoppingCart,
-} from 'lucide-react';
+import { Loader2, Package, PackageOpen, Power, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
+import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import Heading from '@/components/heading';
+import { useClientTableSearch } from '@/hooks/use-client-table-search';
 import { toggle } from '@/routes/admin/paquetes';
 
 type PackageItem = {
@@ -40,6 +36,27 @@ function PackageIcon({ name, className }: { name: string | null; className?: str
 export default function PaquetesIndex({ packages }: PageProps) {
     const [pendingSlug, setPendingSlug] = useState<string | null>(null);
 
+    const table = useClientTableSearch<PackageItem>({
+        initialData: packages,
+        searchFields: ['name', 'description', 'slug'],
+        perPage: 50,
+        initialFilters: { enabled: '' },
+    });
+
+    const filters: ToolbarFilter[] = [
+        {
+            key: 'enabled',
+            label: 'Estado',
+            value: table.filters.enabled ?? '',
+            onChange: (v) => table.setFilter('enabled', v),
+            placeholder: 'Todos',
+            options: [
+                { value: 'true', label: 'Activos' },
+                { value: 'false', label: 'Inactivos' },
+            ],
+        },
+    ];
+
     function handleToggle(pkg: PackageItem): void {
         setPendingSlug(pkg.slug);
         router.patch(toggle({ slug: pkg.slug }).url, undefined, {
@@ -52,19 +69,30 @@ export default function PaquetesIndex({ packages }: PageProps) {
         <>
             <Head title="Paquetes" />
 
-            <div className="space-y-6 p-4">
-                {packages.length === 0 ? (
+            <div className="space-y-4 p-4">
+                <Heading title="Paquetes" description="Administra los módulos instalados en el sistema." />
+
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar paquete..."
+                    total={table.total}
+                    totalLabel={`paquete${table.total !== 1 ? 's' : ''}`}
+                    filters={filters}
+                />
+
+                {table.data.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
                             <PackageOpen className="size-12 text-muted-foreground/50" />
                             <p className="text-sm text-muted-foreground">
-                                No hay paquetes instalados todavía.
+                                {table.search ? 'Sin resultados para la búsqueda' : 'No hay paquetes instalados todavía.'}
                             </p>
                         </CardContent>
                     </Card>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {packages.map((pkg) => {
+                        {table.data.map((pkg) => {
                             const isPending = pendingSlug === pkg.slug;
 
                             return (

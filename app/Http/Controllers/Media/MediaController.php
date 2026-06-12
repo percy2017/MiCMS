@@ -79,6 +79,50 @@ class MediaController extends Controller
     }
 
     /**
+     * JSON endpoint for table search (no page reload).
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Media::class);
+
+        $query = Media::query()->latest('created_at');
+
+        if ($search = trim((string) $request->query('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('alt_text', 'like', "%{$search}%");
+            });
+        }
+
+        if ($type = $request->query('type')) {
+            $query->where('mime_type', 'like', $type.'/%');
+        }
+
+        $perPage = (int) $request->query('per_page', 24);
+        $perPage = max(1, min($perPage, 100));
+
+        $media = $query->paginate($perPage)->withQueryString()->through(fn (Media $m) => [
+            'id' => $m->id,
+            'name' => $m->name,
+            'title' => $m->title,
+            'mime_type' => $m->mime_type,
+            'size' => $m->size,
+            'human_size' => $m->humanSize(),
+            'width' => $m->width,
+            'height' => $m->height,
+            'url' => $m->url(),
+            'is_image' => $m->isImage(),
+            'is_video' => $m->isVideo(),
+            'is_audio' => $m->isAudio(),
+            'created_at' => $m->created_at->toISOString(),
+            'created_at_diff' => $m->created_at->diffForHumans(),
+        ]);
+
+        return response()->json($media);
+    }
+
+    /**
      * Display a single media item.
      */
     public function show(Media $media): Response

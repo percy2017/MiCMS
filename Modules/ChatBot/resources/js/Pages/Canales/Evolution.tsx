@@ -1,8 +1,16 @@
-import { Head, useForm } from '@inertiajs/react';
-import { Copy, Loader2, Save, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { AlertTriangle, Copy, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { admin } from '@/routes';
@@ -16,6 +24,10 @@ type ChannelProps = {
         server_url: string;
         api_key: string;
         instance_name: string;
+        instance_id?: string;
+        profile_name?: string;
+        profile_picture_url?: string;
+        owner_jid?: string;
     };
     settings: {
         display_name?: string;
@@ -33,6 +45,7 @@ type Stats = {
 
 type InstanceItem = {
     name: string;
+    instance_id: string | null;
     status: string;
     owner: string | null;
     profileName: string | null;
@@ -56,6 +69,8 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
     const [instanceError, setInstanceError] = useState('');
     const [copied, setCopied] = useState(false);
     const [instancesFetched, setInstancesFetched] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const { data, setData, patch, processing, errors } = useForm({
         enabled: channel.enabled,
@@ -63,6 +78,10 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
             server_url: channel.config.server_url,
             api_key: channel.config.api_key,
             instance_name: channel.config.instance_name,
+            instance_id: channel.config.instance_id ?? '',
+            profile_name: channel.config.profile_name ?? '',
+            profile_picture_url: channel.config.profile_picture_url ?? '',
+            owner_jid: channel.config.owner_jid ?? '',
         },
         settings: {
             display_name: channel.settings.display_name ?? '',
@@ -90,6 +109,7 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                 body: JSON.stringify({
                     server_url: data.config.server_url,
                     api_key: data.config.api_key,
+                    exclude: channel.id,
                 }),
             });
 
@@ -117,14 +137,28 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    function selectInstance(name: string): void {
-        setData('config', { ...data.config, instance_name: name });
+    function selectInstance(inst: InstanceItem): void {
+        setData('config', {
+            ...data.config,
+            instance_name: inst.name,
+            instance_id: inst.instance_id ?? '',
+            profile_name: inst.profileName ?? '',
+            profile_picture_url: inst.profilePictureUrl ?? '',
+            owner_jid: inst.owner ?? '',
+        });
     }
 
     function copyWebhook(): void {
         navigator.clipboard.writeText(webhookUrl).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+        });
+    }
+
+    function confirmDelete(): void {
+        setDeleting(true);
+        router.delete(`/admin/canales/evolution/${channel.id}`, {
+            onFinish: () => setDeleting(false),
         });
     }
 
@@ -170,7 +204,7 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                                                     <button
                                                         key={inst.name}
                                                         type="button"
-                                                        onClick={() => selectInstance(inst.name)}
+                                                        onClick={() => selectInstance(inst)}
                                                         className={`flex items-center gap-3 rounded-md border px-3 py-2 text-left text-sm transition hover:bg-muted ${
                                                             data.config.instance_name === inst.name
                                                                 ? 'border-primary bg-primary/5'
@@ -195,6 +229,11 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                                                             {inst.owner && (
                                                                 <div className="truncate text-xs text-muted-foreground">
                                                                     {inst.owner.replace('@s.whatsapp.net', '')}
+                                                                </div>
+                                                            )}
+                                                            {inst.instance_id && (
+                                                                <div className="truncate text-xs text-muted-foreground/60">
+                                                                    ID: {inst.instance_id}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -227,6 +266,15 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                                         )}
                                     </div>
 
+                                    {data.config.instance_id && (
+                                        <div className="grid gap-2">
+                                            <Label>ID de instancia</Label>
+                                            <code className="block rounded-md border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                                {data.config.instance_id}
+                                            </code>
+                                        </div>
+                                    )}
+
                                     <div className="grid gap-2">
                                         <Label>Webhook URL</Label>
                                         <div className="flex items-center gap-2">
@@ -238,7 +286,7 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                                             </Button>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            Configura esta URL como webhook en Evolution API para recibir mensajes entrantes.
+                                            Webhook configurado automáticamente al guardar (base64: activado, eventos: messages.upsert).
                                         </p>
                                     </div>
                                 </CardContent>
@@ -293,11 +341,68 @@ export default function EvolutionConfig({ channel, stats, webhookUrl }: PageProp
                                     {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
                                     {processing ? 'Guardando…' : 'Guardar'}
                                 </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => setDeleteDialogOpen(true)}
+                                >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Eliminar
+                                </Button>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
+
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                                <AlertTriangle className="size-5 text-destructive" />
+                            </div>
+                            <div>
+                                <DialogTitle>Eliminar canal</DialogTitle>
+                                <DialogDescription>
+                                    Esta acción no se puede deshacer.
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>¿Estás seguro de eliminar este canal de WhatsApp?</p>
+                        <p>Se eliminarán <span className="font-medium text-foreground">permanentemente</span> todas las conversaciones, mensajes y archivos adjuntos (imágenes, videos, audios, documentos).</p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDeleteDialogOpen(false)}
+                            disabled={deleting}
+                        >
+                            No, cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={confirmDelete}
+                            disabled={deleting}
+                        >
+                            {deleting ? (
+                                <>
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                    Eliminando...
+                                </>
+                            ) : (
+                                'Sí, eliminar'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

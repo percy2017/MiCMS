@@ -1,12 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Check, Key, Loader2, Minus, Plus, X } from 'lucide-react';
 import { useState } from 'react';
+import { DataTableToolbar } from '@/components/data-table-toolbar';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCan } from '@/hooks/use-can';
+import { useClientTableSearch } from '@/hooks/use-client-table-search';
 import { admin } from '@/routes';
 import { destroy, index as indexRoute, store } from '@/routes/admin/permisos';
 
@@ -20,15 +22,19 @@ export default function PermisosIndex({ matrix, roles }: PageProps) {
     const [pendingId, setPendingId] = useState<number | null>(null);
     const { data, setData, post, processing, errors, reset } = useForm({ name: '' });
 
+    const table = useClientTableSearch<Row>({
+        initialData: matrix,
+        searchFields: ['permission'],
+        perPage: 20,
+    });
+
     function handleCreate(e: React.FormEvent): void {
         e.preventDefault();
         post(store.url(), { onSuccess: () => reset() });
     }
 
     function handleDelete(row: Row): void {
-        if (! confirm(`¿Eliminar el permiso "${row.permission}"?`)) {
-            return;
-        }
+        if (!confirm(`¿Eliminar el permiso "${row.permission}"?`)) return;
         setPendingId(row.id);
         router.delete(destroy({ permission: row.id }).url, {
             preserveScroll: true,
@@ -40,7 +46,7 @@ export default function PermisosIndex({ matrix, roles }: PageProps) {
         <>
             <Head title="Permisos" />
 
-            <div className="space-y-6 p-4">
+            <div className="space-y-4 p-4">
                 <Heading title="Permisos" description="Catálogo de permisos del sistema y qué roles los tienen asignados." />
 
                 {canCreate && (
@@ -75,16 +81,29 @@ export default function PermisosIndex({ matrix, roles }: PageProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-sm font-medium">Matriz de permisos</CardTitle>
-                        <CardDescription>
-                            {matrix.length} permiso{matrix.length === 1 ? '' : 's'} · {roles.length} rol{roles.length === 1 ? '' : 'es'}
-                        </CardDescription>
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <CardTitle className="text-sm font-medium">Matriz de permisos</CardTitle>
+                                <CardDescription>
+                                    {table.total} permiso{table.total === 1 ? '' : 's'} · {roles.length} rol{roles.length === 1 ? '' : 'es'}
+                                </CardDescription>
+                            </div>
+                            <div className="w-64">
+                                <DataTableToolbar
+                                    search={table.search}
+                                    onSearchChange={table.setSearch}
+                                    searchPlaceholder="Buscar permiso..."
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
-                        {matrix.length === 0 ? (
+                        {table.data.length === 0 ? (
                             <div className="flex flex-col items-center gap-3 py-12 text-center">
                                 <Key className="size-10 text-muted-foreground/50" />
-                                <p className="text-sm text-muted-foreground">No hay permisos.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {table.search ? 'Sin resultados para la búsqueda' : 'No hay permisos.'}
+                                </p>
                             </div>
                         ) : (
                             <table className="w-full text-sm">
@@ -100,7 +119,7 @@ export default function PermisosIndex({ matrix, roles }: PageProps) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {matrix.map((row) => {
+                                    {table.data.map((row) => {
                                         const isPending = pendingId === row.id;
                                         return (
                                             <tr key={row.permission} className="hover:bg-muted/30">

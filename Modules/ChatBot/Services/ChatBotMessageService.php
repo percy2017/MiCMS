@@ -2,6 +2,8 @@
 
 namespace Modules\ChatBot\Services;
 
+use App\Models\Media;
+use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Events\ChatBotMessageRead;
 use Modules\ChatBot\Events\ChatBotMessageReceived;
 use Modules\ChatBot\Models\Conversation;
@@ -14,6 +16,7 @@ class ChatBotMessageService
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'role' => Message::ROLE_USER,
+            'type' => $this->resolveTypeFromMedia($attachmentMediaId, $content),
             'content' => $content,
             'attachment_media_id' => $attachmentMediaId,
         ]);
@@ -33,6 +36,7 @@ class ChatBotMessageService
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'role' => Message::ROLE_ADMIN,
+            'type' => $this->resolveTypeFromMedia($attachmentMediaId, $content),
             'content' => $content,
             'attachment_media_id' => $attachmentMediaId,
         ]);
@@ -45,6 +49,30 @@ class ChatBotMessageService
         ChatBotMessageReceived::dispatch($message);
 
         return $message;
+    }
+
+    private function resolveTypeFromMedia(?int $mediaId, string $content): MessageType
+    {
+        if (! $mediaId) {
+            return MessageType::Text;
+        }
+
+        $media = Media::find($mediaId);
+        if (! $media) {
+            return MessageType::Text;
+        }
+
+        if (str_starts_with($media->mime_type, 'image/')) {
+            return MessageType::Image;
+        }
+        if (str_starts_with($media->mime_type, 'video/')) {
+            return MessageType::Video;
+        }
+        if (str_starts_with($media->mime_type, 'audio/')) {
+            return MessageType::Audio;
+        }
+
+        return MessageType::File;
     }
 
     public function markAsRead(Conversation $conversation, int $userId): void

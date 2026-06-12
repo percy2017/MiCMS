@@ -1,6 +1,12 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { MessageCircle, Pencil, ChevronDown, ChevronRight, Search, X } from 'lucide-react';
+import { useState } from 'react';
+import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
+import { TablePagination } from '@/components/table-pagination';
+import { Button } from '@/components/ui/button';
+import { useTableSearch } from '@/hooks/use-table-search';
 import { admin } from '@/routes';
+import { openPosWooChat } from '@/lib/pos-woo-chat';
 
 type OrderItem = {
     name: string;
@@ -16,17 +22,21 @@ type Order = {
     date_created: string;
     customer_name: string;
     customer_email: string;
+    customer_phone?: string | null;
     items: OrderItem[];
     payment_method_title: string;
+    user_id?: number | null;
+    avatar_url?: string | null;
+    chat_conversation_id?: number | null;
 };
 
 type Props = {
-    orders: Order[];
-    total: number;
-    totalPages: number;
-    currentPage: number;
-    perPage: number;
-    search: string;
+    initialOrders?: Order[];
+    initialTotal?: number;
+    initialTotalPages?: number;
+    initialCurrentPage?: number;
+    initialPerPage?: number;
+    initialSearch?: string;
     error?: string | null;
 };
 
@@ -41,193 +51,211 @@ const STATUS_COLORS: Record<string, string> = {
     trash: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/30 dark:text-neutral-400',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+    completed: 'Completado',
+    processing: 'Procesando',
+    pending: 'Pendiente',
+    'on-hold': 'En espera',
+    cancelled: 'Cancelado',
+    refunded: 'Reembolsado',
+    failed: 'Falló',
+    trash: 'Papelera',
+};
+
 function statusBadge(status: string) {
     const color = STATUS_COLORS[status] ?? 'bg-neutral-100 text-neutral-700';
-    const labels: Record<string, string> = {
-        completed: 'Completado',
-        processing: 'Procesando',
-        pending: 'Pendiente',
-        'on-hold': 'En espera',
-        cancelled: 'Cancelado',
-        refunded: 'Reembolsado',
-        failed: 'Falló',
-        trash: 'Papelera',
-    };
-
     return (
         <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${color}`}>
-            {labels[status] ?? status}
+            {STATUS_LABELS[status] ?? status}
         </span>
     );
 }
 
-function Pagination({ currentPage, totalPages, search }: { currentPage: number; totalPages: number; search: string }) {
-    if (totalPages <= 1) return null;
-
-    function go(page: number) {
-        router.get('/admin/pos-woo/pedidos', { page, search }, { preserveState: true, preserveScroll: true });
-    }
-
-    const pages: (number | 'ellipsis')[] = [];
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            pages.push(i);
-        } else if (pages[pages.length - 1] !== 'ellipsis') {
-            pages.push('ellipsis');
-        }
-    }
-
-    return (
-        <div className="flex items-center justify-center gap-1 text-sm">
-            <button
-                disabled={currentPage <= 1}
-                onClick={() => go(currentPage - 1)}
-                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-30"
-            >
-                Anterior
-            </button>
-            {pages.map((p, i) =>
-                p === 'ellipsis' ? (
-                    <span key={`e-${i}`} className="px-1 text-muted-foreground">...</span>
-                ) : (
-                    <button
-                        key={p}
-                        onClick={() => go(p)}
-                        className={`min-w-[32px] rounded-lg px-2 py-1.5 font-medium tabular-nums transition-colors ${
-                            p === currentPage
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted'
-                        }`}
-                    >
-                        {p}
-                    </button>
-                ),
-            )}
-            <button
-                disabled={currentPage >= totalPages}
-                onClick={() => go(currentPage + 1)}
-                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-30"
-            >
-                Siguiente
-            </button>
-        </div>
-    );
-}
-
-export default function PosOrders({ orders, total, totalPages, currentPage, perPage, search, error }: Props) {
+export default function PosOrders({ initialOrders, initialTotal, initialTotalPages, initialCurrentPage, initialPerPage, initialSearch, error: serverError }: Props) {
     const [expanded, setExpanded] = useState<number | null>(null);
-    const [searchInput, setSearchInput] = useState(search);
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const initialData = initialOrders ? { data: initialOrders, total: initialTotal, current_page: initialCurrentPage, last_page: initialTotalPages } : undefined;
 
-    useEffect(() => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            if (searchInput !== search) {
-                                router.get('/admin/pos-woo/pedidos', { search: searchInput, page: 1 }, { preserveState: true, replace: true });
-            }
-        }, 400);
-        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    }, [searchInput]);
+    const table = useTableSearch<Order>({
+        endpoint: '/admin/pos-woo/orders',
+        initialData,
+        perPage: initialPerPage ?? 10,
+        initialFilters: { search: initialSearch ?? '', status: '', type: '' },
+    });
 
-    const from = total > 0 ? (currentPage - 1) * perPage + 1 : 0;
-    const to = Math.min(currentPage * perPage, total);
+    const statusFilters: ToolbarFilter[] = [
+        {
+            key: 'status',
+            label: 'Estado',
+            value: table.filters.status ?? '',
+            onChange: (v) => table.setFilter('status', v),
+            placeholder: 'Todos los estados',
+            options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+        },
+    ];
 
     return (
         <>
             <Head title="Pos Woo - Pedidos" />
 
-            <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        placeholder="Buscar por cliente, email, teléfono o ID..."
-                        autoFocus
-                        className="flex h-9 w-full max-w-sm rounded-lg border bg-background px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                    />
-                    {searchInput && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSearchInput('');
-                                router.get('/admin/pos-woo/pedidos', { search: '', page: 1 }, { preserveState: true, replace: true });
-                            }}
-                            className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                        >
-                            Limpiar
-                        </button>
-                    )}
-                    {total > 0 && (
-                        <p className="text-md">
-                            Mostrando {from}–{to} de {total} pedido{total !== 1 ? 's' : ''}
-                        </p>
-                    )}
-                </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar por cliente, email, teléfono o ID..."
+                    loading={table.loading}
+                    total={table.total}
+                    totalLabel={`pedido${table.total !== 1 ? 's' : ''}`}
+                    filters={statusFilters}
+                />
 
-                {error && (
-                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                        <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {error}
-                    </div>
-                )}
-            
-                {orders.length > 0 && (
-                    <div className="overflow-hidden rounded-xl border">
+                {table.data.length > 0 && (
+                    <div className="rounded-xl border">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-                                    <th className="px-4 py-3 font-medium">ID</th>
-                                    <th className="px-4 py-3 font-medium">Fecha</th>
+                                    <th className="px-4 py-3 font-medium">Orden</th>
                                     <th className="px-4 py-3 font-medium">Cliente</th>
-                                    <th className="px-4 py-3 font-medium">Total</th>
+                                    <th className="px-4 py-3 font-medium">Productos</th>
+                                    <th className="px-4 py-3 font-medium text-right">Total</th>
                                     <th className="px-4 py-3 font-medium">Pago</th>
                                     <th className="px-4 py-3 font-medium">Estado</th>
+                                    <th className="px-4 py-3 font-medium text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {orders.map((order) => (
-                                    <tr
-                                        key={order.id}
-                                        className="border-b last:border-0 hover:bg-muted/30"
-                                    >
-                                        <td className="px-4 py-3 font-medium tabular-nums">
-                                            #{order.id}
-                                        </td>
-                                        <td className="px-4 py-3 text-muted-foreground tabular-nums">
-                                            {new Date(order.date_created).toLocaleDateString('es-MX', {
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
+                                {table.data.map((order) => (
+                                    <tr key={order.id} className="border-b last:border-0 hover:bg-muted/30">
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium tabular-nums">#{order.id}</div>
+                                            <div className="text-xs text-muted-foreground tabular-nums">
+                                                {new Date(order.date_created).toLocaleDateString('es-MX', {
+                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                })}
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground tabular-nums">
+                                                {new Date(order.date_created).toLocaleTimeString('es-MX', {
+                                                    hour: '2-digit', minute: '2-digit',
+                                                })}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            {order.customer_name || (
-                                                <span className="text-muted-foreground italic">Invitado</span>
-                                            )}
-                                            {order.customer_email && (
-                                                <div className="text-xs text-muted-foreground">{order.customer_email}</div>
+                                            <div className="flex items-center gap-3">
+                                                {order.avatar_url ? (
+                                                    <img src={order.avatar_url} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+                                                ) : (
+                                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                        {(order.customer_name?.charAt(0) ?? '?').toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                    {order.user_id ? (
+                                                        <a
+                                                            href={`/admin/usuarios/${order.user_id}/editar`}
+                                                            className="font-medium hover:underline"
+                                                        >
+                                                            {order.customer_name || <span className="italic text-muted-foreground">Invitado</span>}
+                                                        </a>
+                                                    ) : (
+                                                        <div className="font-medium">{order.customer_name || <span className="italic text-muted-foreground">Invitado</span>}</div>
+                                                    )}
+                                                    {order.customer_email && (
+                                                        <div className="truncate max-w-[160px] text-xs text-muted-foreground">{order.customer_email}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                            >
+                                                {expanded === order.id ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                                                {order.items.length} artículo{order.items.length !== 1 ? 's' : ''}
+                                            </button>
+                                            {expanded === order.id && (
+                                                <div className="mt-1 space-y-0.5">
+                                                    {order.items.map((item, i) => (
+                                                        <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                                                            <span className="truncate max-w-[160px]">{item.name}</span>
+                                                            <span className="shrink-0 text-muted-foreground tabular-nums">x{item.quantity} @ ${parseFloat(item.price).toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 font-semibold tabular-nums">
+                                        <td className="px-4 py-3 text-right font-semibold tabular-nums">
                                             ${parseFloat(order.total).toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
                                             {order.payment_method_title || '-'}
                                         </td>
                                         <td className="px-4 py-3">{statusBadge(order.status)}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => router.visit(`/admin/pos-woo/pedidos/${order.id}`)}
+                                                title="Editar metadatos"
+                                            >
+                                                <Pencil className="size-4" />
+                                            </Button>
+                                            {(() => {
+                                                const phone = (order.customer_phone ?? '').trim();
+                                                if (!phone && !order.chat_conversation_id) {
+                                                    return null;
+                                                }
+                                                return (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() =>
+                                                            openPosWooChat(
+                                                                order.chat_conversation_id ?? null,
+                                                                phone || null,
+                                                                order.customer_name || 'Cliente',
+                                                            )
+                                                        }
+                                                        title="Enviar mensaje"
+                                                    >
+                                                        <MessageCircle className="size-4" />
+                                                    </Button>
+                                                );
+                                            })()}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 )}
-              
-                <Pagination currentPage={currentPage} totalPages={totalPages} search={search} />
+
+                {!table.loading && table.data.length === 0 && !serverError && (
+                    <div className="flex flex-col items-center gap-2 py-20 text-center text-muted-foreground">
+                        <Search className="size-10 text-muted-foreground/40" />
+                        <p className="text-sm">
+                            {table.search ? 'Sin resultados para la búsqueda' : 'Aún no hay pedidos'}
+                        </p>
+                    </div>
+                )}
+
+                {serverError && (
+                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        <X className="size-4 shrink-0" />
+                        {serverError}
+                    </div>
+                )}
+
+                <TablePagination
+                    currentPage={table.currentPage}
+                    lastPage={table.lastPage}
+                    onPageChange={table.goPage}
+                    total={table.total}
+                    perPage={initialPerPage ?? 10}
+                    itemLabel={`pedido${table.total !== 1 ? 's' : ''}`}
+                />
             </div>
         </>
     );
@@ -236,7 +264,7 @@ export default function PosOrders({ orders, total, totalPages, currentPage, perP
 PosOrders.layout = {
     breadcrumbs: [
         { title: 'Admin', href: admin() },
-        { title: 'Pos Woo', href: '/admin/pos-woo' },
+        { title: 'PosWoo', href: '/admin/pos-woo' },
         { title: 'Pedidos', href: '/admin/pos-woo/pedidos' },
     ],
 };

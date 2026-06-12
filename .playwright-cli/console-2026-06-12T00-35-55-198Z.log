@@ -1,0 +1,11 @@
+[     277ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=36:167
+[     589ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=36:226
+[   16636ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=36:167
+[   16900ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=36:226
+[  461209ms] [LOG] [ChatBotEcho] event received {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  461210ms] [LOG] [ChatBot WS] Event received: {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  465720ms] [LOG] [ChatBotEcho] event received {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  465721ms] [LOG] [ChatBot WS] Event received: {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  613788ms] [LOG] [ChatBotEcho] event received {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  613789ms] [LOG] [ChatBot WS] Event received: {message: Object, conversation: Object} @ https://hostbol.lat/admin/chats?active=36:226
+[  614119ms] [LOG] [ChatBotEcho] link previews ready {message_id: 355, conversation_id: 25, link_previews: Object} @ https://hostbol.lat/admin/chats?active=36:226

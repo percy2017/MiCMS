@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 type MediaUploaderProps = {
     className?: string;
     maxSize: number;
+    onUploaded?: () => void;
 };
 
 type StagedFile = {
@@ -35,7 +36,7 @@ function formatBytes(bytes: number): string {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function MediaUploader({ className, maxSize }: MediaUploaderProps) {
+export function MediaUploader({ className, maxSize, onUploaded }: MediaUploaderProps) {
     const [open, setOpen] = useState(false);
     const [staged, setStaged] = useState<StagedFile | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -99,6 +100,7 @@ export function MediaUploader({ className, maxSize }: MediaUploaderProps) {
                     setUploading(false);
                     setOpen(false);
                     setStaged(null);
+                    onUploaded?.();
                 },
                 onError: (errors) => {
                     setUploading(false);

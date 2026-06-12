@@ -1,6 +1,8 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { FilePlus, Home, Loader2, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { FilePlus, Home, Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
+import { TablePagination } from '@/components/table-pagination';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,23 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    destroy,
-    forceDestroy,
-    index as paginasIndex,
-    restore,
-    setHome,
-    store,
-    unsetHome,
-} from '@/routes/admin/paginas';
-import { Description } from '@radix-ui/react-dialog';
+import { useTableSearch } from '@/hooks/use-table-search';
+import { index as paginasIndex, destroy, forceDestroy, restore, setHome, store, unsetHome } from '@/routes/admin/paginas';
 
 type PageItem = {
     id: number;
@@ -47,19 +34,13 @@ type PageItem = {
     public_url: string;
 };
 
-type Paginator<T> = {
-    data: T[];
-    links: { url: string | null; label: string; active: boolean }[];
-    current_page: number;
-    last_page: number;
-    from: number | null;
-    to: number | null;
-    total: number;
-    per_page: number;
-};
-
 type PageProps = {
-    pages: Paginator<PageItem>;
+    pages: {
+        data: PageItem[];
+        current_page: number;
+        last_page: number;
+        total: number;
+    };
     filters: {
         search: string;
         status: string | null;
@@ -68,7 +49,7 @@ type PageProps = {
 };
 
 const STATUS_OPTIONS = [
-    { value: 'all', label: 'Todos los estados' },
+    { value: '', label: 'Todos los estados' },
     { value: 'draft', label: 'Borrador' },
     { value: 'published', label: 'Publicado' },
 ];
@@ -84,50 +65,39 @@ function slugify(value: string): string {
 }
 
 export default function PaginasIndex({ pages, filters }: PageProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<PageItem | null>(null);
+
+    const table = useTableSearch<PageItem>({
+        endpoint: '/admin/paginas/search',
+        initialData: pages,
+        perPage: 10,
+        initialFilters: {
+            search: filters.search ?? '',
+            status: filters.status ?? '',
+            trashed: filters.trashed ? '1' : '',
+        },
+        extraParams: () => ({ trashed: filters.trashed ? '1' : '' }),
+    });
+
+    const statusFilters: ToolbarFilter[] = [
+        {
+            key: 'status',
+            label: 'Estado',
+            value: table.filters.status ?? '',
+            onChange: (v) => table.setFilter('status', v),
+            placeholder: 'Todos los estados',
+            options: [
+                { value: 'draft', label: 'Borrador' },
+                { value: 'published', label: 'Publicado' },
+            ],
+        },
+    ];
 
     const form = useForm({
         title: '',
         slug: '',
     });
-
-    function apply(overrides: Record<string, string | null | boolean> = {}): void {
-        const nextTrashed = overrides.trashed !== undefined
-            ? (overrides.trashed as boolean)
-            : (filters.trashed ?? false);
-
-        router.get(
-            '/admin/paginas',
-            {
-                search: overrides.search ?? search,
-                status:
-                    overrides.status !== undefined
-                        ? overrides.status
-                        : (filters.status ?? null),
-                trashed: nextTrashed ? 1 : null,
-            },
-            {
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }
-
-    function toggleTrash(): void {
-        apply({ trashed: !filters.trashed });
-    }
-
-    function onStatusChange(value: string): void {
-        const next = value === 'all' ? null : value;
-        apply({ status: next });
-    }
-
-    function onSearchSubmit(e: React.FormEvent): void {
-        e.preventDefault();
-        apply();
-    }
 
     function openCreate(): void {
         form.reset();
@@ -151,30 +121,21 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
     }
 
     function confirmDelete(): void {
-        if (!deleteTarget) {
-            return;
-        }
-
+        if (!deleteTarget) return;
         router.delete(destroy.url({ page: deleteTarget.id }), {
             onSuccess: () => setDeleteTarget(null),
         });
     }
 
     function confirmRestore(): void {
-        if (!deleteTarget) {
-            return;
-        }
-
+        if (!deleteTarget) return;
         router.post(restore.url({ page: deleteTarget.id }), undefined, {
             onSuccess: () => setDeleteTarget(null),
         });
     }
 
     function confirmForceDelete(): void {
-        if (!deleteTarget) {
-            return;
-        }
-
+        if (!deleteTarget) return;
         router.delete(forceDestroy.url({ page: deleteTarget.id }), {
             onSuccess: () => setDeleteTarget(null),
         });
@@ -188,51 +149,36 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
         }
     }
 
+    function toggleTrash(): void {
+        router.get('/admin/paginas', {
+            search: table.search,
+            status: filters.status,
+            trashed: filters.trashed ? null : 1,
+        }, { preserveState: true, replace: true });
+    }
+
     return (
         <>
             <Head title="Páginas" />
-            
-            <div className="space-y-6 p-4">
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <form onSubmit={onSearchSubmit} className="flex-1">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar páginas..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                    </form>
-             
-                    <div className="w-full sm:w-40">
-                        
-                       
-                        <Select
-                            value={filters.status ?? 'all'}
-                            onValueChange={onStatusChange}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {STATUS_OPTIONS.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="w-full sm:w-40">
+            <div className="space-y-4 p-4">
+                <Heading title="Páginas" description="Administra las páginas del sitio, su contenido y su visibilidad." />
+
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar páginas..."
+                    loading={table.loading}
+                    total={table.total}
+                    totalLabel={`página${table.total !== 1 ? 's' : ''}`}
+                    filters={statusFilters}
+                    actions={
                         <Button onClick={openCreate}>
                             <FilePlus className="mr-1 size-4" />
                             Nueva página
                         </Button>
-                    </div>
-                </div>
+                    }
+                />
 
                 <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
                     <p className="text-xs text-muted-foreground">
@@ -240,25 +186,20 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                             ? 'Mostrando páginas eliminadas (papelera).'
                             : 'Mostrando páginas activas.'}
                     </p>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleTrash}
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={toggleTrash}>
                         {filters.trashed ? 'Ver activas' : 'Ver papelera'}
                     </Button>
                 </div>
 
                 <div className="overflow-hidden rounded-lg border bg-card">
-                    {pages.data.length === 0 ? (
+                    {table.data.length === 0 ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                             <p className="text-sm text-muted-foreground">
-                                {filters.search || filters.status
+                                {table.search || table.filters.status
                                     ? 'No se encontraron páginas con esos filtros.'
                                     : 'Aún no hay páginas. Crea la primera.'}
                             </p>
-                            {!filters.search && !filters.status ? (
+                            {!table.search && !table.filters.status ? (
                                 <Button variant="outline" onClick={openCreate}>
                                     <FilePlus className="mr-1 size-4" />
                                     Crear página
@@ -267,7 +208,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {pages.data.map((page) => (
+                            {table.data.map((page) => (
                                 <div
                                     key={page.id}
                                     className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30"
@@ -288,9 +229,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                                         : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300')
                                                 }
                                             >
-                                                {page.is_published
-                                                    ? 'Publicado'
-                                                    : 'Borrador'}
+                                                {page.is_published ? 'Publicado' : 'Borrador'}
                                             </span>
                                             {page.is_home ? (
                                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
@@ -304,9 +243,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                                 {page.is_home ? '/' : `/${page.slug}`}
                                             </code>
                                             <span>·</span>
-                                            <span>
-                                                Actualizada {page.updated_at_diff}
-                                            </span>
+                                            <span>Actualizada {page.updated_at_diff}</span>
                                             {page.uploader ? (
                                                 <>
                                                     <span>·</span>
@@ -318,26 +255,16 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
 
                                     <div className="flex items-center gap-2">
                                         <Button
-                                            variant={
-                                                page.is_home ? 'default' : 'outline'
-                                            }
+                                            variant={page.is_home ? 'default' : 'outline'}
                                             size="sm"
                                             disabled={filters.trashed}
                                             onClick={() => toggleHome(page)}
                                         >
                                             <Home className="mr-1 size-4" />
-                                            {page.is_home
-                                                ? 'Es inicio'
-                                                : 'Hacer inicio'}
+                                            {page.is_home ? 'Es inicio' : 'Hacer inicio'}
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <a
-                                                href={`/admin/paginas/${page.id}/editar`}
-                                            >
+                                        <Button variant="outline" size="sm" asChild>
+                                            <a href={`/admin/paginas/${page.id}/editar`}>
                                                 Editar
                                             </a>
                                         </Button>
@@ -360,25 +287,14 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                     )}
                 </div>
 
-                {pages.last_page > 1 ? (
-                    <div className="flex items-center justify-center gap-1">
-                        {pages.links.map((link, i) => (
-                            <Button
-                                key={i}
-                                variant={link.active ? 'default' : 'outline'}
-                                size="sm"
-                                disabled={!link.url}
-                                asChild={Boolean(link.url)}
-                            >
-                                {link.url ? (
-                                    <a href={link.url}>{link.label}</a>
-                                ) : (
-                                    <span>{link.label}</span>
-                                )}
-                            </Button>
-                        ))}
-                    </div>
-                ) : null}
+                <TablePagination
+                    currentPage={table.currentPage}
+                    lastPage={table.lastPage}
+                    onPageChange={table.goPage}
+                    total={table.total}
+                    perPage={10}
+                    itemLabel={`página${table.total !== 1 ? 's' : ''}`}
+                />
             </div>
 
             <Dialog
@@ -388,7 +304,6 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                         form.reset();
                         form.clearErrors();
                     }
-
                     setCreateOpen(open);
                 }}
             >
@@ -412,9 +327,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                     required
                                 />
                                 {form.errors.title ? (
-                                    <p className="text-xs text-destructive">
-                                        {form.errors.title}
-                                    </p>
+                                    <p className="text-xs text-destructive">{form.errors.title}</p>
                                 ) : null}
                             </div>
 
@@ -432,9 +345,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                                     />
                                 </div>
                                 {form.errors.slug ? (
-                                    <p className="text-xs text-destructive">
-                                        {form.errors.slug}
-                                    </p>
+                                    <p className="text-xs text-destructive">{form.errors.slug}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -470,9 +381,7 @@ export default function PaginasIndex({ pages, filters }: PageProps) {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {filters.trashed
-                                ? 'Página en papelera'
-                                : 'Eliminar página'}
+                            {filters.trashed ? 'Página en papelera' : 'Eliminar página'}
                         </DialogTitle>
                         <DialogDescription>
                             {filters.trashed
@@ -520,5 +429,3 @@ PaginasIndex.layout = {
         { title: 'Paginas', href: paginasIndex().url },
     ],
 };
-
-

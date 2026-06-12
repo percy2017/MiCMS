@@ -12,6 +12,8 @@
     --animate-slide-up: slide-up 0.5s ease-out;
     --animate-slide-down: slide-down 0.5s ease-out;
     --animate-zoom-in: zoom-in 0.3s ease-out;
+    --animate-collapsible-down: collapsible-down 0.2s ease-out;
+    --animate-collapsible-up: collapsible-up 0.2s ease-out;
 
     --font-sans:
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
@@ -157,12 +159,22 @@
     to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes collapsible-down {
+    from { height: 0; opacity: 0; }
+    to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+
+@keyframes collapsible-up {
+    from { height: var(--radix-collapsible-content-height); opacity: 1; }
+    to { height: 0; opacity: 0; }
+}
+
 @layer base {
     * {
         @apply border-border;
     }
 
     body {
-        @apply bg-background text-foreground;
+        @apply h-dvh overflow-hidden bg-background text-foreground;
     }
 }

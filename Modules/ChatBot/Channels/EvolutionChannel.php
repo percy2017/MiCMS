@@ -2,13 +2,16 @@
 
 namespace Modules\ChatBot\Channels;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Modules\ChatBot\Enums\ChannelType;
 use Modules\ChatBot\Enums\ConversationStatus;
 use Modules\ChatBot\Enums\MessageType;
+use Modules\ChatBot\Events\ChatBotMessageReaction as ChatBotMessageReactionEvent;
 use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
 use Modules\ChatBot\Models\Message;
+use Modules\ChatBot\Models\MessageReaction;
 
 class EvolutionChannel implements ChannelInterface
 {
@@ -138,6 +141,12 @@ class EvolutionChannel implements ChannelInterface
     {
         $event = $payload['event'] ?? '';
 
+        if ($event === 'messages.reaction') {
+            $this->processReaction($payload, $channel);
+
+            return null;
+        }
+
         if (! in_array($event, ['messages.upsert', 'messages.update', 'connection.update'])) {
             return null;
         }
@@ -163,28 +172,73 @@ class EvolutionChannel implements ChannelInterface
         $messageData = $data['message'] ?? [];
         $messageType = $data['messageType'] ?? 'conversation';
 
+        $messageId = $key['id'] ?? null;
+
+        if ($messageId && Message::withTrashed()->where('external_id', $messageId)->exists()) {
+            return null;
+        }
+
+        $unwrapped = $this->unwrapMessageData($messageData);
+
         $content = match (true) {
-            ! empty($messageData['conversation']) => $messageData['conversation'],
-            ! empty($messageData['extendedTextMessage']['text']) => $messageData['extendedTextMessage']['text'],
-            ! empty($messageData['imageMessage']['caption']) => $messageData['imageMessage']['caption'],
-            ! empty($messageData['imageMessage']) => '[Imagen]',
-            ! empty($messageData['videoMessage']) => '[Video]',
-            ! empty($messageData['audioMessage']) => '[Audio]',
-            ! empty($messageData['documentMessage']) => '[Documento]',
-            ! empty($messageData['stickerMessage']) => '[Sticker]',
+            ! empty($unwrapped['conversation']) => $unwrapped['conversation'],
+            ! empty($unwrapped['extendedTextMessage']['text']) => $unwrapped['extendedTextMessage']['text'],
+            ! empty($unwrapped['imageMessage']['caption']) => $unwrapped['imageMessage']['caption'],
+            ! empty($unwrapped['videoMessage']['caption']) => $unwrapped['videoMessage']['caption'],
+            ! empty($unwrapped['ptvMessage']['caption']) => $unwrapped['ptvMessage']['caption'],
+            ! empty($unwrapped['documentWithCaptionMessage']['caption']) => $unwrapped['documentWithCaptionMessage']['caption'],
+            ! empty($unwrapped['documentMessage']['caption']) => $unwrapped['documentMessage']['caption'],
+            ! empty($unwrapped['contactMessage']['displayName']) => '[Contacto] '.$unwrapped['contactMessage']['displayName'],
+            ! empty($unwrapped['locationMessage']) => '[Ubicación]',
+            ! empty($unwrapped['liveLocationMessage']) => '[Ubicación en vivo]',
+            ! empty($unwrapped['imageMessage']) => '[Imagen]',
+            ! empty($unwrapped['videoMessage']) => '[Video]',
+            ! empty($unwrapped['ptvMessage']) => '[Video]',
+            ! empty($unwrapped['audioMessage']) => '[Audio]',
+            ! empty($unwrapped['documentMessage']) => '[Documento]',
+            ! empty($unwrapped['documentWithCaptionMessage']) => '[Documento]',
+            ! empty($unwrapped['stickerMessage']) => '[Sticker]',
+            ! empty($unwrapped['lottieStickerMessage']) => '[Sticker]',
+            ! empty($unwrapped['reactionMessage']['text']) => '[Reacción: '.$unwrapped['reactionMessage']['text'].']',
+            ! empty($unwrapped['reactionMessage']) => '[Reacción removida]',
+            ! empty($unwrapped['pollCreationMessage']['name']) => '[Encuesta: '.$unwrapped['pollCreationMessage']['name'].']',
+            ! empty($unwrapped['pollCreationMessage']) => '[Encuesta]',
+            ! empty($unwrapped['eventMessage']['name']) => '[Evento: '.$unwrapped['eventMessage']['name'].']',
+            ! empty($unwrapped['eventMessage']) => '[Evento]',
+            ! empty($unwrapped['orderMessage']['orderTitle']) => '[Pedido: '.$unwrapped['orderMessage']['orderTitle'].']',
+            ! empty($unwrapped['orderMessage']) => '[Pedido]',
+            ! empty($unwrapped['productMessage']['product']['title']) => '[Producto: '.$unwrapped['productMessage']['product']['title'].']',
+            ! empty($unwrapped['productMessage']) => '[Producto]',
             default => '[Mensaje no soportado]',
         };
 
         $type = MessageType::Text;
-        if (! empty($messageData['imageMessage'])) {
+        $mediaMeta = [];
+        if (! empty($unwrapped['imageMessage'])) {
             $type = MessageType::Image;
-        } elseif (! empty($messageData['videoMessage'])) {
+            $mediaMeta = $this->extractMediaMeta('image', $unwrapped['imageMessage']);
+        } elseif (! empty($unwrapped['videoMessage']) || ! empty($unwrapped['ptvMessage'])) {
             $type = MessageType::Video;
-        } elseif (! empty($messageData['audioMessage'])) {
+            $videoData = $unwrapped['videoMessage'] ?? $unwrapped['ptvMessage'];
+            $mediaMeta = $this->extractMediaMeta('video', $videoData);
+        } elseif (! empty($unwrapped['audioMessage'])) {
             $type = MessageType::Audio;
-        } elseif (! empty($messageData['documentMessage'])) {
+            $mediaMeta = $this->extractMediaMeta('audio', $unwrapped['audioMessage']);
+        } elseif (! empty($unwrapped['documentMessage']) || ! empty($unwrapped['documentWithCaptionMessage'])) {
             $type = MessageType::File;
+            $docData = $unwrapped['documentMessage'] ?? $unwrapped['documentWithCaptionMessage'];
+            $mediaMeta = $this->extractMediaMeta('document', $docData);
+        } elseif (! empty($unwrapped['stickerMessage']) || ! empty($unwrapped['lottieStickerMessage'])) {
+            $type = MessageType::Sticker;
+            $stickerData = $unwrapped['stickerMessage'] ?? $unwrapped['lottieStickerMessage'];
+            $mediaMeta = $this->extractMediaMeta('sticker', $stickerData);
+        } elseif (! empty($unwrapped['locationMessage']) || ! empty($unwrapped['liveLocationMessage'])) {
+            $type = MessageType::Location;
+        } elseif (! empty($unwrapped['contactMessage'])) {
+            $type = MessageType::Contact;
         }
+
+        $phonePart = explode('@', $remoteJid)[0] ?? null;
 
         $conversation = Conversation::firstOrCreate(
             [
@@ -208,14 +262,251 @@ class EvolutionChannel implements ChannelInterface
             ]);
         }
 
-        return Message::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
             'role' => Message::ROLE_USER,
             'type' => $type,
             'content' => $content,
-            'external_id' => $key['id'] ?? null,
-            'metadata' => ['pushName' => $pushName, 'remoteJid' => $remoteJid],
+            'external_id' => $messageId,
+            'metadata' => array_merge(
+                ['pushName' => $pushName, 'remoteJid' => $remoteJid, 'source' => $data['source'] ?? null],
+                $mediaMeta,
+            ),
         ]);
+
+        $this->linkConversationToExistingUser($conversation, $remoteJid, $phonePart);
+
+        if ($type !== MessageType::Text && $messageId && ! empty($mediaMeta)) {
+            $this->enrichWithBase64Media($message, $channel, $messageId);
+        }
+
+        return $message;
+    }
+
+    /**
+     * Descarga el media desde Evolution (base64) y lo guarda en metadata.media_base64.
+     * Si falla (media expirado, instance offline, etc.), deja la media_url existente.
+     */
+    private function enrichWithBase64Media(Message $message, Channel $channel, string $messageId): void
+    {
+        try {
+            $config = $channel->config ?? [];
+            if (empty($config['server_url']) || empty($config['api_key']) || empty($config['instance_name'])) {
+                return;
+            }
+
+            $client = new EvolutionApiClient(
+                serverUrl: rtrim($config['server_url'], '/'),
+                apiKey: $config['api_key'],
+                instanceName: $config['instance_name'],
+            );
+
+            $response = $client->getBase64FromMediaMessage($messageId);
+            if (! $response->successful()) {
+                Log::info('EvolutionChannel: media enrichment skipped', [
+                    'message_id' => $message->id,
+                    'status' => $response->status(),
+                ]);
+
+                return;
+            }
+
+            $body = $response->json();
+            $base64 = $body['base64'] ?? null;
+            if (! $base64) {
+                return;
+            }
+
+            $meta = $message->metadata ?? [];
+            $meta['media_base64'] = $base64;
+            $meta['media_mimetype'] = $body['mimetype'] ?? ($meta['media_mimetype'] ?? null);
+            $meta['media_filename'] = $body['fileName'] ?? ($meta['media_filename'] ?? null);
+            $size = $body['size']['fileLength']['low'] ?? null;
+            if (is_numeric($size)) {
+                $meta['media_size'] = (int) $size;
+            }
+
+            $message->forceFill(['metadata' => $meta])->save();
+        } catch (\Throwable $e) {
+            Log::warning('EvolutionChannel: media enrichment failed', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Vincula una conversación con un User existente (creado manualmente por el admin)
+     * buscando por `phone` o `whatsapp_jid`. NUNCA crea users duplicados ni sobrescribe
+     * el `name` de un user existente.
+     */
+    private function linkConversationToExistingUser(Conversation $conversation, ?string $remoteJid, ?string $phonePart): void
+    {
+        if ($conversation->user_id !== null) {
+            return;
+        }
+
+        $user = null;
+
+        if ($phonePart && $phonePart !== '') {
+            $user = User::where('phone', $phonePart)->first();
+        }
+
+        if (! $user && $remoteJid) {
+            $user = User::where('whatsapp_jid', $remoteJid)->first();
+        }
+
+        if (! $user) {
+            return;
+        }
+
+        $conversation->forceFill(['user_id' => $user->id])->save();
+    }
+
+    /**
+     * Procesa un evento `messages.reaction` de Evolution API.
+     *
+     * Payload típico:
+     *   {
+     *     "event": "messages.reaction",
+     *     "data": {
+     *       "key": { "remoteJid": "...", "fromMe": false, "id": "MSG_ID" },
+     *       "reaction": {
+     *         "text": "❤️",                       // emoji (vacío = remoción)
+     *         "key": { "id": "REACTION_ID", "remoteJid": "...", "fromMe": false }
+     *       }
+     *     }
+     *   }
+     *
+     * @return array{action: string, message: ?Message, reaction: ?MessageReaction}
+     */
+    public function processReaction(array $payload, Channel $channel): array
+    {
+        $data = $payload['data'] ?? [];
+        $key = $data['key'] ?? [];
+        $reaction = $data['reaction'] ?? [];
+
+        $messageId = $key['id'] ?? null;
+        $emoji = $reaction['text'] ?? null;
+        $reactionId = $reaction['key']['id'] ?? null;
+        $fromMe = (bool) ($key['fromMe'] ?? $reaction['key']['fromMe'] ?? false);
+        $remoteJid = $key['remoteJid'] ?? $reaction['key']['remoteJid'] ?? null;
+
+        Log::info('EvolutionChannel reaction received', [
+            'channel_id' => $channel->id,
+            'message_id' => $messageId,
+            'remote_jid' => $remoteJid,
+            'emoji' => $emoji,
+            'reaction_id' => $reactionId,
+            'from_me' => $fromMe,
+        ]);
+
+        if (! $messageId || $remoteJid === null) {
+            return ['action' => 'skipped', 'message' => null, 'reaction' => null];
+        }
+
+        $message = $this->findMessageByExternalId($messageId, $remoteJid, $channel->id);
+        if (! $message) {
+            Log::info('EvolutionChannel: reaction received for unknown message', [
+                'message_id' => $messageId,
+                'remote_jid' => $remoteJid,
+                'channel_id' => $channel->id,
+            ]);
+
+            return ['action' => 'skipped', 'message' => null, 'reaction' => null];
+        }
+
+        $userJid = $fromMe ? 'admin-self' : $remoteJid;
+        $action = 'added';
+
+        if ($emoji === null || $emoji === '' || $emoji === false) {
+            $deleted = $this->removeReaction($message, $userJid, $reactionId);
+            if ($deleted > 0) {
+                $this->broadcastReactionRemoved($message, $userJid, (string) ($reaction['previousText'] ?? ''));
+            }
+
+            return ['action' => $deleted > 0 ? 'removed' : 'skipped', 'message' => $message, 'reaction' => null];
+        }
+
+        $existing = MessageReaction::where('message_id', $message->id)
+            ->where('user_jid', $userJid)
+            ->where('emoji', $emoji)
+            ->first();
+
+        if ($existing) {
+            return ['action' => 'exists', 'message' => $message, 'reaction' => $existing];
+        }
+
+        $model = MessageReaction::create([
+            'message_id' => $message->id,
+            'user_jid' => $userJid,
+            'emoji' => $emoji,
+            'external_id' => $reactionId,
+        ]);
+
+        ChatBotMessageReactionEvent::dispatch($message, $model, $action);
+
+        return ['action' => $action, 'message' => $message, 'reaction' => $model];
+    }
+
+    /**
+     * Busca el Message local por `external_id` (id de WhatsApp). Como el `external_id`
+     * es único por instancia, se valida que pertenezca a una Conversation del mismo canal.
+     */
+    private function findMessageByExternalId(string $externalId, string $remoteJid, int $channelId): ?Message
+    {
+        $message = Message::withTrashed()
+            ->where('external_id', $externalId)
+            ->whereHas('conversation', function ($q) use ($channelId, $remoteJid) {
+                $q->where('channel_id', $channelId)
+                    ->where('external_id', $remoteJid);
+            })
+            ->first();
+
+        if ($message) {
+            return $message;
+        }
+
+        return Message::withTrashed()
+            ->whereHas('conversation', function ($q) use ($channelId, $remoteJid) {
+                $q->where('channel_id', $channelId)
+                    ->where('external_id', $remoteJid);
+            })
+            ->where(function ($q) use ($externalId) {
+                $q->where('metadata->wa_message_id', $externalId)
+                    ->orWhere('metadata->reaction->id', $externalId);
+            })
+            ->first();
+    }
+
+    /**
+     * Elimina reacciones de un mensaje según los criterios dados.
+     *
+     * @return int número de filas eliminadas
+     */
+    private function removeReaction(Message $message, string $userJid, ?string $reactionId): int
+    {
+        $query = MessageReaction::where('message_id', $message->id)->where('user_jid', $userJid);
+
+        if ($reactionId) {
+            $query->where(function ($q) use ($reactionId) {
+                $q->where('external_id', $reactionId)->orWhereNull('external_id');
+            });
+        }
+
+        return $query->delete();
+    }
+
+    private function broadcastReactionRemoved(Message $message, string $userJid, string $emoji): void
+    {
+        $placeholder = new MessageReaction([
+            'message_id' => $message->id,
+            'user_jid' => $userJid,
+            'emoji' => $emoji,
+        ]);
+        $placeholder->id = 0;
+
+        ChatBotMessageReactionEvent::dispatch($message, $placeholder, 'removed');
     }
 
     public function stats(Channel $channel): array
@@ -290,5 +581,99 @@ class EvolutionChannel implements ChannelInterface
             MessageType::Sticker => 'image/webp',
             default => 'application/octet-stream',
         };
+    }
+
+    /**
+     * Desenvuelve los wrappers de mensaje de WhatsApp (ephemeralMessage, viewOnceMessage*, etc.)
+     * y devuelve el bloque de mensaje real. Si el data ya es el bloque final, lo devuelve igual.
+     *
+     * @param  array<string, mixed>  $messageData
+     * @return array<string, mixed>
+     */
+    private function unwrapMessageData(array $messageData): array
+    {
+        $wrappers = [
+            'ephemeralMessage',
+            'viewOnceMessage',
+            'viewOnceMessageV2',
+            'viewOnceMessageV2Extension',
+            'documentWithCaptionMessage',
+        ];
+
+        for ($i = 0; $i < 5; $i++) {
+            $unwrapped = false;
+            foreach ($wrappers as $wrapper) {
+                if (! empty($messageData[$wrapper]['message']) && is_array($messageData[$wrapper]['message'])) {
+                    $messageData = $messageData[$wrapper]['message'];
+                    $unwrapped = true;
+                    break;
+                }
+            }
+            if (! $unwrapped) {
+                break;
+            }
+        }
+
+        return $messageData;
+    }
+
+    /**
+     * Extrae la metadata de media desde un bloque de mensaje de Evolution.
+     * Devuelve un array con los campos relevantes que se persisten en `messages.metadata`.
+     *
+     * @param  string  $kind  image|video|audio|document|sticker
+     * @param  array<string, mixed>  $mediaData
+     * @return array<string, mixed>
+     */
+    private function extractMediaMeta(string $kind, array $mediaData): array
+    {
+        $meta = [
+            'media_kind' => $kind,
+        ];
+
+        $url = $mediaData['url'] ?? $mediaData['mediaUrl'] ?? null;
+        if (is_string($url) && $url !== '') {
+            $meta['media_url'] = $url;
+        }
+
+        $mimetype = $mediaData['mimetype'] ?? $mediaData['mimeType'] ?? null;
+        if (is_string($mimetype) && $mimetype !== '') {
+            $meta['media_mimetype'] = $mimetype;
+        }
+
+        $fileName = $mediaData['fileName'] ?? $mediaData['filename'] ?? null;
+        if (is_string($fileName) && $fileName !== '') {
+            $meta['media_filename'] = $fileName;
+        }
+
+        $fileLength = $mediaData['fileLength']
+            ?? $mediaData['fileSize']
+            ?? $mediaData['size']
+            ?? null;
+        if (is_int($fileLength) || (is_string($fileLength) && ctype_digit($fileLength))) {
+            $meta['media_size'] = (int) $fileLength;
+        }
+
+        $caption = $mediaData['caption'] ?? null;
+        if (is_string($caption) && $caption !== '') {
+            $meta['media_caption'] = $caption;
+        }
+
+        $base64 = $mediaData['base64'] ?? null;
+        if (is_string($base64) && $base64 !== '') {
+            $meta['media_base64'] = $base64;
+        }
+
+        $ptt = $mediaData['ptt'] ?? null;
+        if (is_bool($ptt)) {
+            $meta['media_ptt'] = $ptt;
+        }
+
+        $seconds = $mediaData['seconds'] ?? $mediaData['duration'] ?? null;
+        if (is_int($seconds) || (is_string($seconds) && ctype_digit($seconds))) {
+            $meta['media_duration'] = (int) $seconds;
+        }
+
+        return $meta;
     }
 }

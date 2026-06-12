@@ -26,6 +26,7 @@ class WidgetController extends Controller
         return redirect()->route('chatbot.admin.widget')
             ->with('success', 'Widget Web creado.');
     }
+
     private function getChannel(): Channel
     {
         $channel = Channel::where('type', 'web_widget')->first();

@@ -1,53 +1,63 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Loader2, Search, Shield, Trash2, UserPlus } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Loader2, Mail, MessageCircle, Phone, Shield, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { DataTableToolbar } from '@/components/data-table-toolbar';
+import { TablePagination } from '@/components/table-pagination';
 import { useCan } from '@/hooks/use-can';
+import { useInitials } from '@/hooks/use-initials';
+import { useTableSearch } from '@/hooks/use-table-search';
+import { openPosWooChat } from '@/lib/pos-woo-chat';
 import { admin } from '@/routes';
-import { destroy, index as indexRoute } from '@/routes/admin/usuarios';
+import { index as indexRoute } from '@/routes/admin/usuarios';
 
 type UserItem = {
     id: number;
     name: string;
     email: string;
+    phone: string | null;
+    avatar_url: string | null;
     roles: string[];
     email_verified_at: string | null;
     created_at: string | null;
+    chat_conversation_id?: number | null;
 };
 
 type PageProps = {
     users: {
         data: UserItem[];
+        total?: number;
+        current_page?: number;
+        last_page?: number;
     };
     filters: { search: string };
 };
 
-export default function UsuariosIndex({ users, filters }: PageProps) {
-    const [search, setSearch] = useState(filters.search);
+export default function UsuariosIndex({ users: initialUsers, filters }: PageProps) {
     const [pendingId, setPendingId] = useState<number | null>(null);
+
     const canCreate = useCan('create users');
     const canUpdate = useCan('update users');
     const canDelete = useCan('delete users');
-    const auth = usePage().props.auth;
-    const currentUserId = auth.user?.id;
+    const getInitials = useInitials();
 
-    function applySearch(e: React.FormEvent): void {
-        e.preventDefault();
-        router.get(indexRoute({ query: { search } }).url, {}, { preserveState: true });
-    }
+    const table = useTableSearch<UserItem>({
+        endpoint: '/admin/usuarios/search',
+        initialData: initialUsers,
+        perPage: 10,
+        initialFilters: { search: filters.search ?? '' },
+    });
 
     function handleDestroy(user: UserItem): void {
-        if (! confirm(`¿Eliminar al usuario "${user.name}"?`)) {
-            return;
-        }
+        if (!confirm(`¿Eliminar al usuario "${user.name}"?\n\nEsta acción no se puede deshacer.`)) return;
         setPendingId(user.id);
-        router.delete(destroy({ user: user.id }).url, {
+        router.delete(`/admin/usuarios/${user.id}`, {
             preserveScroll: true,
             onFinish: () => setPendingId(null),
+            onSuccess: () => table.refresh(),
         });
     }
 
@@ -55,40 +65,25 @@ export default function UsuariosIndex({ users, filters }: PageProps) {
         <>
             <Head title="Usuarios" />
 
-            <div className="space-y-6 p-4">
-                <div className="flex items-start justify-between gap-4">
-                    <Heading
-                        title="Usuarios"
-                        description="Gestiona usuarios, roles y permisos."
-                    />
-                    {canCreate && (
-                        <Button asChild>
-                            <Link href="/admin/usuarios/crear">
-                                <UserPlus className="mr-2 size-4" />
-                                Nuevo usuario
-                            </Link>
-                        </Button>
-                    )}
-                </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar por nombre, email o teléfono..."
+                    loading={table.loading}
+                    total={table.total}
+                    totalLabel={`usuario${table.total !== 1 ? 's' : ''}`}
+                    createHref={canCreate ? '/admin/usuarios/crear' : undefined}
+                    createLabel="Nuevo"
+                />
 
-                <form onSubmit={applySearch} className="flex gap-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Buscar por nombre o email..."
-                            className="pl-9"
-                        />
-                    </div>
-                    <Button type="submit" variant="outline">Buscar</Button>
-                </form>
-
-                {users.data.length === 0 ? (
+                {table.data.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
                             <Shield className="size-12 text-muted-foreground/50" />
-                            <p className="text-sm text-muted-foreground">No hay usuarios.</p>
+                            <p className="text-sm text-muted-foreground">
+                                {table.search ? 'Sin resultados para la búsqueda' : 'No hay usuarios.'}
+                            </p>
                         </CardContent>
                     </Card>
                 ) : (
@@ -96,21 +91,53 @@ export default function UsuariosIndex({ users, filters }: PageProps) {
                         <table className="w-full text-sm">
                             <thead className="border-b bg-muted/50 text-left">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">Nombre</th>
+                                    <th className="px-4 py-3 font-medium">Usuario</th>
                                     <th className="px-4 py-3 font-medium">Email</th>
+                                    <th className="px-4 py-3 font-medium">Teléfono</th>
                                     <th className="px-4 py-3 font-medium">Roles</th>
                                     <th className="px-4 py-3 font-medium">Verificado</th>
                                     <th className="px-4 py-3 text-right font-medium">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {users.data.map((user) => {
+                                {table.data.map((user) => {
                                     const isPending = pendingId === user.id;
-                                    const isSelf = currentUserId === user.id;
                                     return (
                                         <tr key={user.id} className="hover:bg-muted/30">
-                                            <td className="px-4 py-3 font-medium">{user.name}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="size-10 border">
+                                                        {user.avatar_url ? (
+                                                            <AvatarImage src={user.avatar_url} alt={user.name} />
+                                                        ) : null}
+                                                        <AvatarFallback className="bg-muted text-xs text-muted-foreground">
+                                                            {getInitials(user.name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="truncate font-medium">{user.name}</p>
+                                                            <Badge variant="outline" className="text-[10px]">ID: {user.id}</Badge>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <Mail className="size-3.5 shrink-0" />
+                                                    <span className="truncate">{user.email}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {user.phone ? (
+                                                    <div className="flex items-center gap-2 text-foreground">
+                                                        <Phone className="size-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="font-mono text-xs">{user.phone}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground/60">—</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap gap-1">
                                                     {user.roles.length === 0 ? (
@@ -124,7 +151,9 @@ export default function UsuariosIndex({ users, filters }: PageProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 {user.email_verified_at ? (
-                                                    <Badge variant="default">Sí</Badge>
+                                                    <Badge variant="default" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                                                        Verificado
+                                                    </Badge>
                                                 ) : (
                                                     <Badge variant="outline">No</Badge>
                                                 )}
@@ -138,7 +167,30 @@ export default function UsuariosIndex({ users, filters }: PageProps) {
                                                             </Link>
                                                         </Button>
                                                     )}
-                                                    {canDelete && ! isSelf && (
+                                                    {(() => {
+                                                        const phone = (user.phone ?? '').trim();
+                                                        if (!phone && !user.chat_conversation_id) {
+                                                            return null;
+                                                        }
+                                                        return (
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    openPosWooChat(
+                                                                        user.chat_conversation_id ?? null,
+                                                                        phone || null,
+                                                                        user.name,
+                                                                    )
+                                                                }
+                                                                title="Enviar mensaje"
+                                                            >
+                                                                <MessageCircle className="size-4" />
+                                                            </Button>
+                                                        );
+                                                    })()}
+                                                    {canDelete && (
                                                         <Button
                                                             type="button"
                                                             size="sm"
@@ -162,6 +214,15 @@ export default function UsuariosIndex({ users, filters }: PageProps) {
                         </table>
                     </div>
                 )}
+
+                <TablePagination
+                    currentPage={table.currentPage}
+                    lastPage={table.lastPage}
+                    onPageChange={table.goPage}
+                    total={table.total}
+                    perPage={10}
+                    itemLabel={`usuario${table.total !== 1 ? 's' : ''}`}
+                />
             </div>
         </>
     );

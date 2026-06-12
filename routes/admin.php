@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\LogViewerController;
+use App\Http\Controllers\Media\AvatarUploadController;
 use App\Http\Controllers\Media\MediaController;
 use App\Http\Controllers\Media\MediaUploadController;
 use App\Http\Controllers\Menu\MenuController;
@@ -48,13 +49,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
 
     Route::get('media', [MediaController::class, 'index'])->name('media.index');
+    Route::get('media/search', [MediaController::class, 'search'])->name('media.search');
     Route::post('media', [MediaUploadController::class, 'store'])->name('media.store');
+    Route::post('media/avatar', [AvatarUploadController::class, 'store'])->name('media.avatar.store');
     Route::get('media/{media}', [MediaController::class, 'show'])->name('media.show');
     Route::get('media/{media}/edit', [MediaController::class, 'edit'])->name('media.edit');
     Route::patch('media/{media}', [MediaController::class, 'update'])->name('media.update');
     Route::delete('media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
 
     Route::get('paginas', [PageController::class, 'index'])->name('paginas.index');
+    Route::get('paginas/search', [PageController::class, 'search'])->name('paginas.search');
     Route::post('paginas', [PageController::class, 'store'])->name('paginas.store');
     Route::get('paginas/{page}/editar', [PageController::class, 'edit'])->name('paginas.edit');
     Route::patch('paginas/{page}', [PageController::class, 'update'])->name('paginas.update');
@@ -83,11 +87,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::prefix('usuarios')->name('usuarios.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/search', [UserController::class, 'search'])->name('search');
         Route::get('/crear', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
         Route::get('/{user}/editar', [UserController::class, 'edit'])->name('edit');
         Route::patch('/{user}', [UserController::class, 'update'])->name('update');
         Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+        Route::post('/with-evolution', [UserController::class, 'createWithEvolution'])->name('with-evolution.store');
+        Route::post('/with-evolution/check', [UserController::class, 'withEvolutionCheck'])->name('with-evolution.check');
+        Route::post('/{user}/evolution-data', [UserController::class, 'saveEvolutionData'])->name('evolution-data.save');
+        Route::post('/{user}/evolution-channel/check-whatsapp', [UserController::class, 'checkWhatsapp'])->name('evolution-channel.check');
     });
 
     Route::prefix('roles')->name('roles.')->group(function () {

@@ -14,21 +14,13 @@ class EvolutionWebhookController extends Controller
         private readonly MessageIngestor $ingestor,
     ) {}
 
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request, Channel $channel): JsonResponse
     {
-        $payload = $request->all();
-
-        $instance = $request->input('instance');
-
-        $channel = Channel::where('type', 'evolution')
-            ->where('enabled', true)
-            ->first();
-
-        if (! $channel) {
-            return response()->json(['ok' => false, 'error' => 'No active evolution channel'], 404);
+        if (! $channel->enabled || $channel->type->value !== 'evolution') {
+            return response()->json(['ok' => false, 'error' => 'Channel not available'], 404);
         }
 
-        $this->ingestor->ingest($channel, $payload);
+        $this->ingestor->ingest($channel, $request->all());
 
         return response()->json(['ok' => true]);
     }

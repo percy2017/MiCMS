@@ -2,6 +2,7 @@
 
 namespace Modules\ChatBot\Services;
 
+use Illuminate\Support\Facades\Log;
 use Modules\ChatBot\Channels\ChannelInterface;
 use Modules\ChatBot\Channels\ChannelRegistry;
 use Modules\ChatBot\Events\ChatBotMessageReceived;
@@ -21,10 +22,23 @@ class MessageIngestor
             return null;
         }
 
-        $message = $driver->processIncoming($payload, $channel);
+        try {
+            $message = $driver->processIncoming($payload, $channel);
+        } catch (\Throwable $e) {
+            Log::error('MessageIngestor::ingest failed', [
+                'channel_id' => $channel->id,
+                'event' => $payload['event'] ?? null,
+                'remoteJid' => $payload['data']['key']['remoteJid'] ?? $payload['data']['remoteJid'] ?? null,
+                'fromMe' => $payload['data']['key']['fromMe'] ?? $payload['data']['fromMe'] ?? null,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+
+            return null;
+        }
 
         if ($message && $channel->enabled) {
-            broadcast(new ChatBotMessageReceived($message))->toOthers();
+            ChatBotMessageReceived::dispatch($message);
         }
 
         return $message;

@@ -7,13 +7,10 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Adds baseline security headers to every HTTP response.
- * - X-Content-Type-Options: prevent MIME sniffing
- * - X-Frame-Options: prevent clickjacking
- * - Referrer-Policy: do not leak full URL to third parties
- * - Permissions-Policy: disable unused browser features
- * - Strict-Transport-Security: enforce HTTPS (only in production)
- * - Content-Security-Policy: allow own assets, Puck CSS, images; block unsafe inline scripts
+ * Minimal security headers. CSP and other restrictive policies are intentionally
+ * disabled so the application can load resources from any origin (WooCommerce,
+ * external CDNs, WhatsApp, etc.) without blocking. Keep only headers that do
+ * not interfere with cross-origin loading.
  */
 class SecurityHeaders
 {
@@ -25,7 +22,6 @@ class SecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
 
         $isPublicPage = $request->routeIs('home') || $request->routeIs('pages.show') || $request->routeIs('sitemap');
         $existingCacheControl = (string) $response->headers->get('Cache-Control', '');
@@ -37,23 +33,7 @@ class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        if (! $response->headers->has('Content-Security-Policy')) {
-            $csp = implode('; ', [
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-                "style-src 'self' 'unsafe-inline' https://rsms.me",
-                "style-src-elem 'self' 'unsafe-inline' https://rsms.me",
-                "img-src 'self' data: blob: https://pps.whatsapp.net",
-                "font-src 'self' data: https://rsms.me",
-                "connect-src 'self' ws: wss:",
-                "media-src 'self'",
-                "frame-src 'self' https://www.youtube.com https://player.vimeo.com",
-                "object-src 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-            ]);
-            $response->headers->set('Content-Security-Policy', $csp);
-        }
+        $response->headers->set('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; connect-src * ws: wss:; frame-src *; font-src * data:; media-src *; style-src * 'unsafe-inline';");
 
         return $response;
     }

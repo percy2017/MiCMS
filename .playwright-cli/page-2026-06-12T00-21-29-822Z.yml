@@ -1,0 +1,420 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - list [ref=e9]:
+        - listitem [ref=e10]:
+          - link "MiCMS" [ref=e11] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e13]
+            - generic [ref=e16]: MiCMS
+      - generic [ref=e18]:
+        - generic [ref=e19]: MiCMS
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Panel" [ref=e22] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e23]
+              - generic [ref=e28]: Panel
+          - listitem [ref=e29]:
+            - button "Contenido" [ref=e30]:
+              - img [ref=e31]
+              - generic [ref=e35]: Contenido
+              - img [ref=e36]
+          - listitem [ref=e38]:
+            - button "Usuarios" [ref=e39]:
+              - img [ref=e40]
+              - generic [ref=e52]: Usuarios
+              - img [ref=e53]
+          - listitem [ref=e55]:
+            - link "Medios" [ref=e56] [cursor=pointer]:
+              - /url: /admin/media
+              - img [ref=e57]
+              - generic [ref=e61]: Medios
+          - listitem [ref=e62]:
+            - button "Mensajeria" [expanded] [ref=e63]:
+              - img [ref=e64]
+              - generic [ref=e66]: Mensajeria
+              - img [ref=e67]
+            - list [ref=e70]:
+              - listitem [ref=e71]:
+                - link "Chats" [ref=e72] [cursor=pointer]:
+                  - /url: /admin/chats
+                  - generic [ref=e73]: Chats
+              - listitem [ref=e74]:
+                - link "Canales" [ref=e75] [cursor=pointer]:
+                  - /url: /admin/canales
+                  - generic [ref=e76]: Canales
+          - listitem [ref=e77]:
+            - button "PosWoo" [ref=e78]:
+              - img [ref=e79]
+              - generic [ref=e81]: PosWoo
+              - img [ref=e82]
+          - listitem [ref=e84]:
+            - button "Configuración" [ref=e85]:
+              - img [ref=e86]
+              - generic [ref=e89]: Configuración
+              - img [ref=e90]
+      - list [ref=e93]:
+        - listitem [ref=e94]:
+          - button "A admin" [ref=e95]:
+            - generic [ref=e97]: A
+            - generic [ref=e99]: admin
+            - img [ref=e100]
+    - main [ref=e103]:
+      - generic [ref=e105]:
+        - button "Toggle sidebar" [ref=e106]:
+          - img
+          - generic [ref=e107]: Toggle sidebar
+        - navigation "breadcrumb" [ref=e108]:
+          - list [ref=e109]:
+            - listitem [ref=e110]:
+              - link "Chats" [disabled] [ref=e111]
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e116]:
+            - generic [ref=e117]:
+              - button "Todos" [ref=e118] [cursor=pointer]
+              - button "tigo1" [ref=e119] [cursor=pointer]
+              - button "entel2" [ref=e120] [cursor=pointer]
+            - generic [ref=e121]:
+              - img [ref=e122]
+              - textbox "Buscar por nombre, email o teléfono..." [ref=e125]
+            - generic [ref=e126]:
+              - generic [ref=e127]: 33 conversaciones
+              - 'generic "WebSocket: connecting" [ref=e128]':
+                - generic [ref=e130]: Conectando
+          - generic [ref=e131]:
+            - button "H heraclio roca hace 19 minutos tigo1 | +59174705628" [ref=e132] [cursor=pointer]:
+              - generic [ref=e133]: H
+              - generic [ref=e134]:
+                - generic [ref=e135]:
+                  - paragraph [ref=e136]: heraclio roca
+                  - paragraph [ref=e137]: hace 19 minutos
+                - generic [ref=e138]:
+                  - generic [ref=e139]: tigo1
+                  - generic [ref=e140]: "|"
+                  - generic [ref=e141]: "+59174705628"
+            - button "Percy Alvarez Percy Alvarez hace 22 minutos tigo1 | 59171146267" [ref=e142] [cursor=pointer]:
+              - img "Percy Alvarez" [ref=e143]
+              - generic [ref=e144]:
+                - generic [ref=e145]:
+                  - paragraph [ref=e146]: Percy Alvarez
+                  - paragraph [ref=e147]: hace 22 minutos
+                - generic [ref=e148]:
+                  - generic [ref=e149]: tigo1
+                  - generic [ref=e150]: "|"
+                  - generic [ref=e151]: "59171146267"
+            - button "J Jhonny hace 28 minutos tigo1 | 59173696097" [ref=e152] [cursor=pointer]:
+              - generic [ref=e153]: J
+              - generic [ref=e154]:
+                - generic [ref=e155]:
+                  - paragraph [ref=e156]: Jhonny
+                  - paragraph [ref=e157]: hace 28 minutos
+                - generic [ref=e158]:
+                  - generic [ref=e159]: tigo1
+                  - generic [ref=e160]: "|"
+                  - generic [ref=e161]: "59173696097"
+            - button ". . hace 1 hora tigo1 | 59176628248" [ref=e162] [cursor=pointer]:
+              - img "." [ref=e163]
+              - generic [ref=e164]:
+                - generic [ref=e165]:
+                  - paragraph [ref=e166]: .
+                  - paragraph [ref=e167]: hace 1 hora
+                - generic [ref=e168]:
+                  - generic [ref=e169]: tigo1
+                  - generic [ref=e170]: "|"
+                  - generic [ref=e171]: "59176628248"
+            - button "jeremy Wade jeremy Wade hace 1 hora tigo1 | 59172727966" [ref=e172] [cursor=pointer]:
+              - img "jeremy Wade" [ref=e173]
+              - generic [ref=e174]:
+                - generic [ref=e175]:
+                  - paragraph [ref=e176]: jeremy Wade
+                  - paragraph [ref=e177]: hace 1 hora
+                - generic [ref=e178]:
+                  - generic [ref=e179]: tigo1
+                  - generic [ref=e180]: "|"
+                  - generic [ref=e181]: "59172727966"
+            - button "Jesus Jesus hace 1 hora tigo1 | 34698684267" [ref=e182] [cursor=pointer]:
+              - img "Jesus" [ref=e183]
+              - generic [ref=e184]:
+                - generic [ref=e185]:
+                  - paragraph [ref=e186]: Jesus
+                  - paragraph [ref=e187]: hace 1 hora
+                - generic [ref=e188]:
+                  - generic [ref=e189]: tigo1
+                  - generic [ref=e190]: "|"
+                  - generic [ref=e191]: "34698684267"
+            - button "maria maria hace 1 hora tigo1 | 59176889613" [ref=e192] [cursor=pointer]:
+              - img "maria" [ref=e193]
+              - generic [ref=e194]:
+                - generic [ref=e195]:
+                  - paragraph [ref=e196]: maria
+                  - paragraph [ref=e197]: hace 1 hora
+                - generic [ref=e198]:
+                  - generic [ref=e199]: tigo1
+                  - generic [ref=e200]: "|"
+                  - generic [ref=e201]: "59176889613"
+            - button "Carina HR Carina HR hace 1 hora tigo1 | 59163467228" [ref=e202] [cursor=pointer]:
+              - img "Carina HR" [ref=e203]
+              - generic [ref=e204]:
+                - generic [ref=e205]:
+                  - paragraph [ref=e206]: Carina HR
+                  - paragraph [ref=e207]: hace 1 hora
+                - generic [ref=e208]:
+                  - generic [ref=e209]: tigo1
+                  - generic [ref=e210]: "|"
+                  - generic [ref=e211]: "59163467228"
+            - button "Jambao Jambao hace 2 horas tigo1 | 59170523243" [ref=e212] [cursor=pointer]:
+              - img "Jambao" [ref=e213]
+              - generic [ref=e214]:
+                - generic [ref=e215]:
+                  - paragraph [ref=e216]: Jambao
+                  - paragraph [ref=e217]: hace 2 horas
+                - generic [ref=e218]:
+                  - generic [ref=e219]: tigo1
+                  - generic [ref=e220]: "|"
+                  - generic [ref=e221]: "59170523243"
+            - button "yes yes hace 3 horas tigo1 | 51983996016" [ref=e222] [cursor=pointer]:
+              - img "yes" [ref=e223]
+              - generic [ref=e224]:
+                - generic [ref=e225]:
+                  - paragraph [ref=e226]: "yes"
+                  - paragraph [ref=e227]: hace 3 horas
+                - generic [ref=e228]:
+                  - generic [ref=e229]: tigo1
+                  - generic [ref=e230]: "|"
+                  - generic [ref=e231]: "51983996016"
+            - button "😎 😎 hace 4 horas tigo1 | 59178082844" [ref=e232] [cursor=pointer]:
+              - img "😎" [ref=e233]
+              - generic [ref=e234]:
+                - generic [ref=e235]:
+                  - paragraph [ref=e236]: 😎
+                  - paragraph [ref=e237]: hace 4 horas
+                - generic [ref=e238]:
+                  - generic [ref=e239]: tigo1
+                  - generic [ref=e240]: "|"
+                  - generic [ref=e241]: "59178082844"
+            - button "Percy Alvarez E2 Percy Alvarez E2 hace 5 horas tigo1 | 59168964000" [ref=e242] [cursor=pointer]:
+              - img "Percy Alvarez E2" [ref=e243]
+              - generic [ref=e244]:
+                - generic [ref=e245]:
+                  - paragraph [ref=e246]: Percy Alvarez E2
+                  - paragraph [ref=e247]: hace 5 horas
+                - generic [ref=e248]:
+                  - generic [ref=e249]: tigo1
+                  - generic [ref=e250]: "|"
+                  - generic [ref=e251]: "59168964000"
+            - button "Lorena V.T. Lorena V.T. hace 6 horas tigo1 | 59172830903" [ref=e252] [cursor=pointer]:
+              - img "Lorena V.T." [ref=e253]
+              - generic [ref=e254]:
+                - generic [ref=e255]:
+                  - paragraph [ref=e256]: Lorena V.T.
+                  - paragraph [ref=e257]: hace 6 horas
+                - generic [ref=e258]:
+                  - generic [ref=e259]: tigo1
+                  - generic [ref=e260]: "|"
+                  - generic [ref=e261]: "59172830903"
+            - button "Lidia G C 🧡 Lidia G C 🧡 hace 6 horas tigo1 | 59179348700" [ref=e262] [cursor=pointer]:
+              - img "Lidia G C 🧡" [ref=e263]
+              - generic [ref=e264]:
+                - generic [ref=e265]:
+                  - paragraph [ref=e266]: Lidia G C 🧡
+                  - paragraph [ref=e267]: hace 6 horas
+                - generic [ref=e268]:
+                  - generic [ref=e269]: tigo1
+                  - generic [ref=e270]: "|"
+                  - generic [ref=e271]: "59179348700"
+            - button "s s hace 7 horas tigo1 | 59163401905" [ref=e272] [cursor=pointer]:
+              - img "s" [ref=e273]
+              - generic [ref=e274]:
+                - generic [ref=e275]:
+                  - paragraph [ref=e276]: s
+                  - paragraph [ref=e277]: hace 7 horas
+                - generic [ref=e278]:
+                  - generic [ref=e279]: tigo1
+                  - generic [ref=e280]: "|"
+                  - generic [ref=e281]: "59163401905"
+            - button "R rog hace 8 horas tigo1 | 59178299395" [ref=e282] [cursor=pointer]:
+              - generic [ref=e283]: R
+              - generic [ref=e284]:
+                - generic [ref=e285]:
+                  - paragraph [ref=e286]: rog
+                  - paragraph [ref=e287]: hace 8 horas
+                - generic [ref=e288]:
+                  - generic [ref=e289]: tigo1
+                  - generic [ref=e290]: "|"
+                  - generic [ref=e291]: "59178299395"
+            - button "Jzc Jzc hace 8 horas entel2 | 59178498294" [ref=e292] [cursor=pointer]:
+              - img "Jzc" [ref=e293]
+              - generic [ref=e294]:
+                - generic [ref=e295]:
+                  - paragraph [ref=e296]: Jzc
+                  - paragraph [ref=e297]: hace 8 horas
+                - generic [ref=e298]:
+                  - generic [ref=e299]: entel2
+                  - generic [ref=e300]: "|"
+                  - generic [ref=e301]: "59178498294"
+            - button "Negrita😊 Negrita😊 hace 8 horas entel2 | 59172811201" [ref=e302] [cursor=pointer]:
+              - img "Negrita😊" [ref=e303]
+              - generic [ref=e304]:
+                - generic [ref=e305]:
+                  - paragraph [ref=e306]: Negrita😊
+                  - paragraph [ref=e307]: hace 8 horas
+                - generic [ref=e308]:
+                  - generic [ref=e309]: entel2
+                  - generic [ref=e310]: "|"
+                  - generic [ref=e311]: "59172811201"
+            - button "L Laboratorio Clínico Rocha hace 11 horas entel2 | 59173917889" [ref=e312] [cursor=pointer]:
+              - generic [ref=e313]: L
+              - generic [ref=e314]:
+                - generic [ref=e315]:
+                  - paragraph [ref=e316]: Laboratorio Clínico Rocha
+                  - paragraph [ref=e317]: hace 11 horas
+                - generic [ref=e318]:
+                  - generic [ref=e319]: entel2
+                  - generic [ref=e320]: "|"
+                  - generic [ref=e321]: "59173917889"
+            - button "Anita Ortiz Anita Ortiz hace 11 horas tigo1 | 59167270500" [ref=e322] [cursor=pointer]:
+              - img "Anita Ortiz" [ref=e323]
+              - generic [ref=e324]:
+                - generic [ref=e325]:
+                  - paragraph [ref=e326]: Anita Ortiz
+                  - paragraph [ref=e327]: hace 11 horas
+                - generic [ref=e328]:
+                  - generic [ref=e329]: tigo1
+                  - generic [ref=e330]: "|"
+                  - generic [ref=e331]: "59167270500"
+            - button "Nieve Estefany Cuellar Nieve Estefany Cuellar hace 19 horas tigo1 | 59169389858" [ref=e332] [cursor=pointer]:
+              - img "Nieve Estefany Cuellar" [ref=e333]
+              - generic [ref=e334]:
+                - generic [ref=e335]:
+                  - paragraph [ref=e336]: Nieve Estefany Cuellar
+                  - paragraph [ref=e337]: hace 19 horas
+                - generic [ref=e338]:
+                  - generic [ref=e339]: tigo1
+                  - generic [ref=e340]: "|"
+                  - generic [ref=e341]: "59169389858"
+            - button "W Diva W Diva hace 19 horas tigo1 | 59176939617" [ref=e342] [cursor=pointer]:
+              - img "W Diva" [ref=e343]
+              - generic [ref=e344]:
+                - generic [ref=e345]:
+                  - paragraph [ref=e346]: W Diva
+                  - paragraph [ref=e347]: hace 19 horas
+                - generic [ref=e348]:
+                  - generic [ref=e349]: tigo1
+                  - generic [ref=e350]: "|"
+                  - generic [ref=e351]: "59176939617"
+            - button "Jorge Vallejos Jorge Vallejos hace 20 horas tigo1 | 59172891455" [ref=e352] [cursor=pointer]:
+              - img "Jorge Vallejos" [ref=e353]
+              - generic [ref=e354]:
+                - generic [ref=e355]:
+                  - paragraph [ref=e356]: Jorge Vallejos
+                  - paragraph [ref=e357]: hace 20 horas
+                - generic [ref=e358]:
+                  - generic [ref=e359]: tigo1
+                  - generic [ref=e360]: "|"
+                  - generic [ref=e361]: "59172891455"
+            - button "Alex Alex hace 21 horas tigo1 | 59179728099" [ref=e362] [cursor=pointer]:
+              - img "Alex" [ref=e363]
+              - generic [ref=e364]:
+                - generic [ref=e365]:
+                  - paragraph [ref=e366]: Alex
+                  - paragraph [ref=e367]: hace 21 horas
+                - generic [ref=e368]:
+                  - generic [ref=e369]: tigo1
+                  - generic [ref=e370]: "|"
+                  - generic [ref=e371]: "59179728099"
+            - button "tony tony hace 21 horas entel2 | 59172838245" [ref=e372] [cursor=pointer]:
+              - img "tony" [ref=e373]
+              - generic [ref=e374]:
+                - generic [ref=e375]:
+                  - paragraph [ref=e376]: tony
+                  - paragraph [ref=e377]: hace 21 horas
+                - generic [ref=e378]:
+                  - generic [ref=e379]: entel2
+                  - generic [ref=e380]: "|"
+                  - generic [ref=e381]: "59172838245"
+            - button "Lander Lander hace 23 horas tigo1 | 59173928779" [ref=e382] [cursor=pointer]:
+              - img "Lander" [ref=e383]
+              - generic [ref=e384]:
+                - generic [ref=e385]:
+                  - paragraph [ref=e386]: Lander
+                  - paragraph [ref=e387]: hace 23 horas
+                - generic [ref=e388]:
+                  - generic [ref=e389]: tigo1
+                  - generic [ref=e390]: "|"
+                  - generic [ref=e391]: "59173928779"
+            - button "ြ ြ Carlos. Ramirez ြ hace 1 día tigo1 | 59172834415" [ref=e392] [cursor=pointer]:
+              - generic [ref=e393]: ြ
+              - generic [ref=e394]:
+                - generic [ref=e395]:
+                  - paragraph [ref=e396]: ြ Carlos. Ramirez ြ
+                  - paragraph [ref=e397]: hace 1 día
+                - generic [ref=e398]:
+                  - generic [ref=e399]: tigo1
+                  - generic [ref=e400]: "|"
+                  - generic [ref=e401]: "59172834415"
+            - button ". . hace 1 día tigo1 | 59172340684" [ref=e402] [cursor=pointer]:
+              - generic [ref=e403]: .
+              - generic [ref=e404]:
+                - generic [ref=e405]:
+                  - paragraph [ref=e406]: .
+                  - paragraph [ref=e407]: hace 1 día
+                - generic [ref=e408]:
+                  - generic [ref=e409]: tigo1
+                  - generic [ref=e410]: "|"
+                  - generic [ref=e411]: "59172340684"
+            - button "🤗 🤗 hace 1 día tigo1 | 59178749015" [ref=e412] [cursor=pointer]:
+              - img "🤗" [ref=e413]
+              - generic [ref=e414]:
+                - generic [ref=e415]:
+                  - paragraph [ref=e416]: 🤗
+                  - paragraph [ref=e417]: hace 1 día
+                - generic [ref=e418]:
+                  - generic [ref=e419]: tigo1
+                  - generic [ref=e420]: "|"
+                  - generic [ref=e421]: "59178749015"
+            - button "I Imagen Digital hace 1 día tigo1 | 59171812290" [ref=e422] [cursor=pointer]:
+              - generic [ref=e423]: I
+              - generic [ref=e424]:
+                - generic [ref=e425]:
+                  - paragraph [ref=e426]: Imagen Digital
+                  - paragraph [ref=e427]: hace 1 día
+                - generic [ref=e428]:
+                  - generic [ref=e429]: tigo1
+                  - generic [ref=e430]: "|"
+                  - generic [ref=e431]: "59171812290"
+            - button "Libardo Rios Libardo Rios hace 1 día entel2 | 59176615664" [ref=e432] [cursor=pointer]:
+              - img "Libardo Rios" [ref=e433]
+              - generic [ref=e434]:
+                - generic [ref=e435]:
+                  - paragraph [ref=e436]: Libardo Rios
+                  - paragraph [ref=e437]: hace 1 día
+                - generic [ref=e438]:
+                  - generic [ref=e439]: entel2
+                  - generic [ref=e440]: "|"
+                  - generic [ref=e441]: "59176615664"
+            - button "Roberto Roberto hace 1 día tigo1 | 59174712783" [ref=e442] [cursor=pointer]:
+              - img "Roberto" [ref=e443]
+              - generic [ref=e444]:
+                - generic [ref=e445]:
+                  - paragraph [ref=e446]: Roberto
+                  - paragraph [ref=e447]: hace 1 día
+                - generic [ref=e448]:
+                  - generic [ref=e449]: tigo1
+                  - generic [ref=e450]: "|"
+                  - generic [ref=e451]: "59174712783"
+            - button "P Pily hace 1 día tigo1 | 59173412121" [ref=e452] [cursor=pointer]:
+              - generic [ref=e453]: P
+              - generic [ref=e454]:
+                - generic [ref=e455]:
+                  - paragraph [ref=e456]: Pily
+                  - paragraph [ref=e457]: hace 1 día
+                - generic [ref=e458]:
+                  - generic [ref=e459]: tigo1
+                  - generic [ref=e460]: "|"
+                  - generic [ref=e461]: "59173412121"
+        - generic [ref=e463]:
+          - img [ref=e464]
+          - paragraph [ref=e466]: Selecciona una conversación para empezar
+  - region "Notifications alt+T"

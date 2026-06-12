@@ -1,6 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { FilePlus, Loader2, Search, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { FilePlus, Loader2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useClientTableSearch } from '@/hooks/use-client-table-search';
 import { destroy, store } from '@/routes/admin/menus';
 
 type MenuItem = {
@@ -40,30 +42,33 @@ type PageProps = {
 export default function MenusIndex({ menus, locations }: PageProps) {
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
-    const [search, setSearch] = useState('');
+
+    const table = useClientTableSearch<MenuItem>({
+        initialData: menus,
+        searchFields: ['name', 'location', 'location_label'],
+        perPage: 20,
+        initialFilters: { location: '' },
+    });
+
+    const locationEntries = Object.entries(locations);
+
+    const filters: ToolbarFilter[] = locationEntries.length > 0
+        ? [
+              {
+                  key: 'location',
+                  label: 'Ubicación',
+                  value: table.filters.location ?? '',
+                  onChange: (v) => table.setFilter('location', v),
+                  placeholder: 'Todas',
+                  options: locationEntries.map(([value, label]) => ({ value, label })),
+              },
+          ]
+        : [];
 
     const form = useForm({
         name: '',
         location: '',
     });
-
-    const locationEntries = Object.entries(locations);
-
-    const filteredMenus = useMemo(() => {
-        const q = search.trim().toLowerCase();
-
-        if (q === '') {
-            return menus;
-        }
-
-        return menus.filter((menu) => {
-            const haystack = [menu.name, menu.location, menu.location_label ?? '']
-                .join(' ')
-                .toLowerCase();
-
-            return haystack.includes(q);
-        });
-    }, [menus, search]);
 
     function openCreate(): void {
         form.reset();
@@ -80,10 +85,7 @@ export default function MenusIndex({ menus, locations }: PageProps) {
     }
 
     function confirmDelete(): void {
-        if (!deleteTarget) {
-            return;
-        }
-
+        if (!deleteTarget) return;
         router.delete(destroy.url({ menu: deleteTarget.id }), {
             onSuccess: () => setDeleteTarget(null),
         });
@@ -93,76 +95,52 @@ export default function MenusIndex({ menus, locations }: PageProps) {
         <>
             <Head title="Menús" />
 
-            <div className="space-y-6 p-4">
-                
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Buscar por nombre o ubicación…"
-                        className="pl-9"
-                    />
-                    {search !== '' ? (
-                        <button
-                            type="button"
-                            onClick={() => setSearch('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                            aria-label="Limpiar búsqueda"
-                        >
-                            <X className="size-4" />
-                        </button>
-                    ) : null}
+            <div className="space-y-4 p-4">
+                <Heading title="Menús" description="Administra los menús del sitio y sus ubicaciones." />
 
-                    <Button
-                        onClick={openCreate}
-                        disabled={locationEntries.length === 0}
-                    >
-                        <FilePlus className="mr-1 size-4" />
-                        Nuevo menú
-                    </Button>
-                </div>
+                <DataTableToolbar
+                    search={table.search}
+                    onSearchChange={table.setSearch}
+                    searchPlaceholder="Buscar por nombre o ubicación..."
+                    total={table.total}
+                    totalLabel={`menú${table.total !== 1 ? 's' : ''}`}
+                    filters={filters}
+                    createHref={locationEntries.length > 0 ? undefined : undefined}
+                    actions={
+                        locationEntries.length > 0 ? (
+                            <Button onClick={openCreate}>
+                                <FilePlus className="mr-1 size-4" />
+                                Nuevo menú
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
-                {locationEntries.length === 0 ? (
+                {locationEntries.length === 0 && (
                     <p className="text-sm text-muted-foreground">
                         No hay ubicaciones configuradas. Añade ubicaciones en
-                        <code className="mx-1 rounded bg-muted px-1.5 py-0.5">
-                            config/menus.php
-                        </code>
-                        .
+                        <code className="mx-1 rounded bg-muted px-1.5 py-0.5">config/menus.php</code>.
                     </p>
-                ) : null}
+                )}
 
                 <div className="overflow-hidden rounded-lg border bg-card">
                     {menus.length === 0 ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                            <p className="text-sm text-muted-foreground">
-                                Aún no hay menús. Crea el primero.
-                            </p>
-                            {locationEntries.length > 0 ? (
+                            <p className="text-sm text-muted-foreground">Aún no hay menús. Crea el primero.</p>
+                            {locationEntries.length > 0 && (
                                 <Button variant="outline" onClick={openCreate}>
                                     <FilePlus className="mr-1 size-4" />
                                     Crear menú
                                 </Button>
-                            ) : null}
+                            )}
                         </div>
-                    ) : filteredMenus.length === 0 ? (
+                    ) : table.data.length === 0 ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                            <p className="text-sm text-muted-foreground">
-                                No se encontraron menús que coincidan con
-                                “{search}”.
-                            </p>
-                            <Button
-                                variant="outline"
-                                onClick={() => setSearch('')}
-                            >
-                                Limpiar búsqueda
-                            </Button>
+                            <p className="text-sm text-muted-foreground">No se encontraron menús con ese filtro.</p>
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {filteredMenus.map((menu) => (
+                            {table.data.map((menu) => (
                                 <div
                                     key={menu.id}
                                     className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30"
@@ -179,8 +157,7 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                                                 {menu.location_label ?? menu.location}
                                             </span>
                                             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                                                {menu.items_count}{' '}
-                                                {menu.items_count === 1 ? 'elemento' : 'elementos'}
+                                                {menu.items_count} {menu.items_count === 1 ? 'elemento' : 'elementos'}
                                             </span>
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground">
@@ -190,9 +167,7 @@ export default function MenusIndex({ menus, locations }: PageProps) {
 
                                     <div className="flex items-center gap-2">
                                         <Button variant="outline" size="sm" asChild>
-                                            <a
-                                                href={`/admin/menus/${menu.id}/editar`}
-                                            >
+                                            <a href={`/admin/menus/${menu.id}/editar`}>
                                                 Editar
                                             </a>
                                         </Button>
@@ -219,7 +194,6 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                         form.reset();
                         form.clearErrors();
                     }
-
                     setCreateOpen(open);
                 }}
             >
@@ -238,17 +212,13 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                                 <Input
                                     id="name"
                                     value={form.data.name}
-                                    onChange={(e) =>
-                                        form.setData('name', e.target.value)
-                                    }
+                                    onChange={(e) => form.setData('name', e.target.value)}
                                     placeholder="Menú principal"
                                     autoFocus
                                     required
                                 />
                                 {form.errors.name ? (
-                                    <p className="text-xs text-destructive">
-                                        {form.errors.name}
-                                    </p>
+                                    <p className="text-xs text-destructive">{form.errors.name}</p>
                                 ) : null}
                             </div>
 
@@ -256,9 +226,7 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                                 <Label htmlFor="location">Ubicación</Label>
                                 <Select
                                     value={form.data.location}
-                                    onValueChange={(value) =>
-                                        form.setData('location', value)
-                                    }
+                                    onValueChange={(value) => form.setData('location', value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecciona una ubicación" />
@@ -272,9 +240,7 @@ export default function MenusIndex({ menus, locations }: PageProps) {
                                     </SelectContent>
                                 </Select>
                                 {form.errors.location ? (
-                                    <p className="text-xs text-destructive">
-                                        {form.errors.location}
-                                    </p>
+                                    <p className="text-xs text-destructive">{form.errors.location}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -339,7 +305,6 @@ export default function MenusIndex({ menus, locations }: PageProps) {
 MenusIndex.layout = {
     breadcrumbs: [
         { title: 'Admin', href: '/admin' },
-        { title: 'Menus', href: '/admin/Menus'},
+        { title: 'Menus', href: '/admin/menus' },
     ],
 };
-

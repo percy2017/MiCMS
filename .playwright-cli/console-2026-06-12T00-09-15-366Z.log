@@ -1,0 +1,3 @@
+[     235ms] [LOG] 🔍 Browser logger active (MCP server detected). Posting to: https://hostbol.lat/_boost/browser-logs @ https://hostbol.lat/admin/chats?active=32:167
+[     553ms] [LOG] [ChatBotEcho] subscription_succeeded on chatbot.admin @ https://hostbol.lat/admin/chats?active=32:226
+[    5711ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://hostbol.lat/admin/api/chatbot/messages?conversation_id=32&limit=20:0

@@ -17,8 +17,9 @@ class ReplyMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'content' => ['required', 'string', 'max:5000'],
+            'content' => ['nullable', 'string', 'max:5000'],
             'attachment_media_id' => ['nullable', 'integer', 'exists:media,id'],
+            'file' => ['nullable', 'file', 'max:16384'],
         ];
     }
 }

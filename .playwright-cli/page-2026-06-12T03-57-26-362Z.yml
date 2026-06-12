@@ -1,0 +1,311 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - list [ref=e9]:
+        - listitem [ref=e10]:
+          - link "MiCMS" [ref=e11] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e13]
+            - generic [ref=e16]: MiCMS
+      - generic [ref=e18]:
+        - generic [ref=e19]: MiCMS
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Panel" [ref=e22] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e23]
+              - generic [ref=e28]: Panel
+          - listitem [ref=e29]:
+            - button "Contenido" [ref=e30]:
+              - img [ref=e31]
+              - generic [ref=e35]: Contenido
+              - img [ref=e36]
+          - listitem [ref=e38]:
+            - button "Usuarios" [ref=e39]:
+              - img [ref=e40]
+              - generic [ref=e52]: Usuarios
+              - img [ref=e53]
+          - listitem [ref=e55]:
+            - link "Medios" [ref=e56] [cursor=pointer]:
+              - /url: /admin/media
+              - img [ref=e57]
+              - generic [ref=e61]: Medios
+          - listitem [ref=e62]:
+            - button "Mensajeria" [ref=e63]:
+              - img [ref=e64]
+              - generic [ref=e66]: Mensajeria
+              - img [ref=e67]
+          - listitem [ref=e69]:
+            - button "PosWoo" [ref=e70]:
+              - img [ref=e71]
+              - generic [ref=e73]: PosWoo
+              - img [ref=e74]
+          - listitem [ref=e76]:
+            - button "Configuración" [ref=e77]:
+              - img [ref=e78]
+              - generic [ref=e81]: Configuración
+              - img [ref=e82]
+      - list [ref=e85]:
+        - listitem [ref=e86]:
+          - button "A admin" [ref=e87]:
+            - generic [ref=e89]: A
+            - generic [ref=e91]: admin
+            - img [ref=e92]
+    - main [ref=e95]:
+      - generic [ref=e97]:
+        - button "Toggle sidebar" [ref=e98]:
+          - img
+          - generic [ref=e99]: Toggle sidebar
+        - navigation "breadcrumb" [ref=e100]:
+          - list [ref=e101]:
+            - listitem [ref=e102]:
+              - link "Admin" [ref=e103] [cursor=pointer]:
+                - /url: /admin
+            - listitem [ref=e104]:
+              - img [ref=e105]
+            - listitem [ref=e107]:
+              - link "Medios" [disabled] [ref=e108]
+      - generic [ref=e109]:
+        - button "Expandir cargador" [ref=e111]:
+          - generic [ref=e112]:
+            - img [ref=e113]
+            - text: Subir archivo
+          - img [ref=e116]
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - textbox "Buscar por nombre, título o texto alternativo..." [ref=e123]
+          - combobox "Tipo" [ref=e124]:
+            - option "Todos los tipos" [selected]
+            - option "Imágenes"
+            - option "Videos"
+            - option "Audio"
+            - option "Documentos"
+          - paragraph [ref=e125]: 117 archivos
+        - generic [ref=e126]:
+          - link "image.png image.png image/png 197.6 KB hace 4 horas" [ref=e127] [cursor=pointer]:
+            - /url: /admin/media/120/edit
+            - img "image.png" [ref=e129]
+            - generic [ref=e130]:
+              - paragraph [ref=e131]: image.png
+              - generic [ref=e132]:
+                - generic [ref=e133]: image/png
+                - generic [ref=e134]: 197.6 KB
+              - paragraph [ref=e135]: hace 4 horas
+          - link "image.jpg image.jpg image/jpeg 73.8 KB hace 4 horas" [ref=e136] [cursor=pointer]:
+            - /url: /admin/media/119/edit
+            - img "image.jpg" [ref=e138]
+            - generic [ref=e139]:
+              - paragraph [ref=e140]: image.jpg
+              - generic [ref=e141]:
+                - generic [ref=e142]: image/jpeg
+                - generic [ref=e143]: 73.8 KB
+              - paragraph [ref=e144]: hace 4 horas
+          - link "whatsapp-avatar-59171146267-1781221345.jpg whatsapp-avatar-59171146267-1781221345.jpg image/jpeg 90.5 KB hace 4 horas" [ref=e145] [cursor=pointer]:
+            - /url: /admin/media/118/edit
+            - img "whatsapp-avatar-59171146267-1781221345.jpg" [ref=e147]
+            - generic [ref=e148]:
+              - paragraph [ref=e149]: whatsapp-avatar-59171146267-1781221345.jpg
+              - generic [ref=e150]:
+                - generic [ref=e151]: image/jpeg
+                - generic [ref=e152]: 90.5 KB
+              - paragraph [ref=e153]: hace 4 horas
+          - link "whatsapp-avatar-59176628248-1781219359.jpg whatsapp-avatar-59176628248-1781219359.jpg image/jpeg 74.6 KB hace 4 horas" [ref=e154] [cursor=pointer]:
+            - /url: /admin/media/117/edit
+            - img "whatsapp-avatar-59176628248-1781219359.jpg" [ref=e156]
+            - generic [ref=e157]:
+              - paragraph [ref=e158]: whatsapp-avatar-59176628248-1781219359.jpg
+              - generic [ref=e159]:
+                - generic [ref=e160]: image/jpeg
+                - generic [ref=e161]: 74.6 KB
+              - paragraph [ref=e162]: hace 4 horas
+          - link "whatsapp-avatar-59176889613-1781218499.jpg whatsapp-avatar-59176889613-1781218499.jpg image/jpeg 50.9 KB hace 5 horas" [ref=e163] [cursor=pointer]:
+            - /url: /admin/media/116/edit
+            - img "whatsapp-avatar-59176889613-1781218499.jpg" [ref=e165]
+            - generic [ref=e166]:
+              - paragraph [ref=e167]: whatsapp-avatar-59176889613-1781218499.jpg
+              - generic [ref=e168]:
+                - generic [ref=e169]: image/jpeg
+                - generic [ref=e170]: 50.9 KB
+              - paragraph [ref=e171]: hace 5 horas
+          - link "whatsapp-avatar-59163467228-1781218444.jpg whatsapp-avatar-59163467228-1781218444.jpg image/jpeg 44.6 KB hace 5 horas" [ref=e172] [cursor=pointer]:
+            - /url: /admin/media/115/edit
+            - img "whatsapp-avatar-59163467228-1781218444.jpg" [ref=e174]
+            - generic [ref=e175]:
+              - paragraph [ref=e176]: whatsapp-avatar-59163467228-1781218444.jpg
+              - generic [ref=e177]:
+                - generic [ref=e178]: image/jpeg
+                - generic [ref=e179]: 44.6 KB
+              - paragraph [ref=e180]: hace 5 horas
+          - link "whatsapp-avatar-59172727966-1781218424.jpg whatsapp-avatar-59172727966-1781218424.jpg image/jpeg 66.7 KB hace 5 horas" [ref=e181] [cursor=pointer]:
+            - /url: /admin/media/114/edit
+            - img "whatsapp-avatar-59172727966-1781218424.jpg" [ref=e183]
+            - generic [ref=e184]:
+              - paragraph [ref=e185]: whatsapp-avatar-59172727966-1781218424.jpg
+              - generic [ref=e186]:
+                - generic [ref=e187]: image/jpeg
+                - generic [ref=e188]: 66.7 KB
+              - paragraph [ref=e189]: hace 5 horas
+          - link "image.jpg image.jpg image/jpeg 69.0 KB hace 5 horas" [ref=e190] [cursor=pointer]:
+            - /url: /admin/media/113/edit
+            - img "image.jpg" [ref=e192]
+            - generic [ref=e193]:
+              - paragraph [ref=e194]: image.jpg
+              - generic [ref=e195]:
+                - generic [ref=e196]: image/jpeg
+                - generic [ref=e197]: 69.0 KB
+              - paragraph [ref=e198]: hace 5 horas
+          - link "whatsapp-avatar-34698684267-1781217976.jpg whatsapp-avatar-34698684267-1781217976.jpg image/jpeg 46.9 KB hace 5 horas" [ref=e199] [cursor=pointer]:
+            - /url: /admin/media/112/edit
+            - img "whatsapp-avatar-34698684267-1781217976.jpg" [ref=e201]
+            - generic [ref=e202]:
+              - paragraph [ref=e203]: whatsapp-avatar-34698684267-1781217976.jpg
+              - generic [ref=e204]:
+                - generic [ref=e205]: image/jpeg
+                - generic [ref=e206]: 46.9 KB
+              - paragraph [ref=e207]: hace 5 horas
+          - link "whatsapp-avatar-59170523243-1781213626.jpg whatsapp-avatar-59170523243-1781213626.jpg image/jpeg 60.5 KB hace 6 horas" [ref=e208] [cursor=pointer]:
+            - /url: /admin/media/111/edit
+            - img "whatsapp-avatar-59170523243-1781213626.jpg" [ref=e210]
+            - generic [ref=e211]:
+              - paragraph [ref=e212]: whatsapp-avatar-59170523243-1781213626.jpg
+              - generic [ref=e213]:
+                - generic [ref=e214]: image/jpeg
+                - generic [ref=e215]: 60.5 KB
+              - paragraph [ref=e216]: hace 6 horas
+          - link "whatsapp-avatar-51983996016-1781206014.jpg whatsapp-avatar-51983996016-1781206014.jpg image/jpeg 73.2 KB hace 8 horas" [ref=e217] [cursor=pointer]:
+            - /url: /admin/media/110/edit
+            - img "whatsapp-avatar-51983996016-1781206014.jpg" [ref=e219]
+            - generic [ref=e220]:
+              - paragraph [ref=e221]: whatsapp-avatar-51983996016-1781206014.jpg
+              - generic [ref=e222]:
+                - generic [ref=e223]: image/jpeg
+                - generic [ref=e224]: 73.2 KB
+              - paragraph [ref=e225]: hace 8 horas
+          - link "audio.ogg audio/ogg; codecs=opus 9.8 KB hace 8 horas" [ref=e226] [cursor=pointer]:
+            - /url: /admin/media/109/edit
+            - img [ref=e228]
+            - generic [ref=e232]:
+              - paragraph [ref=e233]: audio.ogg
+              - generic [ref=e234]:
+                - generic [ref=e235]: audio/ogg; codecs=opus
+                - generic [ref=e236]: 9.8 KB
+              - paragraph [ref=e237]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 64.2 KB hace 8 horas" [ref=e238] [cursor=pointer]:
+            - /url: /admin/media/108/edit
+            - img "image.jpg" [ref=e240]
+            - generic [ref=e241]:
+              - paragraph [ref=e242]: image.jpg
+              - generic [ref=e243]:
+                - generic [ref=e244]: image/jpeg
+                - generic [ref=e245]: 64.2 KB
+              - paragraph [ref=e246]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 128.3 KB hace 8 horas" [ref=e247] [cursor=pointer]:
+            - /url: /admin/media/107/edit
+            - img "image.jpg" [ref=e249]
+            - generic [ref=e250]:
+              - paragraph [ref=e251]: image.jpg
+              - generic [ref=e252]:
+                - generic [ref=e253]: image/jpeg
+                - generic [ref=e254]: 128.3 KB
+              - paragraph [ref=e255]: hace 8 horas
+          - link "image.png image.png image/png 197.6 KB hace 8 horas" [ref=e256] [cursor=pointer]:
+            - /url: /admin/media/106/edit
+            - img "image.png" [ref=e258]
+            - generic [ref=e259]:
+              - paragraph [ref=e260]: image.png
+              - generic [ref=e261]:
+                - generic [ref=e262]: image/png
+                - generic [ref=e263]: 197.6 KB
+              - paragraph [ref=e264]: hace 8 horas
+          - link "audio.ogg audio/ogg; codecs=opus 23.0 KB hace 8 horas" [ref=e265] [cursor=pointer]:
+            - /url: /admin/media/105/edit
+            - img [ref=e267]
+            - generic [ref=e271]:
+              - paragraph [ref=e272]: audio.ogg
+              - generic [ref=e273]:
+                - generic [ref=e274]: audio/ogg; codecs=opus
+                - generic [ref=e275]: 23.0 KB
+              - paragraph [ref=e276]: hace 8 horas
+          - link "mastv009.jpg mastv009.jpg image/jpeg 250.9 KB hace 8 horas" [ref=e277] [cursor=pointer]:
+            - /url: /admin/media/104/edit
+            - img "mastv009.jpg" [ref=e279]
+            - generic [ref=e280]:
+              - paragraph [ref=e281]: mastv009.jpg
+              - generic [ref=e282]:
+                - generic [ref=e283]: image/jpeg
+                - generic [ref=e284]: 250.9 KB
+              - paragraph [ref=e285]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 65.9 KB hace 8 horas" [ref=e286] [cursor=pointer]:
+            - /url: /admin/media/103/edit
+            - img "image.jpg" [ref=e288]
+            - generic [ref=e289]:
+              - paragraph [ref=e290]: image.jpg
+              - generic [ref=e291]:
+                - generic [ref=e292]: image/jpeg
+                - generic [ref=e293]: 65.9 KB
+              - paragraph [ref=e294]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 135.4 KB hace 8 horas" [ref=e295] [cursor=pointer]:
+            - /url: /admin/media/102/edit
+            - img "image.jpg" [ref=e297]
+            - generic [ref=e298]:
+              - paragraph [ref=e299]: image.jpg
+              - generic [ref=e300]:
+                - generic [ref=e301]: image/jpeg
+                - generic [ref=e302]: 135.4 KB
+              - paragraph [ref=e303]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 74.4 KB hace 8 horas" [ref=e304] [cursor=pointer]:
+            - /url: /admin/media/101/edit
+            - img "image.jpg" [ref=e306]
+            - generic [ref=e307]:
+              - paragraph [ref=e308]: image.jpg
+              - generic [ref=e309]:
+                - generic [ref=e310]: image/jpeg
+                - generic [ref=e311]: 74.4 KB
+              - paragraph [ref=e312]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 76.5 KB hace 8 horas" [ref=e313] [cursor=pointer]:
+            - /url: /admin/media/100/edit
+            - img "image.jpg" [ref=e315]
+            - generic [ref=e316]:
+              - paragraph [ref=e317]: image.jpg
+              - generic [ref=e318]:
+                - generic [ref=e319]: image/jpeg
+                - generic [ref=e320]: 76.5 KB
+              - paragraph [ref=e321]: hace 8 horas
+          - link "iptv01.webp iptv01.webp image/webp 29.9 KB hace 8 horas" [ref=e322] [cursor=pointer]:
+            - /url: /admin/media/99/edit
+            - img "iptv01.webp" [ref=e324]
+            - generic [ref=e325]:
+              - paragraph [ref=e326]: iptv01.webp
+              - generic [ref=e327]:
+                - generic [ref=e328]: image/webp
+                - generic [ref=e329]: 29.9 KB
+              - paragraph [ref=e330]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 135.4 KB hace 8 horas" [ref=e331] [cursor=pointer]:
+            - /url: /admin/media/98/edit
+            - img "image.jpg" [ref=e333]
+            - generic [ref=e334]:
+              - paragraph [ref=e335]: image.jpg
+              - generic [ref=e336]:
+                - generic [ref=e337]: image/jpeg
+                - generic [ref=e338]: 135.4 KB
+              - paragraph [ref=e339]: hace 8 horas
+          - link "image.jpg image.jpg image/jpeg 59.9 KB hace 8 horas" [ref=e340] [cursor=pointer]:
+            - /url: /admin/media/97/edit
+            - img "image.jpg" [ref=e342]
+            - generic [ref=e343]:
+              - paragraph [ref=e344]: image.jpg
+              - generic [ref=e345]:
+                - generic [ref=e346]: image/jpeg
+                - generic [ref=e347]: 59.9 KB
+              - paragraph [ref=e348]: hace 8 horas
+        - generic [ref=e349]:
+          - paragraph [ref=e350]: 1-24 de 117 archivos
+          - generic [ref=e351]:
+            - button "Anterior" [disabled]
+            - button "1" [ref=e352]
+            - button "2" [ref=e353]
+            - generic [ref=e354]: ...
+            - button "5" [ref=e355]
+            - button "Siguiente" [ref=e356]
+  - region "Notifications alt+T"
