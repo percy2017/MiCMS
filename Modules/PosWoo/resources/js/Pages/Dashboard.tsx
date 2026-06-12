@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { useEscapeKey } from '@/hooks/use-escape-key';
 import { CartPanel } from '../Components/cart-panel';
 import { ProductGrid } from '../Components/product-grid';
+import { formatMoney } from '@/lib/money';
+import type { Currency } from '@/lib/currency';
 import type {
     CartItem,
     Customer,
@@ -23,9 +25,10 @@ import type {
 type Props = {
     initialProducts: Product[];
     error?: string | null;
+    currency: Currency;
 };
 
-export default function PosDashboard({ initialProducts, error: serverError }: Props) {
+export default function PosDashboard({ initialProducts, error: serverError, currency }: Props) {
     const [products, setProducts] = useState<Product[]>(initialProducts);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
@@ -370,6 +373,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                     <div className="flex-1 overflow-y-auto p-4">
                         <ProductGrid
                             products={products}
+                            currency={currency}
                             onAddToCart={(product) => {
                                 if (product.type === 'variable') {
                                     openVariationPicker(product);
@@ -384,6 +388,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                         <CartPanel
                             cart={cart}
                             total={total}
+                            currency={currency}
                             customer={customer}
                             gateways={gateways}
                             onUpdateQuantity={updateQuantity}
@@ -445,7 +450,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                                     </div>
                                     <div className="text-right">
                                         <p className="text-sm font-bold text-primary">
-                                            ${parseFloat(v.price).toFixed(2)}
+                                            {formatMoney(v.price, currency)}
                                         </p>
                                         {v.stock_status === 'outofstock' && (
                                             <p className="text-xs text-destructive">Sin stock</p>
@@ -575,7 +580,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
                                             {item.label}
                                             <span className="ml-1.5 text-muted-foreground">x{item.quantity}</span>
                                         </span>
-                                        <span className="shrink-0 font-mono tabular-nums">${item.subtotal.toFixed(2)}</span>
+                                        <span className="shrink-0 font-mono tabular-nums">{formatMoney(item.subtotal, currency)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -596,7 +601,7 @@ export default function PosDashboard({ initialProducts, error: serverError }: Pr
 
                         <div className="flex items-center justify-between rounded-md bg-primary/5 px-3 py-2">
                             <span className="font-semibold">Total</span>
-                            <span className="text-xl font-bold tabular-nums">${total.toFixed(2)}</span>
+                            <span className="text-xl font-bold tabular-nums">{formatMoney(total, currency)}</span>
                         </div>
                     </div>
 

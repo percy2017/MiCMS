@@ -1,7 +1,10 @@
+import type { Currency } from '@/lib/currency';
+import { formatMoney } from '@/lib/money';
 import type { Product } from './types';
 
 type Props = {
     product: Product;
+    currency: Currency;
     onAddToCart: (product: Product) => void;
 };
 
@@ -11,7 +14,7 @@ function getPrice(product: Product): string | null {
     return null;
 }
 
-export function ProductCard({ product, onAddToCart }: Props) {
+export function ProductCard({ product, currency, onAddToCart }: Props) {
     const price = getPrice(product);
     const isVariable = product.type === 'variable';
     const hasVariations = isVariable && (product.variations?.length ?? 0) > 0;
@@ -51,7 +54,7 @@ export function ProductCard({ product, onAddToCart }: Props) {
                 <div className="flex items-center justify-between">
                     {price ? (
                         <span className="text-lg font-bold tabular-nums text-primary">
-                            ${parseFloat(price).toFixed(2)}
+                            {formatMoney(price, currency)}
                         </span>
                     ) : (
                         <span className="text-xs text-muted-foreground">

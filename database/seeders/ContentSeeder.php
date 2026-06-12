@@ -22,9 +22,6 @@ class ContentSeeder extends Seeder
         );
 
         $this->ensureItem($menu, null, 'Inicio', '/', 0);
-        $this->ensureItem($menu, null, 'Acerca de', '/acerca-de', 1);
-        $this->ensureItem($menu, null, 'Servicios', '/servicios', 2);
-        $this->ensureItem($menu, null, 'Contacto', '/contacto', 3);
     }
 
     protected function ensureFooterMenu(): void
@@ -35,9 +32,6 @@ class ContentSeeder extends Seeder
         );
 
         $this->ensureItem($menu, null, 'Inicio', '/', 0);
-        $this->ensureItem($menu, null, 'Aviso legal', '/aviso-legal', 1);
-        $this->ensureItem($menu, null, 'Política de privacidad', '/privacidad', 2);
-        $this->ensureItem($menu, null, 'Contacto', '/contacto', 3);
     }
 
     protected function ensureItem(Menu $menu, ?int $parentId, string $label, string $url, int $order): void

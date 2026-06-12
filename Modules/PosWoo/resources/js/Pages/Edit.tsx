@@ -1,10 +1,9 @@
-import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, Check, ExternalLink, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { Check, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useEscapeKey } from '@/hooks/use-escape-key';
 import { admin } from '@/routes';
 
@@ -19,18 +18,25 @@ type LineItem = {
     image?: { src?: string };
 };
 
+type PaymentGateway = { id: string; title: string; method_title: string; enabled: boolean };
+type Currency = { code: string; symbol: string; decimals: number };
+
 type Props = {
     order: Record<string, unknown>;
     meta: Record<string, string>;
+    paymentGateways: PaymentGateway[];
+    currency: Currency;
 };
 
 function csrfToken(): string {
     return document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.getAttribute('content') ?? '';
 }
 
-export default function OrderEdit({ order, meta: initialMeta }: Props) {
+export default function OrderEdit({ order, meta: initialMeta, paymentGateways, currency }: Props) {
     const [meta, setMeta] = useState<Record<string, string>>(initialMeta);
     const [items, setItems] = useState<LineItem[]>((order as { line_items?: LineItem[] }).line_items ?? []);
+    const [paymentMethod, setPaymentMethod] = useState<string>(String((order as { payment_method?: string }).payment_method ?? ''));
+    const [paymentMethodTitle, setPaymentMethodTitle] = useState<string>(String((order as { payment_method_title?: string }).payment_method_title ?? ''));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -40,6 +46,21 @@ export default function OrderEdit({ order, meta: initialMeta }: Props) {
     const [searching, setSearching] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+    const formatMoney = useCallback((value: number): string => {
+        const numStr = value.toLocaleString('es-MX', { minimumFractionDigits: currency.decimals, maximumFractionDigits: currency.decimals });
+        const sym = currency.symbol || currency.code;
+        switch (currency.position) {
+            case 'right':
+            case 'right_space':
+                return `${numStr} ${sym}`;
+            case 'left_space':
+                return `${sym} ${numStr}`;
+            case 'left':
+            default:
+                return `${sym}${numStr}`;
+        }
+    }, [currency.symbol, currency.code, currency.decimals, currency.position]);
 
     const orderId = (order as { id?: number }).id ?? 0;
 
@@ -79,6 +100,13 @@ export default function OrderEdit({ order, meta: initialMeta }: Props) {
 
     function removeItem(index: number) {
         setItems((prev) => prev.filter((_, i) => i !== index));
+        setSaved(false);
+    }
+
+    function updatePaymentMethod(id: string) {
+        setPaymentMethod(id);
+        const gw = paymentGateways.find((g) => g.id === id);
+        setPaymentMethodTitle(gw?.title ?? id);
         setSaved(false);
     }
 
@@ -138,6 +166,10 @@ export default function OrderEdit({ order, meta: initialMeta }: Props) {
                 quantity: item.quantity,
                 price: item.price,
             }));
+            if (paymentMethod !== '' && paymentMethod !== ((order as { payment_method?: string }).payment_method ?? '')) {
+                body.payment_method = paymentMethod;
+                body.payment_method_title = paymentMethodTitle;
+            }
 
             const r = await fetch(`/admin/pos-woo/pedidos/${orderId}`, {
                 method: 'PUT',
@@ -166,128 +198,144 @@ export default function OrderEdit({ order, meta: initialMeta }: Props) {
             <Head title={`Orden #${orderId}`} />
 
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-4">
-                <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-1">
-                <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" size="icon" onClick={() => router.visit('/admin/pos-woo/pedidos')}>
-                        <ArrowLeft className="size-4" />
-                    </Button>
-                    <div className="flex-1">
-                        <h1 className="text-xl font-semibold tracking-tight">Orden #{orderId}</h1>
-                        <p className="text-sm text-muted-foreground">
-                            {billing.first_name ?? ''} {billing.last_name ?? ''} · {billing.email ?? ''}
-                        </p>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => window.open(`https://gosystem.percyalvarez.lat/wp-admin/post.php?post=${orderId}&action=edit`, '_blank')} className="gap-2">
-                        <ExternalLink className="size-3.5" />
-                        WC Admin
-                    </Button>
-                </div>
-
-                <Separator />
-
-                <div className="rounded-lg border p-4">
-                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Items de la orden</h2>
-
-                    <div className="space-y-3">
-                        {items.map((item, i) => (
-                            <div key={i} className="flex items-start gap-2 rounded-md border bg-card p-3">
-                                <div className="grid flex-1 grid-cols-3 gap-2">
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs text-muted-foreground">Producto</Label>
-                                        <Input
-                                            type="text"
-                                            value={item.name}
-                                            onChange={(e) => updateItem(i, 'name', e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label className="text-xs text-muted-foreground">Cant</Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            value={item.quantity}
-                                            onChange={(e) => updateItem(i, 'quantity', Math.max(0, parseInt(e.target.value) || 0))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label className="text-xs text-muted-foreground">Precio</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            min={0}
-                                            value={item.price}
-                                            onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
-                                        />
-                                    </div>
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" className="mt-5 shrink-0 text-destructive" onClick={() => removeItem(i)}>
-                                    <Trash2 className="size-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowProductSearch(true)} className="gap-1.5">
-                            <Plus className="size-3.5" />
-                            Agregar producto
-                        </Button>
-                        <p className="text-sm font-semibold">Total: Bs. {total.toFixed(2)}</p>
-                    </div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Metadatos de suscripción</h2>
-
-                    {metaKeys.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Esta orden no tiene metadatos de suscripción editables.</p>
-                    ) : (
-                        <div className="space-y-4">
-                            {metaKeys.map((key) => (
-                                <div key={key} className="grid gap-1.5">
-                                    <Label htmlFor={`meta-${key}`} className="text-xs font-medium">
-                                        {labelMap[key] ?? key.replace(/^_/, '').replace(/_/g, ' ')}
-                                    </Label>
-                                    {key.endsWith('_date') ? (
-                                        <Input
-                                            id={`meta-${key}`}
-                                            type="date"
-                                            value={meta[key] ?? ''}
-                                            onChange={(e) => updateMeta(key, e.target.value)}
-                                        />
-                                    ) : (
-                                        <Input
-                                            id={`meta-${key}`}
-                                            type="text"
-                                            value={meta[key] ?? ''}
-                                            onChange={(e) => updateMeta(key, e.target.value)}
-                                        />
-                                    )}
-                                </div>
-                            ))}
+                <div className="mx-auto grid w-full max-w-5xl min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto pr-1 lg:grid-cols-[1fr_320px]">
+                    <div className="flex min-h-0 flex-col gap-6">
+                        <div>
+                            <h1 className="text-xl font-semibold tracking-tight">Orden #{orderId}</h1>
+                            <p className="text-sm text-muted-foreground">
+                                {billing.first_name ?? ''} {billing.last_name ?? ''} · {billing.email ?? ''}
+                            </p>
                         </div>
-                    )}
-                </div>
 
-                {error && (
-                    <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                        <X className="size-4 shrink-0" />
-                        {error}
+                        <div className="rounded-lg border p-4">
+                            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Pago</h2>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="payment-method" className="text-xs font-medium">Método de pago</Label>
+                                <select
+                                    id="payment-method"
+                                    value={paymentMethod}
+                                    onChange={(e) => updatePaymentMethod(e.target.value)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                >
+                                    <option value="">— Sin cambiar —</option>
+                                    {paymentGateways.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            {g.title || g.method_title || g.id}
+                                        </option>
+                                    ))}
+                                </select>
+                                {paymentMethodTitle && (
+                                    <p className="text-xs text-muted-foreground">Actual: {paymentMethodTitle}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border p-4">
+                            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Items de la orden</h2>
+
+                            <div className="space-y-3">
+                                {items.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2 rounded-md border bg-card p-3">
+                                        <div className="grid flex-1 grid-cols-3 gap-2">
+                                            <div className="col-span-3 sm:col-span-1">
+                                                <Label className="text-xs text-muted-foreground">Producto</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={item.name}
+                                                    onChange={(e) => updateItem(i, 'name', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">Cant</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    value={item.quantity}
+                                                    onChange={(e) => updateItem(i, 'quantity', Math.max(0, parseInt(e.target.value) || 0))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">Precio</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min={0}
+                                                    value={item.price}
+                                                    onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <Button type="button" variant="ghost" size="icon" className="mt-5 shrink-0 text-destructive" onClick={() => removeItem(i)}>
+                                            <Trash2 className="size-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between">
+                                <Button type="button" variant="outline" size="sm" onClick={() => setShowProductSearch(true)} className="gap-1.5">
+                                    <Plus className="size-3.5" />
+                                    Agregar producto
+                                </Button>
+                                <p className="text-sm font-semibold">Total: {formatMoney(total)}</p>
+                            </div>
+                        </div>
                     </div>
-                )}
 
-                <div className="flex items-center gap-3">
-                    <Button type="button" onClick={handleSave} disabled={saving} className="gap-2">
-                        {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                        Guardar cambios
-                    </Button>
-                    {saved && (
-                        <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
-                            <Check className="size-4" />
-                            Guardado
-                        </span>
-                    )}
-                </div>
+                    <div className="flex min-h-0 flex-col gap-6">
+                        <div className="rounded-lg border p-4">
+                            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Metadatos de suscripción</h2>
+
+                            {metaKeys.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Esta orden no tiene metadatos de suscripción editables.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {metaKeys.map((key) => (
+                                        <div key={key} className="grid gap-1.5">
+                                            <Label htmlFor={`meta-${key}`} className="text-xs font-medium">
+                                                {labelMap[key] ?? key.replace(/^_/, '').replace(/_/g, ' ')}
+                                            </Label>
+                                            {key.endsWith('_date') ? (
+                                                <Input
+                                                    id={`meta-${key}`}
+                                                    type="date"
+                                                    value={meta[key] ?? ''}
+                                                    onChange={(e) => updateMeta(key, e.target.value)}
+                                                />
+                                            ) : (
+                                                <Input
+                                                    id={`meta-${key}`}
+                                                    type="text"
+                                                    value={meta[key] ?? ''}
+                                                    onChange={(e) => updateMeta(key, e.target.value)}
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {error && (
+                            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                                <X className="size-4 shrink-0" />
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-3">
+                            <Button type="button" onClick={handleSave} disabled={saving} className="gap-2">
+                                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                                Guardar cambios
+                            </Button>
+                            {saved && (
+                                <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+                                    <Check className="size-4" />
+                                    Guardado
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -331,7 +379,7 @@ export default function OrderEdit({ order, meta: initialMeta }: Props) {
                                     onClick={() => addProduct(p)}
                                 >
                                     <span className="font-medium">{p.name}</span>
-                                    <span className="ml-2 text-muted-foreground">Bs. {parseFloat(p.price).toFixed(2)}</span>
+                                    <span className="ml-2 text-muted-foreground">{formatMoney(parseFloat(p.price))}</span>
                                 </button>
                             ))}
                         </div>

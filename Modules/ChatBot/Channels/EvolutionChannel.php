@@ -3,7 +3,9 @@
 namespace Modules\ChatBot\Channels;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\ChatBot\Enums\ChannelType;
 use Modules\ChatBot\Enums\ConversationStatus;
 use Modules\ChatBot\Enums\MessageType;
@@ -12,6 +14,7 @@ use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
 use Modules\ChatBot\Models\Message;
 use Modules\ChatBot\Models\MessageReaction;
+use Spatie\Permission\Models\Role;
 
 class EvolutionChannel implements ChannelInterface
 {
@@ -274,7 +277,7 @@ class EvolutionChannel implements ChannelInterface
             ),
         ]);
 
-        $this->linkConversationToExistingUser($conversation, $remoteJid, $phonePart);
+        $this->linkOrCreateUser($conversation, $remoteJid, $pushName, $phonePart);
 
         if ($type !== MessageType::Text && $messageId && ! empty($mediaMeta)) {
             $this->enrichWithBase64Media($message, $channel, $messageId);
@@ -336,11 +339,22 @@ class EvolutionChannel implements ChannelInterface
     }
 
     /**
-     * Vincula una conversación con un User existente (creado manualmente por el admin)
-     * buscando por `phone` o `whatsapp_jid`. NUNCA crea users duplicados ni sobrescribe
-     * el `name` de un user existente.
+     * Garantiza que la conversación tenga un User asociado.
+     *
+     * Reglas:
+     *  - Si la conversación ya tiene user_id, no hace nada.
+     *  - Busca primero por phone (sin el sufijo @s.whatsapp.net) y luego por whatsapp_jid.
+     *  - Si no encuentra ninguno, AUTO-CREA el User usando los datos del webhook:
+     *      name        = pushName (o "Visitante WhatsApp" como fallback)
+     *      phone       = parte numérica del remoteJid
+     *      whatsapp_jid = remoteJid completo
+     *      email       = derivado del JID para mantener unicidad
+     *      password    = aleatorio (el user no se loguea con esto)
+     *      role        = "user" (rol por defecto; ver RoleSeeder)
+     *  - Si encuentra un user existente, NUNCA sobrescribe su name.
+     *  - Si encuentra un user por phone pero le falta whatsapp_jid, lo backfilea.
      */
-    private function linkConversationToExistingUser(Conversation $conversation, ?string $remoteJid, ?string $phonePart): void
+    private function linkOrCreateUser(Conversation $conversation, ?string $remoteJid, ?string $pushName, ?string $phonePart): void
     {
         if ($conversation->user_id !== null) {
             return;
@@ -357,7 +371,26 @@ class EvolutionChannel implements ChannelInterface
         }
 
         if (! $user) {
-            return;
+            $user = User::create([
+                'name' => $pushName ?: 'Visitante WhatsApp',
+                'email' => $remoteJid ? $remoteJid.'@whatsapp.user' : null,
+                'phone' => $phonePart,
+                'whatsapp_jid' => $remoteJid,
+                'password' => Hash::make(Str::random(40)),
+                'is_whatsapp_business' => false,
+            ]);
+
+            $defaultRole = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
+            $user->assignRole($defaultRole);
+        } else {
+            $dirty = false;
+            if ($remoteJid && empty($user->whatsapp_jid)) {
+                $user->whatsapp_jid = $remoteJid;
+                $dirty = true;
+            }
+            if ($dirty) {
+                $user->save();
+            }
         }
 
         $conversation->forceFill(['user_id' => $user->id])->save();

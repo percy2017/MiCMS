@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { MessageCircle, Pencil, ChevronDown, ChevronRight, Search, X } from 'lucide-react';
+import { MessageCircle, Pencil, ChevronDown, ChevronRight, Search, X, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
 import { TablePagination } from '@/components/table-pagination';
@@ -28,7 +28,13 @@ type Order = {
     user_id?: number | null;
     avatar_url?: string | null;
     chat_conversation_id?: number | null;
+    is_subscription?: boolean;
+    subscription_title?: string | null;
+    subscription_end_date?: string | null;
+    currency_code?: string;
 };
+
+type Currency = { code: string; symbol: string; decimals: number };
 
 type Props = {
     initialOrders?: Order[];
@@ -38,6 +44,7 @@ type Props = {
     initialPerPage?: number;
     initialSearch?: string;
     error?: string | null;
+    currency?: Currency;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -71,8 +78,10 @@ function statusBadge(status: string) {
     );
 }
 
-export default function PosOrders({ initialOrders, initialTotal, initialTotalPages, initialCurrentPage, initialPerPage, initialSearch, error: serverError }: Props) {
+export default function PosOrders({ initialOrders, initialTotal, initialTotalPages, initialCurrentPage, initialPerPage, initialSearch, error: serverError, currency: initialCurrency }: Props) {
     const [expanded, setExpanded] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState<number | null>(null);
+    const currency: Currency = initialCurrency ?? { code: 'USD', symbol: '$', decimals: 2 };
     const initialData = initialOrders ? { data: initialOrders, total: initialTotal, current_page: initialCurrentPage, last_page: initialTotalPages } : undefined;
 
     const table = useTableSearch<Order>({
@@ -81,6 +90,53 @@ export default function PosOrders({ initialOrders, initialTotal, initialTotalPag
         perPage: initialPerPage ?? 10,
         initialFilters: { search: initialSearch ?? '', status: '', type: '' },
     });
+
+    function csrfToken(): string {
+        return document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.getAttribute('content') ?? '';
+    }
+
+    async function handleDelete(order: Order) {
+        if (!window.confirm(`¿Eliminar la orden #${order.id}? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+        setDeleting(order.id);
+        try {
+            const r = await fetch(`/admin/pos-woo/pedidos/${order.id}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json' },
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || data.ok === false) {
+                window.alert(data.error ?? 'No se pudo eliminar la orden');
+                return;
+            }
+            table.refresh();
+        } catch {
+            window.alert('Error de conexión');
+        } finally {
+            setDeleting(null);
+        }
+    }
+
+    function formatMoney(value: string | number, code?: string): string {
+        const n = typeof value === 'string' ? parseFloat(value) : value;
+        const safeN = Number.isNaN(n) ? 0 : n;
+        const target = (code && code.length === 3) ? code : currency.code;
+        const sym = currency.symbol || target;
+        const dec = currency.decimals;
+        const numStr = safeN.toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+        switch (currency.position) {
+            case 'right':
+                return `${numStr} ${sym}`;
+            case 'right_space':
+                return `${numStr} ${sym}`;
+            case 'left_space':
+                return `${sym} ${numStr}`;
+            case 'left':
+            default:
+                return `${sym}${numStr}`;
+        }
+    }
 
     const statusFilters: ToolbarFilter[] = [
         {
@@ -117,7 +173,7 @@ export default function PosOrders({ initialOrders, initialTotal, initialTotalPag
                                     <th className="px-4 py-3 font-medium">Cliente</th>
                                     <th className="px-4 py-3 font-medium">Productos</th>
                                     <th className="px-4 py-3 font-medium text-right">Total</th>
-                                    <th className="px-4 py-3 font-medium">Pago</th>
+                                    <th className="px-4 py-3 font-medium">Suscripción</th>
                                     <th className="px-4 py-3 font-medium">Estado</th>
                                     <th className="px-4 py-3 font-medium text-right">Acciones</th>
                                 </tr>
@@ -178,52 +234,76 @@ export default function PosOrders({ initialOrders, initialTotal, initialTotalPag
                                                     {order.items.map((item, i) => (
                                                         <div key={i} className="flex items-center justify-between gap-2 text-xs">
                                                             <span className="truncate max-w-[160px]">{item.name}</span>
-                                                            <span className="shrink-0 text-muted-foreground tabular-nums">x{item.quantity} @ ${parseFloat(item.price).toFixed(2)}</span>
+                                                            <span className="shrink-0 text-muted-foreground tabular-nums">x{item.quantity} @ {formatMoney(item.price)}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                                            ${parseFloat(order.total).toFixed(2)}
+                                            {formatMoney(order.total, order.currency_code)}
                                         </td>
-                                        <td className="px-4 py-3 text-muted-foreground">
-                                            {order.payment_method_title || '-'}
+                                        <td className="px-4 py-3">
+                                            {order.is_subscription ? (
+                                                <div className="space-y-0.5">
+                                                    <div className="font-medium">{order.subscription_title || '—'}</div>
+                                                    <div className="text-xs text-muted-foreground tabular-nums">
+                                                        {order.subscription_end_date
+                                                            ? `Hasta ${new Date(order.subscription_end_date).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                                                            : 'Sin fecha de fin'}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">{statusBadge(order.status)}</td>
                                         <td className="px-4 py-3 text-right">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => router.visit(`/admin/pos-woo/pedidos/${order.id}`)}
-                                                title="Editar metadatos"
-                                            >
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            {(() => {
-                                                const phone = (order.customer_phone ?? '').trim();
-                                                if (!phone && !order.chat_conversation_id) {
-                                                    return null;
-                                                }
-                                                return (
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            openPosWooChat(
-                                                                order.chat_conversation_id ?? null,
-                                                                phone || null,
-                                                                order.customer_name || 'Cliente',
-                                                            )
-                                                        }
-                                                        title="Enviar mensaje"
-                                                    >
-                                                        <MessageCircle className="size-4" />
-                                                    </Button>
-                                                );
-                                            })()}
+                                            <div className="inline-flex items-center gap-0.5">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => router.visit(`/admin/pos-woo/pedidos/${order.id}`)}
+                                                    title="Editar metadatos"
+                                                >
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                {(() => {
+                                                    const phone = (order.customer_phone ?? '').trim();
+                                                    if (!phone && !order.chat_conversation_id) {
+                                                        return null;
+                                                    }
+                                                    return (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                openPosWooChat(
+                                                                    order.chat_conversation_id ?? null,
+                                                                    phone || null,
+                                                                    order.customer_name || 'Cliente',
+                                                                )
+                                                            }
+                                                            title="Enviar mensaje"
+                                                        >
+                                                            <MessageCircle className="size-4" />
+                                                        </Button>
+                                                    );
+                                                })()}
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleDelete(order)}
+                                                    disabled={deleting === order.id}
+                                                    className="text-destructive hover:text-destructive"
+                                                    title="Eliminar orden"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

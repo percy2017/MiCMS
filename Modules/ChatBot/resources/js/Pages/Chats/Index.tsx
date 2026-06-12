@@ -1097,8 +1097,6 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                                 <ChatDetailsPanel
                                     active={activeConv}
                                     onClose={() => setDetailsOpen(false)}
-                                    totalMessages={activeConv.messages_count ?? activeConv.messages.length}
-                                    firstMessageAt={activeConv.first_message_at ?? null}
                                 />
                             </div>
                         </>

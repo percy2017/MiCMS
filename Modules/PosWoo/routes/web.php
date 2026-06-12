@@ -10,6 +10,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin/pos-woo')->group(function
     Route::get('/products/{product}/variations', [PosWooController::class, 'productVariations']);
     Route::get('/customers', [PosWooController::class, 'searchCustomers']);
     Route::get('/orders', [PosWooController::class, 'orders']);
+    Route::get('/orders/by-phone', [PosWooController::class, 'ordersByPhone'])->name('pos-woo.orders-by-phone');
     Route::get('/payment-gateways', [PosWooController::class, 'paymentGateways']);
     Route::post('/checkout', [PosWooController::class, 'checkout']);
     Route::post('/find-or-create-chat', [PosWooController::class, 'findOrCreateChat']);
@@ -17,4 +18,5 @@ Route::middleware(['auth', 'verified'])->prefix('admin/pos-woo')->group(function
     Route::get('/subscriptions', [PosWooController::class, 'subscriptions']);
     Route::get('/pedidos/{order}', [PosWooController::class, 'orderEdit'])->name('pos-woo.order-edit');
     Route::put('/pedidos/{order}', [PosWooController::class, 'orderUpdate'])->name('pos-woo.order-update');
+    Route::delete('/pedidos/{order}', [PosWooController::class, 'orderDestroy'])->name('pos-woo.order-destroy');
 });

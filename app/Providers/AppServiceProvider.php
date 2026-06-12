@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\LogViewer\LogViewerService;
 use App\Models\User;
+use App\Observers\UserObserver;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
@@ -38,6 +39,12 @@ class AppServiceProvider extends ServiceProvider
         $this->registerPolicies();
         $this->registerGates();
         $this->registerRateLimiters();
+        $this->registerModelObservers();
+    }
+
+    protected function registerModelObservers(): void
+    {
+        User::observe(UserObserver::class);
     }
 
     /**

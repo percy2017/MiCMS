@@ -23,6 +23,7 @@
         "mews/purifier": "^3.4",
         "nwidart/laravel-modules": "^13.0",
         "opcodesio/log-viewer": "^3.24",
+        "propaganistas/laravel-phone": "^6.0",
         "spatie/laravel-permission": "^8.0",
         "symfony/filesystem": "^7.1"
     },

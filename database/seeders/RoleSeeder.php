@@ -25,6 +25,7 @@ class RoleSeeder extends Seeder
         'update menu items',
         'delete menu items',
         'view settings',
+        'view admin',
         'view chatbot',
         'view chats',
         'view chatbot conversations',

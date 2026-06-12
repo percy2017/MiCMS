@@ -1,11 +1,13 @@
 import { ProductCard } from './product-card';
+import type { Currency } from '@/lib/currency';
 import type { Product } from './types';
 type Props = {
     products: Product[];
+    currency: Currency;
     onAddToCart: (product: Product) => void;
 };
 
-export function ProductGrid({ products, onAddToCart }: Props) {
+export function ProductGrid({ products, currency, onAddToCart }: Props) {
     if (products.length === 0) {
         return (
             <div className="flex h-full items-center justify-center">
@@ -22,6 +24,7 @@ export function ProductGrid({ products, onAddToCart }: Props) {
                 <ProductCard
                     key={product.id}
                     product={product}
+                    currency={currency}
                     onAddToCart={onAddToCart}
                 />
             ))}

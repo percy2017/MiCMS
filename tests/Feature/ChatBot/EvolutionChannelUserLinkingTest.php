@@ -13,7 +13,7 @@ beforeEach(function (): void {
     ]);
 });
 
-test('webhook entrante crea conversación con user_id null si no existe user', function (): void {
+test('webhook entrante AUTO-CREA user si no existe y vincula la conversación con rol user', function (): void {
     $payload = [
         'event' => 'messages.upsert',
         'data' => [
@@ -22,7 +22,7 @@ test('webhook entrante crea conversación con user_id null si no existe user', f
                 'fromMe' => false,
                 'id' => 'TEST_MSG_001',
             ],
-            'pushName' => 'Visitante',
+            'pushName' => 'Visitante Nuevo',
             'message' => [
                 'conversation' => 'Hola',
             ],
@@ -40,7 +40,67 @@ test('webhook entrante crea conversación con user_id null si no existe user', f
 
     $conv = Conversation::where('external_id', '59171146267@s.whatsapp.net')->first();
     expect($conv)->not->toBeNull();
-    expect($conv->user_id)->toBeNull();
+    expect($conv->user_id)->not->toBeNull();
+
+    $user = User::find($conv->user_id);
+    expect($user->name)->toBe('Visitante Nuevo');
+    expect($user->phone)->toBe('59171146267');
+    expect($user->whatsapp_jid)->toBe('59171146267@s.whatsapp.net');
+    expect($user->hasRole('user'))->toBeTrue();
+});
+
+test('webhook auto-crea user con email derivado del JID y password aleatorio', function (): void {
+    $payload = [
+        'event' => 'messages.upsert',
+        'data' => [
+            'key' => [
+                'remoteJid' => '59177777777@s.whatsapp.net',
+                'fromMe' => false,
+                'id' => 'TEST_MSG_EMAIL',
+            ],
+            'pushName' => 'Test Email',
+            'message' => ['conversation' => 'hola'],
+            'messageType' => 'conversation',
+        ],
+    ];
+
+    $channel = new EvolutionChannel;
+    $channel->processIncoming($payload, $this->channel);
+
+    $user = User::where('whatsapp_jid', '59177777777@s.whatsapp.net')->first();
+    expect($user)->not->toBeNull();
+    expect($user->email)->toBe('59177777777@s.whatsapp.net@whatsapp.user');
+    expect($user->password)->not->toBeEmpty();
+});
+
+test('webhook backfilea whatsapp_jid en user existente creado solo por phone', function (): void {
+    $existing = User::factory()->create([
+        'phone' => '59171146267',
+        'email' => 'percy@admin.local',
+        'name' => 'Percy',
+    ]);
+
+    $payload = [
+        'event' => 'messages.upsert',
+        'data' => [
+            'key' => [
+                'remoteJid' => '59171146267@s.whatsapp.net',
+                'fromMe' => false,
+                'id' => 'TEST_MSG_BACKFILL',
+            ],
+            'pushName' => 'Otro pushName',
+            'message' => ['conversation' => 'hola'],
+            'messageType' => 'conversation',
+        ],
+    ];
+
+    $channel = new EvolutionChannel;
+    $channel->processIncoming($payload, $this->channel);
+
+    $existing->refresh();
+    expect($existing->whatsapp_jid)->toBe('59171146267@s.whatsapp.net');
+    expect($existing->name)->toBe('Percy');
+    expect(User::where('phone', '59171146267')->count())->toBe(1);
 });
 
 test('webhook entrante vincula conversación con user existente por phone', function (): void {

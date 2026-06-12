@@ -78,7 +78,15 @@ class UserApiController extends Controller
                 'password' => Hash::make($data['password']),
             ]);
 
-            $user->syncRoles($data['roles'] ?? []);
+            $roles = $data['roles'] ?? [];
+            if ($roles === []) {
+                $defaultRole = Role::where('name', 'user')->first()
+                    ?? Role::orderBy('id')->first();
+                if ($defaultRole) {
+                    $roles = [$defaultRole->name];
+                }
+            }
+            $user->syncRoles($roles);
 
             return $user;
         });

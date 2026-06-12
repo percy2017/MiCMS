@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CartItem, Customer, PaymentGateway } from './types';
+import type { Currency } from '@/lib/currency';
+import { formatMoney } from '@/lib/money';
 
 type Props = {
     cart: CartItem[];
     total: number;
+    currency: Currency;
     customer: Customer | null;
     gateways: PaymentGateway[];
     onUpdateQuantity: (cartKey: string, quantity: number) => void;
@@ -22,6 +25,7 @@ type Props = {
 export function CartPanel({
     cart,
     total,
+    currency,
     customer,
     gateways,
     onUpdateQuantity,
@@ -89,6 +93,7 @@ export function CartPanel({
                                         </p>
                                         <PriceEditor
                                             price={item.price}
+                                            currency={currency}
                                             onSave={(v) => onUpdatePrice(item.cartKey, v)}
                                         />
                                     </div>
@@ -122,7 +127,7 @@ export function CartPanel({
                                         Quitar
                                     </button>
                                     <span className="text-sm font-semibold tabular-nums">
-                                        ${item.subtotal.toFixed(2)}
+                                        {formatMoney(item.subtotal, currency)}
                                     </span>
                                 </div>
                             </li>
@@ -202,7 +207,7 @@ export function CartPanel({
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-muted-foreground">Total</span>
                     <span className="text-2xl font-bold tabular-nums">
-                        ${total.toFixed(2)}
+                        {formatMoney(total, currency)}
                     </span>
                 </div>
 
@@ -214,7 +219,7 @@ export function CartPanel({
                     <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    Cobrar ${total.toFixed(2)}
+                    Cobrar {formatMoney(total, currency)}
                 </button>
 
                 {!customer && cart.length > 0 && (
@@ -226,7 +231,7 @@ export function CartPanel({
     );
 }
 
-function PriceEditor({ price, onSave }: { price: number; onSave: (v: number) => void }) {
+function PriceEditor({ price, currency, onSave }: { price: number; currency: Currency; onSave: (v: number) => void }) {
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(price.toFixed(2));
 
@@ -281,7 +286,7 @@ function PriceEditor({ price, onSave }: { price: number; onSave: (v: number) => 
             className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Click para editar precio"
         >
-            <span className="tabular-nums">${price.toFixed(2)} c/u</span>
+            <span className="tabular-nums">{formatMoney(price, currency)} c/u</span>
             <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>

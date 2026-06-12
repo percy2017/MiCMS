@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Page\PageController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
@@ -9,7 +10,7 @@ Route::get('/', [PageController::class, 'home'])
     ->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('admin', 'admin')->name('admin');
+    Route::get('admin', [DashboardController::class, 'index'])->name('admin');
 });
 
 Route::get('sitemap.xml', [SitemapController::class, 'index'])

@@ -7,6 +7,7 @@ use Codexshaper\WooCommerce\Facades\Customer;
 use Codexshaper\WooCommerce\Facades\Order;
 use Codexshaper\WooCommerce\Facades\PaymentGateway;
 use Codexshaper\WooCommerce\Facades\Product;
+use Codexshaper\WooCommerce\Facades\Setting;
 use Codexshaper\WooCommerce\Facades\Variation;
 use Codexshaper\WooCommerce\Facades\WooCommerce as WooCommerceFacade;
 use Illuminate\Support\Collection;
@@ -280,7 +281,7 @@ class WooCommerceService
         }
     }
 
-    public function listOrders(int $page = 1, int $perPage = 10, string $search = '', string $status = ''): array
+    public function listOrders(int $page = 1, int $perPage = 10, string $search = '', string $status = '', ?string $after = null, ?string $before = null): array
     {
         try {
             $options = [
@@ -295,6 +296,12 @@ class WooCommerceService
             }
             if ($status !== '') {
                 $options['status'] = $status;
+            }
+            if ($after !== null) {
+                $options['after'] = $after;
+            }
+            if ($before !== null) {
+                $options['before'] = $before;
             }
 
             $orders = Order::all($options);
@@ -327,6 +334,8 @@ class WooCommerceService
                     'customer_phone' => $billing['phone'] ?? '',
                     'items' => $items,
                     'payment_method_title' => $o['payment_method_title'] ?? '',
+                    'meta_data' => $o['meta_data'] ?? [],
+                    'currency' => $o['currency'] ?? '',
                 ];
             })->values()->all();
 
@@ -373,6 +382,100 @@ class WooCommerceService
         }
     }
 
+    public function ordersInPeriodTotal(string $after, ?string $before = null): array
+    {
+        try {
+            $storeUrl = (string) config('woocommerce.store_url');
+            $ck = (string) config('woocommerce.consumer_key');
+            $cs = (string) config('woocommerce.consumer_secret');
+
+            $sum = 0.0;
+            $count = 0;
+            $page = 1;
+            $totalPages = 1;
+            $max = 50;
+
+            while ($page <= $totalPages && $page <= $max) {
+                $params = ['per_page' => 100, 'page' => $page, 'after' => $after];
+                if ($before !== null && $before !== '') {
+                    $params['before'] = $before;
+                }
+                $qs = http_build_query($params);
+                $u = "{$storeUrl}/wp-json/wc/v3/orders?consumer_key={$ck}&consumer_secret={$cs}&{$qs}";
+
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => $u,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_HEADER => true,
+                    CURLOPT_TIMEOUT => 30,
+                ]);
+                $raw = curl_exec($ch);
+                $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if (! is_string($raw) || $httpCode !== 200) {
+                    break;
+                }
+                $headersRaw = substr($raw, 0, $headerSize);
+                $body = substr($raw, $headerSize);
+                $decoded = json_decode($body, true);
+                if (! is_array($decoded)) {
+                    break;
+                }
+
+                foreach ($decoded as $o) {
+                    $o = (array) $o;
+                    $sum += (float) ($o['total'] ?? 0);
+                    $count++;
+                }
+
+                if ($page === 1) {
+                    if (preg_match('/X-WP-TotalPages:\s*(\d+)/i', $headersRaw, $m)) {
+                        $totalPages = (int) $m[1];
+                    } else {
+                        $totalPages = 1;
+                    }
+                }
+                $page++;
+            }
+
+            return ['count' => $count, 'total' => $sum, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce ordersInPeriodTotal failed: '.$e->getMessage());
+
+            return ['count' => 0, 'total' => 0.0, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function getStoreCurrency(): array
+    {        try {
+            $current = WooCommerceFacade::find('data/currencies/current');
+            $settings = Setting::options('general');
+            $position = 'left';
+            $decimals = 2;
+            foreach ((array) $settings as $s) {
+                $s = (array) $s;
+                if (($s['id'] ?? '') === 'woocommerce_currency_pos') {
+                    $position = (string) ($s['value'] ?? $position);
+                }
+                if (($s['id'] ?? '') === 'woocommerce_price_num_decimals') {
+                    $decimals = (int) ($s['value'] ?? $decimals);
+                }
+            }
+
+            $code = strtoupper((string) ($current->code ?? 'USD'));
+            $symbol = html_entity_decode((string) ($current->symbol ?? $code), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            return ['code' => $code, 'symbol' => $symbol, 'decimals' => $decimals, 'position' => $position, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce getStoreCurrency failed: '.$e->getMessage());
+
+            return ['code' => 'USD', 'symbol' => '$', 'decimals' => 2, 'position' => 'left', 'error' => $e->getMessage()];
+        }
+    }
+
     public function getOrder(int $id): array
     {
         try {
@@ -387,6 +490,19 @@ class WooCommerceService
             Log::warning('WooCommerce getOrder failed: '.$e->getMessage());
 
             return ['data' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function deleteOrder(int $id): array
+    {
+        try {
+            Order::delete($id, ['force' => true]);
+
+            return ['ok' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce deleteOrder failed: '.$e->getMessage());
+
+            return ['ok' => false, 'error' => $e->getMessage()];
         }
     }
 
@@ -460,6 +576,23 @@ class WooCommerceService
             return ['data' => (array) $updated, 'error' => null];
         } catch (\Throwable $e) {
             Log::warning('WooCommerce updateOrderItems failed: '.$e->getMessage());
+
+            return ['data' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function updateOrderPayment(int $id, string $paymentMethod, ?string $paymentMethodTitle = null): array
+    {
+        try {
+            $payload = ['payment_method' => $paymentMethod];
+            if ($paymentMethodTitle !== null && $paymentMethodTitle !== '') {
+                $payload['payment_method_title'] = $paymentMethodTitle;
+            }
+            $updated = Order::update($id, $payload);
+
+            return ['data' => (array) $updated, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::warning('WooCommerce updateOrderPayment failed: '.$e->getMessage());
 
             return ['data' => null, 'error' => $e->getMessage()];
         }

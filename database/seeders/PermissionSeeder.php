@@ -56,6 +56,7 @@ class PermissionSeeder extends Seeder
         'update chatbot widget',
         'view logs',
         'delete logs',
+        'view admin',
     ];
 
     public function run(): void

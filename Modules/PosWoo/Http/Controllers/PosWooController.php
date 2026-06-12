@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\ChatBot\Enums\ChannelType;
@@ -15,6 +16,7 @@ use Modules\ChatBot\Enums\ConversationStatus;
 use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
 use Modules\PosWoo\Services\WooCommerceService;
+use Spatie\Permission\Models\Role;
 
 class PosWooController extends Controller
 {
@@ -29,6 +31,7 @@ class PosWooController extends Controller
         return Inertia::render('PosWoo::Dashboard', [
             'initialProducts' => $products['data'],
             'error' => $products['error'],
+            'currency' => $woo->getStoreCurrency(),
         ]);
     }
 
@@ -168,6 +171,7 @@ class PosWooController extends Controller
             'initialPerPage' => $orders['perPage'],
             'initialSearch' => $search,
             'error' => $orders['error'],
+            'currency' => $woo->getStoreCurrency(),
         ]);
     }
 
@@ -194,8 +198,38 @@ class PosWooController extends Controller
         $enriched = array_map(fn (array $order): array => $this->enrichOrderWithUser($order), $data['data']);
 
         $data['data'] = $enriched;
+        $data['currency'] = $woo->getStoreCurrency();
 
         return response()->json($data);
+    }
+
+    public function ordersByPhone(Request $request, WooCommerceService $woo): JsonResponse
+    {
+        $this->authorize('view pos-woo');
+
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'min:5'],
+        ]);
+
+        $phone = preg_replace('/\D+/', '', (string) $validated['phone']) ?? '';
+        if ($phone === '') {
+            return response()->json(['data' => [], 'total' => 0, 'error' => null]);
+        }
+
+        $cacheKey = 'poswoo.orders.phone.'.$phone;
+
+        $payload = Cache::remember($cacheKey, 30, function () use ($woo, $phone): array {
+            $data = $woo->listOrders(page: 1, perPage: 3, search: $phone);
+            $enriched = array_map(fn (array $order): array => $this->enrichOrderWithUser($order), $data['data']);
+
+            return [
+                'data' => $enriched,
+                'total' => (int) ($data['total'] ?? 0),
+                'error' => $data['error'] ?? null,
+            ];
+        });
+
+        return response()->json($payload);
     }
 
     private function enrichOrderWithUser(array $order): array
@@ -232,10 +266,19 @@ class PosWooController extends Controller
                 ->value('id');
         }
 
+        $meta = collect($order['meta_data'] ?? [])->map(fn ($m): array => is_array($m) ? $m : (array) $m);
+        $isSubscription = $meta->contains(fn (array $m): bool => ($m['key'] ?? '') === '_is_pos_subscription');
+        $subTitle = ($meta->firstWhere('key', '_subscription_title')['value'] ?? null) ?: null;
+        $subEndDate = ($meta->firstWhere('key', '_subscription_end_date')['value'] ?? null) ?: null;
+
         $order['user_id'] = $userId;
         $order['avatar_url'] = $avatarUrl;
         $order['chat_conversation_id'] = $chatConversationId;
         $order['customer_phone'] = $phone;
+        $order['is_subscription'] = $isSubscription;
+        $order['subscription_title'] = $isSubscription ? $subTitle : null;
+        $order['subscription_end_date'] = $isSubscription ? $subEndDate : null;
+        $order['currency_code'] = strtoupper((string) ($order['currency'] ?? ''));
 
         return $order;
     }
@@ -262,6 +305,12 @@ class PosWooController extends Controller
                 'phone' => $phone,
                 'password' => bcrypt(bin2hex(random_bytes(8))),
             ]);
+
+            $defaultRole = Role::where('name', 'user')->first()
+                ?? Role::orderBy('id')->first();
+            if ($defaultRole) {
+                $user->assignRole($defaultRole);
+            }
         }
 
         $conv = Conversation::where('user_id', $user->id)
@@ -301,11 +350,13 @@ class PosWooController extends Controller
         return response()->json(['conversation_id' => $conv->id]);
     }
 
-    public function subscriptionsPage(): Response
+    public function subscriptionsPage(WooCommerceService $woo): Response
     {
         $this->authorize('view pos-woo');
 
-        return Inertia::render('PosWoo::Calendar');
+        return Inertia::render('PosWoo::Calendar', [
+            'currency' => $woo->getStoreCurrency(),
+        ]);
     }
 
     public function subscriptions(WooCommerceService $woo): JsonResponse
@@ -407,9 +458,13 @@ class PosWooController extends Controller
             }
         }
 
+        $gateways = $woo->listPaymentGateways();
+
         return Inertia::render('PosWoo::Edit', [
             'order' => $result['data'],
             'meta' => $meta,
+            'paymentGateways' => $gateways['data'] ?? [],
+            'currency' => $woo->getStoreCurrency(),
         ]);
     }
 
@@ -426,6 +481,8 @@ class PosWooController extends Controller
             'items.*.price' => ['sometimes', 'numeric', 'min:0'],
             'items.*.name' => ['sometimes', 'string', 'max:255'],
             'items.*.product_id' => ['sometimes', 'integer'],
+            'payment_method' => ['sometimes', 'string', 'max:100'],
+            'payment_method_title' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $response = ['ok' => true, 'errors' => []];
@@ -444,8 +501,28 @@ class PosWooController extends Controller
             }
         }
 
+        if (array_key_exists('payment_method', $validated) && $validated['payment_method'] !== '') {
+            $paymentResult = $woo->updateOrderPayment(
+                $order,
+                (string) $validated['payment_method'],
+                $validated['payment_method_title'] ?? null,
+            );
+            if ($paymentResult['error']) {
+                $response['errors'][] = 'payment: '.$paymentResult['error'];
+            }
+        }
+
         $response['ok'] = empty($response['errors']);
 
         return response()->json($response);
+    }
+
+    public function orderDestroy(int $order, WooCommerceService $woo): JsonResponse
+    {
+        $this->authorize('manage pos-woo');
+
+        $result = $woo->deleteOrder($order);
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
     }
 }

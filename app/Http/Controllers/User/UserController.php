@@ -8,6 +8,7 @@ use App\Http\Requests\User\UpdateUserRequest;
 use App\Models\Media;
 use App\Models\User;
 use App\Support\MediaStorage;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,16 +29,7 @@ class UserController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::query()
-            ->with('roles:id,name')
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = (string) $request->input('search');
-                $query->where(function ($q) use ($search): void {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                });
-            })
-            ->latest()
+        $users = $this->buildUsersQuery($request)
             ->paginate(10)
             ->through(fn (User $u): array => $this->userToArray($u));
 
@@ -45,7 +37,13 @@ class UserController extends Controller
             'users' => $users,
             'filters' => [
                 'search' => (string) $request->input('search', ''),
+                'country_code' => (string) $request->input('country_code', ''),
+                'is_whatsapp_business' => (string) $request->input('is_whatsapp_business', ''),
+                'role' => (string) $request->input('role', ''),
+                'verified' => (string) $request->input('verified', ''),
             ],
+            'availableCountries' => $this->availableCountries(),
+            'availableRoles' => Role::query()->orderBy('name')->get(['id', 'name'])->all(),
         ]);
     }
 
@@ -56,16 +54,7 @@ class UserController extends Controller
         $perPage = (int) $request->integer('per_page', 10);
         $page = (int) $request->integer('page', 1);
 
-        $users = User::query()
-            ->with('roles:id,name')
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = (string) $request->input('search');
-                $query->where(function ($q) use ($search): void {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                });
-            })
-            ->latest()
+        $users = $this->buildUsersQuery($request)
             ->paginate(min($perPage, 50), ['*'], 'page', $page)
             ->through(fn (User $u): array => $this->userToArray($u));
 
@@ -76,6 +65,73 @@ class UserController extends Controller
             'current_page' => $users->currentPage(),
             'last_page' => $users->lastPage(),
         ]);
+    }
+
+    /**
+     * Construye el query base con todos los filtros (search, country, business, role, verified).
+     * Reutilizado por index() (HTML) y search() (JSON).
+     */
+    private function buildUsersQuery(Request $request): Builder
+    {
+        return User::query()
+            ->with('roles:id,name')
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = (string) $request->input('search');
+                $digits = preg_replace('/\D+/', '', $search) ?? '';
+                $query->where(function ($q) use ($search, $digits): void {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$digits}%")
+                        ->orWhere('whatsapp_jid', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('country_code'), function ($query) use ($request): void {
+                $code = strtoupper((string) $request->input('country_code'));
+                $query->where('country_code', $code);
+            })
+            ->when($request->filled('is_whatsapp_business'), function ($query) use ($request): void {
+                $val = $request->input('is_whatsapp_business');
+                if ($val === '1' || $val === 'true') {
+                    $query->where('is_whatsapp_business', true);
+                } elseif ($val === '0' || $val === 'false') {
+                    $query->where(function ($q): void {
+                        $q->whereNull('is_whatsapp_business')->orWhere('is_whatsapp_business', false);
+                    });
+                }
+            })
+            ->when($request->filled('role'), function ($query) use ($request): void {
+                $role = (string) $request->input('role');
+                $query->whereHas('roles', function ($q) use ($role): void {
+                    $q->where('name', $role);
+                });
+            })
+            ->when($request->filled('verified'), function ($query) use ($request): void {
+                $val = $request->input('verified');
+                if ($val === '1' || $val === 'true') {
+                    $query->whereNotNull('email_verified_at');
+                } elseif ($val === '0' || $val === 'false') {
+                    $query->whereNull('email_verified_at');
+                }
+            })
+            ->latest();
+    }
+
+    /**
+     * Lista de códigos de país (ISO-3166-alpha2) que tienen al menos un usuario,
+     * ordenada alfabéticamente. Sin países hardcodeados: se deriva de la BD.
+     *
+     * @return list<string>
+     */
+    private function availableCountries(): array
+    {
+        return User::query()
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->distinct()
+            ->orderBy('country_code')
+            ->pluck('country_code')
+            ->map(fn ($c) => strtoupper((string) $c))
+            ->all();
     }
 
     public function create(): Response
@@ -118,9 +174,14 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
+                'country_code' => $user->country_code,
+                'whatsapp_jid' => $user->whatsapp_jid,
+                'is_whatsapp_business' => (bool) $user->is_whatsapp_business,
+                'email_verified_at' => $user->email_verified_at?->toIso8601String(),
                 'avatar_url' => $user->avatar?->url(),
                 'avatar_media_id' => $user->avatar_media_id,
                 'roles' => $user->roles->pluck('name')->all(),
+                'created_at' => $user->created_at?->toIso8601String(),
             ],
             'roles' => Role::query()->orderBy('name')->get(['id', 'name'])->all(),
         ]);
@@ -133,6 +194,28 @@ class UserController extends Controller
         DB::transaction(function () use ($user, $data): void {
             $user->name = $data['name'];
             $user->email = $data['email'];
+
+            if (array_key_exists('phone', $data) && $data['phone'] !== null) {
+                $user->phone = preg_replace('/\D+/', '', (string) $data['phone']) ?: null;
+            }
+
+            if (array_key_exists('whatsapp_jid', $data)) {
+                $user->whatsapp_jid = $data['whatsapp_jid'] !== null && $data['whatsapp_jid'] !== ''
+                    ? (string) $data['whatsapp_jid']
+                    : null;
+            }
+
+            if (array_key_exists('is_whatsapp_business', $data)) {
+                $user->is_whatsapp_business = (bool) $data['is_whatsapp_business'];
+            }
+
+            if (array_key_exists('email_verified', $data)) {
+                if ((bool) $data['email_verified'] && $user->email_verified_at === null) {
+                    $user->email_verified_at = now();
+                } elseif (! (bool) $data['email_verified']) {
+                    $user->email_verified_at = null;
+                }
+            }
 
             if (! empty($data['password'])) {
                 $user->password = Hash::make($data['password']);
@@ -244,6 +327,8 @@ class UserController extends Controller
                     'phone' => $normalized,
                     'password' => Hash::make(Str::random(32)),
                 ]);
+
+                $this->syncDefaultRole($user, []);
             }
 
             $user->phone = $normalized;
@@ -392,9 +477,11 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
+            'country_code' => $user->country_code,
+            'is_whatsapp_business' => (bool) $user->is_whatsapp_business,
+            'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'avatar_url' => $user->avatar?->url(),
             'roles' => $user->roles->pluck('name')->values()->all(),
-            'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'created_at' => $user->created_at?->toIso8601String(),
             'chat_conversation_id' => $chatConversationId,
         ];

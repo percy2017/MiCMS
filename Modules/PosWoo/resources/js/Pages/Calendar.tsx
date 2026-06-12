@@ -14,12 +14,18 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { admin } from '@/routes';
 import { openPosWooChat } from '@/lib/pos-woo-chat';
+import { formatMoney } from '@/lib/money';
+import type { Currency } from '@/lib/currency';
 
 type EventData = {
     title: string;
     start: string;
     allDay: boolean;
     extendedProps: Record<string, unknown>;
+};
+
+type Props = {
+    currency: Currency;
 };
 
 function openChat(convId: number | null, phone: string | null, name: string): Promise<void> {
@@ -40,7 +46,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
     );
 }
 
-export default function Calendar() {
+export default function Calendar({ currency }: Props) {
     const [events, setEvents] = useState<EventData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -162,7 +168,7 @@ export default function Calendar() {
                     <div className="space-y-3 px-6 py-4">
                         <div className="grid grid-cols-2 gap-2">
                             <InfoRow icon={Tag} label="Suscripción" value={String(ep.subscription_title || ep.title || '—')} />
-                            <InfoRow icon={DollarSign} label="Total" value={ep.total ? `Bs. ${ep.total}` : '—'} />
+                            <InfoRow icon={DollarSign} label="Total" value={ep.total ? formatMoney(String(ep.total), currency) : '—'} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <InfoRow icon={CalendarDays} label="Fecha de venta" value={ep.start_date ? new Date(String(ep.start_date)).toLocaleDateString('es') : '—'} />

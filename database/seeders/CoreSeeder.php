@@ -66,7 +66,7 @@ class CoreSeeder extends Seeder
     protected function seedDefaultSettings(): void
     {
         Setting::set('site_name', config('app.name'), Setting::TYPE_STRING);
-        Setting::set('site_tagline', 'CMS moderno · Laravel + Inertia + Puck', Setting::TYPE_STRING);
+        Setting::set('site_tagline', 'CMS moderno', Setting::TYPE_STRING);
 
         $this->command?->info('Settings por defecto insertadas.');
     }
@@ -81,7 +81,7 @@ class CoreSeeder extends Seeder
                 'type' => 'HeadingBlock',
                 'props' => $this->props(
                     'landing-hero-eyebrow',
-                    ['level' => 'h4', 'align' => 'center', 'children' => 'CMS moderno · Laravel + Inertia + Puck'],
+                    ['level' => 'h4', 'align' => 'center', 'children' => 'CMS moderno'],
                 ),
             ],
             [
@@ -110,7 +110,7 @@ class CoreSeeder extends Seeder
                 'props' => $this->props(
                     'landing-cta-primary',
                     [
-                        'text' => 'Ir al dashboard',
+                        'text' => 'Ir al Panel',
                         'url' => '/admin',
                         'variant' => 'primary',
                         'align' => 'center',
