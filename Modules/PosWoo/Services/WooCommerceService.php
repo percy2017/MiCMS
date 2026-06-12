@@ -450,7 +450,8 @@ class WooCommerceService
     }
 
     public function getStoreCurrency(): array
-    {        try {
+    {
+        try {
             $current = WooCommerceFacade::find('data/currencies/current');
             $settings = Setting::options('general');
             $position = 'left';

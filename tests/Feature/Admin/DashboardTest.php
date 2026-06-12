@@ -1,9 +1,12 @@
 <?php
 
+use App\Models\Media;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
 use Modules\ChatBot\Models\Message;
+use Modules\PosWoo\Services\WooCommerceService;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
@@ -37,6 +40,10 @@ it('renders the dashboard for admin with the expected sections', function () {
         ->has('users.metrics')
         ->has('users.by_country')
         ->has('users.recent')
+        ->has('media.metrics', fn ($m) => $m->has('total')->has('today')->has('size_bytes')->etc())
+        ->has('media.by_mime')
+        ->has('media.recent')
+        ->has('expiring_subscriptions')
         ->has('recent_messages')
     );
 });
@@ -99,4 +106,115 @@ it('groups users by country code', function () {
         ->where('users.by_country.BO', 3)
         ->where('users.by_country.AR', 2)
     );
+});
+
+it('counts media and groups by mime_type', function () {
+    $admin = adminUser();
+    actingAs($admin);
+
+    Media::factory()->count(4)->create(['mime_type' => 'image/jpeg']);
+    Media::factory()->count(2)->create(['mime_type' => 'application/pdf']);
+
+    get('/admin')->assertInertia(fn ($page) => $page
+        ->component('admin/index')
+        ->where('media.metrics.total', 6)
+        ->where('media.metrics.today', 6)
+        ->has('media.by_mime', fn ($m) => $m
+            ->where('image/jpeg', 4)
+            ->where('application/pdf', 2)
+            ->etc())
+    );
+});
+
+it('lists subscriptions expiring today and excludes others', function () {
+    $admin = adminUser();
+    actingAs($admin);
+
+    Carbon\Carbon::setTestNow('2026-06-12 10:00:00');
+    $today = '2026-06-12';
+    $tomorrow = '2026-06-13';
+
+    User::factory()->create([
+        'name' => 'Cliente Hoy',
+        'phone' => '59170000001',
+        'email' => 'hoy@example.test',
+    ]);
+
+    $todayOrder = (object) [
+        'id' => 9001,
+        'meta_data' => [
+            (object) ['key' => '_is_pos_subscription', 'value' => 'true'],
+            (object) ['key' => '_subscription_end_date', 'value' => $today],
+            (object) ['key' => '_subscription_title', 'value' => 'Plan Pro'],
+        ],
+    ];
+    $tomorrowOrder = (object) [
+        'id' => 9002,
+        'meta_data' => [
+            (object) ['key' => '_is_pos_subscription', 'value' => 'true'],
+            (object) ['key' => '_subscription_end_date', 'value' => $tomorrow],
+        ],
+    ];
+
+    $woo = Mockery::mock(WooCommerceService::class);
+    $woo->shouldReceive('listSubscriptions')->andReturn(['data' => [$todayOrder, $tomorrowOrder], 'error' => null]);
+    $woo->shouldReceive('getOrder')->with(9001)->andReturn(['data' => [
+        'id' => 9001,
+        'status' => 'completed',
+        'total' => '99.00',
+        'date_created' => '2026-06-01T10:00:00',
+        'customer_name' => 'cliente',
+        'customer_email' => '59170000001@whatsapp.local',
+        'customer_phone' => '59170000001',
+        'currency' => 'BOB',
+    ], 'error' => null]);
+    $woo->shouldReceive('getOrder')->with(9002)->andReturn(['data' => null, 'error' => null]);
+    $woo->shouldReceive('listOrders')->andReturn(['data' => [], 'total' => 0, 'currentPage' => 1, 'totalPages' => 1, 'perPage' => 1, 'error' => null]);
+    $woo->shouldReceive('ordersInPeriodTotal')->andReturn(['count' => 0, 'total' => 0.0, 'error' => null]);
+    $woo->shouldReceive('getStoreCurrency')->andReturn(['code' => 'BOB', 'symbol' => 'Bs.', 'decimals' => 2, 'position' => 'left', 'error' => null]);
+
+    app()->instance(WooCommerceService::class, $woo);
+    Cache::forget('admin.dashboard');
+
+    get('/admin')->assertInertia(fn ($page) => $page
+        ->component('admin/index')
+        ->where('expiring_subscriptions', fn ($items) => count($items) === 1
+            && $items[0]['id'] === 9001
+            && $items[0]['user_id'] !== null
+            && $items[0]['customer_name'] === 'Cliente Hoy'
+            && $items[0]['end_date'] === $today
+            && $items[0]['title'] === 'Plan Pro')
+    );
+
+    Carbon\Carbon::setTestNow();
+});
+
+it('returns an empty list when no subscriptions expire today', function () {
+    $admin = adminUser();
+    actingAs($admin);
+
+    Carbon\Carbon::setTestNow('2026-06-12 10:00:00');
+    $woo = Mockery::mock(WooCommerceService::class);
+    $woo->shouldReceive('listSubscriptions')->andReturn(['data' => [
+        (object) [
+            'id' => 9003,
+            'meta_data' => [
+                (object) ['key' => '_is_pos_subscription', 'value' => 'true'],
+                (object) ['key' => '_subscription_end_date', 'value' => '2026-12-31'],
+            ],
+        ],
+    ], 'error' => null]);
+    $woo->shouldReceive('listOrders')->andReturn(['data' => [], 'total' => 0, 'currentPage' => 1, 'totalPages' => 1, 'perPage' => 1, 'error' => null]);
+    $woo->shouldReceive('ordersInPeriodTotal')->andReturn(['count' => 0, 'total' => 0.0, 'error' => null]);
+    $woo->shouldReceive('getStoreCurrency')->andReturn(['code' => 'BOB', 'symbol' => 'Bs.', 'decimals' => 2, 'position' => 'left', 'error' => null]);
+
+    app()->instance(WooCommerceService::class, $woo);
+    Cache::forget('admin.dashboard');
+
+    get('/admin')->assertInertia(fn ($page) => $page
+        ->component('admin/index')
+        ->where('expiring_subscriptions', fn ($items) => count($items) === 0)
+    );
+
+    Carbon\Carbon::setTestNow();
 });

@@ -5,6 +5,7 @@ namespace Modules\ChatBot\Channels;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\ChatBot\Enums\ChannelType;
 use Modules\ChatBot\Enums\ConversationStatus;
@@ -103,28 +104,25 @@ class EvolutionChannel implements ChannelInterface
 
     public function sendMessage(Conversation $conversation, Message $message): array
     {
+        $validation = $this->validateBeforeSend($conversation, $message);
+        if ($validation !== null) {
+            return $validation;
+        }
+
         $config = $conversation->channel->config ?? [];
         $client = $this->buildClient($config);
-
         $number = $conversation->external_id;
 
-        if (! $number) {
-            return ['ok' => false, 'error' => 'No hay número de destino (external_id) en la conversación.'];
-        }
-
-        if ($message->type === MessageType::Text) {
-            $response = $client->sendText([
+        $response = match ($message->type) {
+            MessageType::Text => $client->sendText([
                 'number' => $number,
                 'text' => $message->content,
-            ]);
-        } else {
-            $response = $client->sendMedia([
-                'number' => $number,
-                'mediatype' => $this->mapMediaType($message->type),
-                'mimetype' => $this->guessMime($message->type),
-                'caption' => $message->content,
-            ]);
-        }
+            ]),
+            MessageType::Sticker => $client->sendSticker($this->buildStickerParams($message, $number)),
+            MessageType::Location => $client->sendLocation($this->buildLocationParams($message, $number)),
+            MessageType::Contact => $client->sendContact($this->buildContactParams($message, $number)),
+            default => $client->sendMedia($this->buildMediaParams($message, $number)),
+        };
 
         if ($response->successful()) {
             $body = $response->json();
@@ -133,11 +131,212 @@ class EvolutionChannel implements ChannelInterface
         }
 
         Log::warning('Evolution sendMessage failed', [
+            'conversation_id' => $conversation->id,
+            'message_id' => $message->id ?? null,
+            'type' => $message->type->value,
             'status' => $response->status(),
             'body' => $response->body(),
         ]);
 
         return ['ok' => false, 'error' => $response->body(), 'raw' => $response->json()];
+    }
+
+    /**
+     * Validaciones centralizadas aplicadas a TODO tipo de envío.
+     * Retorna `null` si todo OK, o un array `{ok: false, error: ...}` si falla.
+     */
+    private function validateBeforeSend(Conversation $conversation, Message $message): ?array
+    {
+        $config = $conversation->channel->config ?? [];
+
+        $serverUrl = rtrim((string) ($config['server_url'] ?? ''), '/');
+        $apiKey = (string) ($config['api_key'] ?? '');
+        $instanceName = (string) ($config['instance_name'] ?? '');
+
+        if ($serverUrl === '') {
+            return ['ok' => false, 'error' => 'El canal no tiene configurado el "server_url" de Evolution.'];
+        }
+        if ($apiKey === '') {
+            return ['ok' => false, 'error' => 'El canal no tiene configurado el "api_key" de Evolution.'];
+        }
+        if ($instanceName === '') {
+            return ['ok' => false, 'error' => 'El canal no tiene configurado el "instance_name" de Evolution.'];
+        }
+
+        $number = $conversation->external_id;
+        if (! $number || trim($number) === '') {
+            return ['ok' => false, 'error' => 'La conversación no tiene un número de destino (external_id).'];
+        }
+
+        if ($message->type === MessageType::Text) {
+            $text = trim((string) $message->content);
+            if ($text === '') {
+                return ['ok' => false, 'error' => 'El mensaje de texto está vacío.'];
+            }
+            if (mb_strlen($text) > 65000) {
+                return ['ok' => false, 'error' => 'El mensaje de texto excede el límite de 65.000 caracteres.'];
+            }
+        } else {
+            $validation = $this->validateMediaMessage($message);
+            if ($validation !== null) {
+                return $validation;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Valida que un mensaje media (image/video/audio/file/sticker) tenga adjunto válido.
+     * Para Sticker requiere base64; para Location/Contact el contenido puede venir en metadata.
+     */
+    private function validateMediaMessage(Message $message): ?array
+    {
+        if (in_array($message->type, [MessageType::Location, MessageType::Contact], true)) {
+            return $this->validateLocationOrContact($message);
+        }
+
+        if (! $message->attachment_media_id) {
+            return ['ok' => false, 'error' => "El mensaje de tipo {$message->type->value} no tiene un archivo adjunto (attachment_media_id)."];
+        }
+
+        if (! $message->relationLoaded('attachment')) {
+            $message->load('attachment');
+        }
+
+        $media = $message->attachment;
+        if (! $media) {
+            return ['ok' => false, 'error' => "El archivo adjunto (ID={$message->attachment_media_id}) no existe."];
+        }
+
+        $path = Storage::disk($media->disk)->path($media->path);
+        if (! file_exists($path)) {
+            return ['ok' => false, 'error' => "El archivo adjunto '{$media->path}' no existe en disco."];
+        }
+
+        $size = filesize($path) ?: 0;
+        $maxSize = $this->maxMediaSizeFor($message->type);
+        if ($maxSize !== null && $size > $maxSize) {
+            return ['ok' => false, 'error' => "El archivo adjunto excede el tamaño máximo permitido ({$maxSize} bytes) para el tipo {$message->type->value}."];
+        }
+
+        return null;
+    }
+
+    private function validateLocationOrContact(Message $message): ?array
+    {
+        $meta = $message->metadata ?? [];
+
+        if ($message->type === MessageType::Location) {
+            $lat = $meta['latitude'] ?? null;
+            $lng = $meta['longitude'] ?? null;
+            if (! is_numeric($lat) || ! is_numeric($lng)) {
+                return ['ok' => false, 'error' => 'La ubicación requiere latitude y longitude numéricos en metadata.'];
+            }
+        }
+
+        if ($message->type === MessageType::Contact) {
+            $name = $meta['contact_name'] ?? null;
+            $phone = $meta['contact_phone'] ?? null;
+            if (! $name || ! $phone) {
+                return ['ok' => false, 'error' => 'El contacto requiere contact_name y contact_phone en metadata.'];
+            }
+        }
+
+        return null;
+    }
+
+    private function maxMediaSizeFor(MessageType $type): ?int
+    {
+        return match ($type) {
+            MessageType::Image => 16 * 1024 * 1024,
+            MessageType::Video => 64 * 1024 * 1024,
+            MessageType::Audio => 16 * 1024 * 1024,
+            MessageType::File => 100 * 1024 * 1024,
+            MessageType::Sticker => 1 * 1024 * 1024,
+            default => 16 * 1024 * 1024,
+        };
+    }
+
+    /**
+     * @return array{number: string, mediatype: string, mimetype: string, caption?: string, media: string, fileName?: string}
+     */
+    private function buildMediaParams(Message $message, string $number): array
+    {
+        $message->load('attachment');
+        $media = $message->attachment;
+        $path = Storage::disk($media->disk)->path($media->path);
+
+        $params = [
+            'number' => $number,
+            'mediatype' => $this->mapMediaType($message->type),
+            'mimetype' => $this->resolveMimeType($media->mime_type, $message->type),
+            'media' => base64_encode(file_get_contents($path)),
+        ];
+
+        if (trim((string) $message->content) !== '') {
+            $params['caption'] = $message->content;
+        }
+
+        if ($message->type === MessageType::File && ! empty($media->name)) {
+            $params['fileName'] = $media->name;
+        }
+
+        return $params;
+    }
+
+    /**
+     * @return array{number: string, sticker: string}
+     */
+    private function buildStickerParams(Message $message, string $number): array
+    {
+        $message->load('attachment');
+        $path = Storage::disk($message->attachment->disk)->path($message->attachment->path);
+
+        return [
+            'number' => $number,
+            'sticker' => base64_encode(file_get_contents($path)),
+        ];
+    }
+
+    /**
+     * @return array{number: string, name: string, address?: string, latitude: float, longitude: float}
+     */
+    private function buildLocationParams(Message $message, string $number): array
+    {
+        $meta = $message->metadata ?? [];
+
+        return [
+            'number' => $number,
+            'name' => (string) ($meta['name'] ?? 'Ubicación'),
+            'address' => (string) ($meta['address'] ?? ''),
+            'latitude' => (float) $meta['latitude'],
+            'longitude' => (float) $meta['longitude'],
+        ];
+    }
+
+    /**
+     * @return array{number: string, fullName: string, phoneNumber: string, organization?: string}
+     */
+    private function buildContactParams(Message $message, string $number): array
+    {
+        $meta = $message->metadata ?? [];
+
+        return [
+            'number' => $number,
+            'fullName' => (string) $meta['contact_name'],
+            'phoneNumber' => (string) $meta['contact_phone'],
+            'organization' => (string) ($meta['organization'] ?? ''),
+        ];
+    }
+
+    private function resolveMimeType(?string $storedMime, MessageType $type): string
+    {
+        if ($storedMime && $storedMime !== '' && $storedMime !== 'application/octet-stream') {
+            return $storedMime;
+        }
+
+        return $this->guessMime($type);
     }
 
     public function processIncoming(array $payload, Channel $channel): ?Message

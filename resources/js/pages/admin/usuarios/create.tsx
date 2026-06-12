@@ -60,83 +60,80 @@ export default function UsuariosCreate({ roles }: PageProps) {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <User className="size-4" />
-                                        Avatar
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Imagen de perfil del usuario. Se mostrará en la navegación y junto a sus comentarios.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <AvatarPicker
-                                        value={data.avatar_media_id}
-                                        previewUrl={null}
-                                        name={data.name}
-                                        onChange={(id) => setData('avatar_media_id', id)}
-                                        error={errors.avatar_media_id}
-                                    />
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader>
                                     <CardTitle>Datos personales</CardTitle>
                                     <CardDescription>Información básica de contacto.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="name">Nombre completo</Label>
-                                        <Input
-                                            id="name"
-                                            value={data.name}
-                                            onChange={(e) => setData('name', e.target.value)}
-                                            placeholder="Ej: María Pérez"
-                                            required
-                                        />
-                                        {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-                                    </div>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_220px]">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="name">Nombre completo</Label>
+                                                <Input
+                                                    id="name"
+                                                    value={data.name}
+                                                    onChange={(e) => setData('name', e.target.value)}
+                                                    placeholder="Ej: María Pérez"
+                                                    required
+                                                />
+                                                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                                            </div>
 
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="email" className="flex items-center gap-1.5">
-                                            <Mail className="size-3.5" />
-                                            Email
-                                        </Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={data.email}
-                                            onChange={(e) => setData('email', e.target.value)}
-                                            placeholder="usuario@ejemplo.com"
-                                            required
-                                        />
-                                        {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                                    </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="email" className="flex items-center gap-1.5">
+                                                    <Mail className="size-3.5" />
+                                                    Email
+                                                </Label>
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    value={data.email}
+                                                    onChange={(e) => setData('email', e.target.value)}
+                                                    placeholder="usuario@ejemplo.com"
+                                                    required
+                                                />
+                                                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                                            </div>
 
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="phone" className="flex items-center gap-1.5">
-                                            <Phone className="size-3.5" />
-                                            Teléfono
-                                        </Label>
-                                        <Input
-                                            id="phone"
-                                            type="tel"
-                                            value={data.phone}
-                                            onChange={(e) => setData('phone', e.target.value)}
-                                            placeholder="+591 7XXXXXXX"
-                                        />
-                                        {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+                                            <div className="grid gap-2 md:col-span-2">
+                                                <Label htmlFor="phone" className="flex items-center gap-1.5">
+                                                    <Phone className="size-3.5" />
+                                                    Teléfono
+                                                </Label>
+                                                <Input
+                                                    id="phone"
+                                                    type="tel"
+                                                    value={data.phone}
+                                                    onChange={(e) => setData('phone', e.target.value)}
+                                                    placeholder="+591 7XXXXXXX"
+                                                />
+                                                {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col items-center gap-2 border-t pt-6 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+                                            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                <User className="size-3" />
+                                                Avatar
+                                            </p>
+                                            <AvatarPicker
+                                                value={data.avatar_media_id}
+                                                previewUrl={null}
+                                                name={data.name}
+                                                onChange={(id) => setData('avatar_media_id', id)}
+                                                error={errors.avatar_media_id}
+                                            />
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Credenciales</CardTitle>
-                                    <CardDescription>Contraseña para que el usuario pueda iniciar sesión.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Credenciales</CardTitle>
+                                        <CardDescription>Contraseña para que el usuario pueda iniciar sesión.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
                                         <div className="grid gap-2">
                                             <Label htmlFor="password">Contraseña</Label>
                                             <Input
@@ -158,41 +155,41 @@ export default function UsuariosCreate({ roles }: PageProps) {
                                                 required
                                             />
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Roles</CardTitle>
-                                    <CardDescription>Selecciona los roles que tendrá este usuario.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {roles.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">No hay roles disponibles.</p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {roles.map((role) => {
-                                                const checked = data.roles.includes(role.name);
-                                                return (
-                                                    <label
-                                                        key={role.id}
-                                                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${checked ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'}`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={() => toggleRole(role.name)}
-                                                        />
-                                                        {role.name}
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    {errors.roles && <p className="text-sm text-destructive">{errors.roles}</p>}
-                                </CardContent>
-                            </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Roles</CardTitle>
+                                        <CardDescription>Selecciona los roles que tendrá este usuario.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {roles.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No hay roles disponibles.</p>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {roles.map((role) => {
+                                                    const checked = data.roles.includes(role.name);
+                                                    return (
+                                                        <label
+                                                            key={role.id}
+                                                            className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${checked ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'}`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={() => toggleRole(role.name)}
+                                                            />
+                                                            {role.name}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                        {errors.roles && <p className="text-sm text-destructive">{errors.roles}</p>}
+                                    </CardContent>
+                                </Card>
+                            </div>
 
                             <div className="flex items-center gap-3">
                                 <Button type="submit" disabled={processing}>

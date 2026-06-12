@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Media;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\ChatBot\Models\Conversation;
@@ -24,6 +26,8 @@ class DashboardController extends Controller
                 'chats' => $this->chatsSection(),
                 'sales' => $this->salesSection($woo),
                 'users' => $this->usersSection(),
+                'media' => $this->mediaSection(),
+                'expiring_subscriptions' => $this->expiringSubscriptions($woo),
                 'recent_messages' => $this->recentMessages(),
             ];
         });
@@ -90,31 +94,7 @@ class DashboardController extends Controller
         $result = $woo->listOrders(page: 1, perPage: 5, search: '', status: '');
         $error = $result['error'] ?? null;
 
-        $recent = collect($result['data'] ?? [])->map(function (array $o): array {
-            $customerName = trim((string) ($o['customer_name'] ?? ''));
-            $customerEmail = (string) ($o['customer_email'] ?? '');
-            $customerPhone = preg_replace('/\D+/', '', (string) ($o['customer_phone'] ?? ''));
-
-            $user = null;
-            if ($customerPhone !== '') {
-                $user = User::with('avatar:id,disk,path')->where('phone', 'like', "%{$customerPhone}")->first();
-            }
-
-            $display = $user?->name ?? ($customerName !== '' ? $customerName : '');
-
-            return [
-                'id' => (int) ($o['id'] ?? 0),
-                'status' => (string) ($o['status'] ?? ''),
-                'total' => (string) ($o['total'] ?? '0'),
-                'date_created' => (string) ($o['date_created'] ?? ''),
-                'customer_name' => $display,
-                'customer_email' => $customerEmail,
-                'customer_phone' => $customerPhone,
-                'user_id' => $user?->id,
-                'avatar_url' => $user?->avatar?->url(),
-                'currency' => strtoupper((string) ($o['currency'] ?? '')),
-            ];
-        })->values()->all();
+        $recent = collect($result['data'] ?? [])->map(fn (array $o): array => $this->enrichOrderWithUser($o))->values()->all();
 
         $totalResult = $woo->listOrders(page: 1, perPage: 1, search: '', status: '');
         $totalAll = is_array($totalResult['total'] ?? null) ? 0 : (int) ($totalResult['total'] ?? 0);
@@ -254,5 +234,131 @@ class DashboardController extends Controller
             'contact' => '👤 Contacto',
             default => '—',
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function enrichOrderWithUser(array $o): array
+    {
+        $customerName = trim((string) ($o['customer_name'] ?? ''));
+        $customerEmail = (string) ($o['customer_email'] ?? '');
+        $customerPhone = preg_replace('/\D+/', '', (string) ($o['customer_phone'] ?? ''));
+
+        $user = null;
+        if ($customerPhone !== '') {
+            $user = User::with('avatar:id,disk,path')->where('phone', 'like', "%{$customerPhone}")->first();
+        }
+
+        return [
+            'id' => (int) ($o['id'] ?? 0),
+            'status' => (string) ($o['status'] ?? ''),
+            'total' => (string) ($o['total'] ?? '0'),
+            'date_created' => (string) ($o['date_created'] ?? ''),
+            'customer_name' => $user?->name ?? ($customerName !== '' ? $customerName : ''),
+            'customer_email' => $customerEmail,
+            'customer_phone' => $customerPhone,
+            'user_id' => $user?->id,
+            'avatar_url' => $user?->avatar?->url(),
+            'currency' => strtoupper((string) ($o['currency'] ?? '')),
+        ];
+    }
+
+    /**
+     * @return array{metrics: array<string, int>, by_mime: array<string, int>, recent: array<int, array<string, mixed>>}
+     */
+    private function mediaSection(): array
+    {
+        $today = Carbon::today();
+
+        $total = (int) Media::count();
+        $todayCount = (int) Media::whereDate('created_at', $today)->count();
+
+        $byMime = Media::query()
+            ->whereNotNull('mime_type')
+            ->selectRaw('mime_type, COUNT(*) as c')
+            ->groupBy('mime_type')
+            ->orderByDesc('c')
+            ->limit(5)
+            ->pluck('c', 'mime_type')
+            ->map(fn ($v): int => (int) $v)
+            ->toArray();
+
+        $totalSize = (int) (Media::query()->sum('size') ?? 0);
+
+        $recent = Media::query()
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn (Media $m): array => [
+                'id' => $m->id,
+                'name' => (string) ($m->name ?? $m->title ?? '—'),
+                'mime_type' => (string) ($m->mime_type ?? ''),
+                'size' => (int) ($m->size ?? 0),
+                'url' => $m->url(),
+                'created_at' => $m->created_at?->toIso8601String(),
+                'created_at_diff' => $m->created_at?->diffForHumans(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'metrics' => [
+                'total' => $total,
+                'today' => $todayCount,
+                'size_bytes' => $totalSize,
+            ],
+            'by_mime' => $byMime,
+            'recent' => $recent,
+        ];
+    }
+
+    /**
+     * Lista suscripciones (_is_pos_subscription=true) cuyo _subscription_end_date es hoy.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function expiringSubscriptions(WooCommerceService $woo): array
+    {
+        try {
+            $result = $woo->listSubscriptions();
+            $today = Carbon::today()->toDateString();
+            $items = [];
+
+            foreach (($result['data'] ?? []) as $raw) {
+                $o = (array) $raw;
+                $endDate = null;
+                $title = null;
+                foreach ((array) ($o['meta_data'] ?? []) as $m) {
+                    $m = (array) $m;
+                    $key = (string) ($m['key'] ?? '');
+                    if ($key === '_subscription_end_date') {
+                        $endDate = (string) ($m['value'] ?? '');
+                    } elseif ($key === '_subscription_title') {
+                        $title = (string) ($m['value'] ?? '');
+                    }
+                }
+                if ($endDate === null || substr($endDate, 0, 10) !== $today) {
+                    continue;
+                }
+
+                $order = $woo->getOrder((int) ($o['id'] ?? 0));
+                if (! empty($order['error']) || empty($order['data'])) {
+                    continue;
+                }
+                $enriched = $this->enrichOrderWithUser((array) $order['data']);
+                $enriched['title'] = $title;
+                $enriched['end_date'] = $endDate;
+                $items[] = $enriched;
+            }
+
+            usort($items, fn (array $a, array $b): int => strcmp((string) $a['end_date'], (string) $b['end_date']));
+
+            return array_slice($items, 0, 10);
+        } catch (\Throwable $e) {
+            Log::warning('DashboardController expiringSubscriptions failed: '.$e->getMessage());
+
+            return [];
+        }
     }
 }

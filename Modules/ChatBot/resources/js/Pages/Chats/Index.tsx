@@ -343,27 +343,44 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
             formData.append('file', file);
         }
 
+        function restoreInput(): void {
+            setDraft(content);
+            setAttachment(file);
+            if (fileInputRef.current && file) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInputRef.current.files = dt.files;
+            }
+        }
+
         fetch(`/admin/chats/${activeId}/reply`, {
             method: 'POST',
             headers: csrfHeaders(),
             credentials: 'same-origin',
             body: formData,
         })
-            .then((r) => (r.ok ? r.json() : r.json().then((err) => Promise.reject(err)).catch(() => Promise.reject(r))))
+            .then(async (r) => {
+                const data = await r.json().catch(() => ({}));
+                if (r.ok && data?.ok) {
+                    return data;
+                }
+                const err = new Error(data?.error ?? `HTTP ${r.status}`);
+                (err as Error & { payload?: unknown }).payload = data;
+                throw err;
+            })
             .then((data) => {
                 if (data?.conversation) {
                     setActiveConv(data.conversation);
                     router.reload({ only: ['conversations'] });
                 }
             })
-            .catch(() => {
-                setDraft(content);
-                setAttachment(file);
-                if (fileInputRef.current && file) {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    fileInputRef.current.files = dt.files;
-                }
+            .catch((err: Error & { payload?: { error?: string; error_detail?: unknown } }) => {
+                restoreInput();
+                const errorMsg = err.payload?.error ?? err.message ?? 'No se pudo enviar el mensaje.';
+                toast.error('No se envió a WhatsApp', {
+                    description: errorMsg,
+                    duration: 8000,
+                });
             })
             .finally(() => {
                 setSending(false);

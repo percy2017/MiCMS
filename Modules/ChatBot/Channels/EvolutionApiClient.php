@@ -52,6 +52,33 @@ class EvolutionApiClient
     }
 
     /**
+     * @param  array{number: string, sticker: string}  $params
+     */
+    public function sendSticker(array $params): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/message/sendSticker/{$this->instanceName}", $params);
+    }
+
+    /**
+     * @param  array{number: string, name: string, address?: string, latitude: float, longitude: float}  $params
+     */
+    public function sendLocation(array $params): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/message/sendLocation/{$this->instanceName}", $params);
+    }
+
+    /**
+     * @param  array{number: string, fullName: string, phoneNumber: string, organization?: string}  $params
+     */
+    public function sendContact(array $params): Response
+    {
+        return Http::withHeaders($this->headers())
+            ->post("{$this->serverUrl}/message/sendContact/{$this->instanceName}", $params);
+    }
+
+    /**
      * @param  array{url: string, webhook_by_events?: bool, webhook_base64?: bool, webhook_events?: list<string>}  $params
      */
     public function setWebhook(array $params): Response

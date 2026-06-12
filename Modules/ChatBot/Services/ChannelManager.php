@@ -25,27 +25,29 @@ class ChannelManager
         return $driver;
     }
 
-    public function dispatch(Conversation $conversation, Message $message): void
+    public function dispatch(Conversation $conversation, Message $message): array
     {
         if ($message->role !== Message::ROLE_ADMIN) {
-            return;
+            return ['ok' => false, 'error' => 'Message is not an admin message.'];
         }
 
         $result = $this->driver($conversation->channel)->sendMessage($conversation, $message);
 
-        if (! empty($result['provider_id'])) {
+        if (! empty($result['provider_id']) && $message->exists) {
             $message->update([
                 'external_id' => $result['provider_id'],
                 'delivered_at' => now(),
             ]);
         }
 
-        if (! ($result['ok'] ?? false)) {
+        if (! ($result['ok'] ?? false) && $message->exists) {
             $message->update([
                 'metadata' => array_merge($message->metadata ?? [], [
                     'last_error' => $result['error'] ?? 'unknown',
                 ]),
             ]);
         }
+
+        return $result;
     }
 }

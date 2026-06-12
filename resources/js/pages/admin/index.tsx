@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Inbox, MessageCircle, ShoppingCart, User as UserIcon, Users, ExternalLink, Search } from 'lucide-react';
+import { Inbox, MessageCircle, ShoppingCart, User as UserIcon, Users, ExternalLink, Search, CalendarClock, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { admin } from '@/routes';
@@ -59,10 +59,41 @@ type RecentMessage = {
     preview: string;
 };
 
+type ExpiringSub = {
+    id: number;
+    title: string | null;
+    end_date: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    user_id: number | null;
+    avatar_url: string | null;
+    total: string;
+    currency: string;
+};
+
+type MediaItem = {
+    id: number;
+    name: string;
+    mime_type: string;
+    size: number;
+    url: string;
+    created_at: string | null;
+    created_at_diff: string | null;
+};
+
+type MediaSection = {
+    metrics: { total: number; today: number; size_bytes: number };
+    by_mime: Record<string, number>;
+    recent: MediaItem[];
+};
+
 type Props = {
     chats: { metrics: { open: number; unread: number; today: number }; recent: Chat[] };
     sales: { currency: Currency; metrics: { total: number; this_month: number; this_month_sum: number; today: number; today_sum: number; subscriptions: number }; recent: Order[]; error: string | null };
     users: { metrics: { total: number; today: number; countries: number }; by_country: Record<string, number>; recent: RecentUser[] };
+    media: MediaSection;
+    expiring_subscriptions: ExpiringSub[];
     recent_messages: RecentMessage[];
 };
 
@@ -142,12 +173,12 @@ function EmptyState({ icon: Icon, message }: { icon: React.ComponentType<{ class
     );
 }
 
-export default function AdminDashboard({ chats, sales, users, recent_messages }: Props) {
+export default function AdminDashboard({ chats, sales, users, media, expiring_subscriptions, recent_messages }: Props) {
     return (
         <>
             <Head title="Admin" />
             <div className="flex h-full flex-1 flex-col gap-6 overflow-y-auto rounded-xl p-4">
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                         label="Chats"
                         value={chats.metrics.open}
@@ -169,45 +200,20 @@ export default function AdminDashboard({ chats, sales, users, recent_messages }:
                         icon={Users}
                         tone="info"
                     />
+                    <MetricCard
+                        label="Medios"
+                        value={media.metrics.total}
+                        sub={(() => {
+                            const top = Object.entries(media.by_mime)[0];
+                            const topStr = top ? `${top[0]} (${top[1]})` : 'sin mime_type';
+                            return `${media.metrics.today} hoy · top: ${topStr} · ${(media.metrics.size_bytes / (1024 * 1024)).toFixed(1)} MB`;
+                        })()}
+                        icon={ImageIcon}
+                        tone="default"
+                    />
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                        <SectionHeader title="Chats recientes" href="/admin/chats" icon={MessageCircle} />
-                        {chats.recent.length === 0 ? (
-                            <EmptyState icon={Inbox} message="Sin conversaciones" />
-                        ) : (
-                            <ul className="divide-y">
-                                {chats.recent.map((c) => (
-                                    <li key={c.id} className="flex items-center gap-3 py-2.5">
-                                        <Avatar url={c.avatar_url} name={c.name} />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <Link href={`/admin/chats/${c.id}`} className="truncate text-sm font-medium hover:underline">
-                                                    {c.name}
-                                                </Link>
-                                                {c.unread_by_admin > 0 && (
-                                                    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
-                                                        {c.unread_by_admin}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="truncate text-xs text-muted-foreground">
-                                                {c.last_message_preview ?? '—'}
-                                            </p>
-                                        </div>
-                                        <div className="shrink-0 text-right">
-                                            {c.channel_name && (
-                                                <p className="text-[10px] text-muted-foreground">{c.channel_name}</p>
-                                            )}
-                                            <p className="text-[10px] text-muted-foreground">{c.last_message_at_diff}</p>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
                     <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
                         <SectionHeader title="Ventas recientes" href="/admin/pos-woo/pedidos" icon={ShoppingCart} />
                         {sales.recent.length === 0 ? (
@@ -245,14 +251,49 @@ export default function AdminDashboard({ chats, sales, users, recent_messages }:
                             <p className="mt-2 text-xs text-destructive">No se pudo cargar el módulo de ventas.</p>
                         )}
                     </div>
+
+                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                        <SectionHeader title="Suscripciones que vencen hoy" href="/admin/pos-woo/calendario" icon={CalendarClock} />
+                        {expiring_subscriptions.length === 0 ? (
+                            <EmptyState icon={CalendarClock} message="Ninguna suscripción vence hoy" />
+                        ) : (
+                            <ul className="divide-y">
+                                {expiring_subscriptions.map((s) => (
+                                    <li key={s.id} className="flex items-center gap-3 py-2.5">
+                                        <Avatar url={s.avatar_url} name={s.customer_name || s.customer_email || s.customer_phone || `#${s.id}`} />
+                                        <div className="min-w-0 flex-1">
+                                            {s.user_id ? (
+                                                <Link href={`/admin/usuarios/${s.user_id}/editar`} className="text-sm font-medium hover:underline">
+                                                    {s.customer_name || s.customer_email || s.customer_phone}
+                                                </Link>
+                                            ) : (
+                                                <Link href={`/admin/pos-woo/pedidos/${s.id}`} className="text-sm font-medium hover:underline">
+                                                    {s.customer_name || s.customer_email || s.customer_phone}
+                                                </Link>
+                                            )}
+                                            <p className="truncate text-[10px] text-muted-foreground">
+                                                {s.title || 'Suscripción'}
+                                                {s.customer_phone ? ` · ${s.customer_phone}` : ''}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                Vence hoy
+                                            </span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
 
-                <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                    <SectionHeader title="Usuarios recientes" href="/admin/usuarios" icon={UserIcon} />
-                    {users.recent.length === 0 ? (
-                        <EmptyState icon={Users} message="Sin usuarios" />
-                    ) : (
-                        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                        <SectionHeader title="Usuarios recientes" href="/admin/usuarios" icon={UserIcon} />
+                        {users.recent.length === 0 ? (
+                            <EmptyState icon={Users} message="Sin usuarios" />
+                        ) : (
                             <ul className="divide-y">
                                 {users.recent.map((u) => (
                                     <li key={u.id} className="flex items-center gap-3 py-2.5">
@@ -274,35 +315,72 @@ export default function AdminDashboard({ chats, sales, users, recent_messages }:
                                     </li>
                                 ))}
                             </ul>
-                            <div>
-                                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Por país</h3>
-                                {Object.keys(users.by_country).length === 0 ? (
-                                    <p className="text-xs text-muted-foreground">Sin datos de país.</p>
-                                ) : (
-                                    <ul className="space-y-1.5">
-                                        {Object.entries(users.by_country).map(([code, count]) => {
-                                            const total = Object.values(users.by_country).reduce((s, v) => s + v, 0);
-                                            const pct = total > 0 ? (count / total) * 100 : 0;
-                                            return (
-                                                <li key={code} className="text-xs">
-                                                    <div className="mb-1 flex items-center justify-between">
-                                                        <span>
-                                                            {countryFlag(code)} {countryName(code)} <span className="text-muted-foreground">({code})</span>
-                                                        </span>
-                                                        <span className="tabular-nums font-medium">{count}</span>
-                                                    </div>
-                                                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                                                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
+
+                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                        <SectionHeader title="Chats recientes" href="/admin/chats" icon={MessageCircle} />
+                        {chats.recent.length === 0 ? (
+                            <EmptyState icon={Inbox} message="Sin conversaciones" />
+                        ) : (
+                            <ul className="divide-y">
+                                {chats.recent.map((c) => (
+                                    <li key={c.id} className="flex items-center gap-3 py-2.5">
+                                        <Avatar url={c.avatar_url} name={c.name} />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <Link href={`/admin/chats/${c.id}`} className="truncate text-sm font-medium hover:underline">
+                                                    {c.name}
+                                                </Link>
+                                                {c.unread_by_admin > 0 && (
+                                                    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                                                        {c.unread_by_admin}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {c.last_message_preview ?? '—'}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            {c.channel_name && (
+                                                <p className="text-[10px] text-muted-foreground">{c.channel_name}</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground">{c.last_message_at_diff}</p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
+
+                {Object.keys(users.by_country).length > 0 && (
+                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                            <Users className="size-4" /> Usuarios por país
+                        </h3>
+                        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {Object.entries(users.by_country).map(([code, count]) => {
+                                const total = Object.values(users.by_country).reduce((s, v) => s + v, 0);
+                                const pct = total > 0 ? (count / total) * 100 : 0;
+                                return (
+                                    <li key={code} className="text-xs">
+                                        <div className="mb-1 flex items-center justify-between">
+                                            <span>
+                                                {countryFlag(code)} {countryName(code)} <span className="text-muted-foreground">({code})</span>
+                                            </span>
+                                            <span className="tabular-nums font-medium">{count}</span>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                                            <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
 
                 <div className="relative overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                     <div className="flex items-center justify-between border-b px-4 py-3">

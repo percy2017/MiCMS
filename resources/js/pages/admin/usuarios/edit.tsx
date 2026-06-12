@@ -264,13 +264,13 @@ export default function UsuariosEdit({ user, roles }: PageProps) {
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Credenciales</CardTitle>
-                                    <CardDescription>Deja los campos vacíos para mantener la contraseña actual.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Credenciales</CardTitle>
+                                        <CardDescription>Deja los campos vacíos para mantener la contraseña actual.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
                                         <div className="grid gap-2">
                                             <Label htmlFor="password">Nueva contraseña</Label>
                                             <Input
@@ -291,41 +291,41 @@ export default function UsuariosEdit({ user, roles }: PageProps) {
                                                 onChange={(e) => setData('password_confirmation', e.target.value)}
                                             />
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Roles</CardTitle>
-                                    <CardDescription>Roles asignados al usuario.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {roles.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">No hay roles disponibles.</p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {roles.map((role) => {
-                                                const checked = data.roles.includes(role.name);
-                                                return (
-                                                    <label
-                                                        key={role.id}
-                                                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${checked ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'}`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={() => toggleRole(role.name)}
-                                                        />
-                                                        {role.name}
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    {errors.roles && <p className="text-sm text-destructive">{errors.roles}</p>}
-                                </CardContent>
-                            </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Roles</CardTitle>
+                                        <CardDescription>Roles asignados al usuario.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {roles.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No hay roles disponibles.</p>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {roles.map((role) => {
+                                                    const checked = data.roles.includes(role.name);
+                                                    return (
+                                                        <label
+                                                            key={role.id}
+                                                            className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${checked ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'}`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={() => toggleRole(role.name)}
+                                                            />
+                                                            {role.name}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                        {errors.roles && <p className="text-sm text-destructive">{errors.roles}</p>}
+                                    </CardContent>
+                                </Card>
+                            </div>
 
                             <div className="flex items-center gap-3">
                                 <Button type="submit" disabled={processing}>

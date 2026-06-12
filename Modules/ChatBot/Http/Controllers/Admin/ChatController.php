@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\ChatBot\Http\Requests\ReplyMessageRequest;
@@ -238,28 +239,62 @@ class ChatController extends Controller
     {
         abort_unless($request->user()?->can('reply chatbot'), 403);
 
-        $attachmentMediaId = $request->integer('attachment_media_id') ?: null;
+        $content = (string) ($request->input('content') ?? '');
+        $hasFile = $request->hasFile('file');
+        $providedMediaId = $request->integer('attachment_media_id') ?: null;
 
-        if ($request->hasFile('file')) {
-            $attachmentMediaId = $this->storeReplyFile($request->file('file'), $request->user()->id);
-        }
-
-        $content = $request->input('content') ?? '';
-
-        if (! $attachmentMediaId && trim((string) $content) === '') {
+        if (! $hasFile && ! $providedMediaId && trim($content) === '') {
             return response()->json([
                 'ok' => false,
                 'error' => 'Debes escribir un mensaje o adjuntar un archivo.',
             ], 422);
         }
 
-        $message = $this->service->sendAdminMessage(
+        $mediaRecord = null;
+
+        if ($hasFile) {
+            $mediaRecord = $this->storeReplyFile($request->file('file'), $request->user()->id);
+            $attachmentMediaId = $mediaRecord->id;
+        } else {
+            $attachmentMediaId = $providedMediaId;
+        }
+
+        $message = $this->service->buildAdminMessage(
             $conversation,
-            (string) $content,
+            $content,
             $attachmentMediaId,
         );
 
-        $this->channelManager->dispatch($conversation, $message);
+        try {
+            $dispatchResult = $this->channelManager->dispatch($conversation, $message);
+        } catch (\Throwable $e) {
+            $this->cleanupOrphanMedia($mediaRecord, $attachmentMediaId);
+
+            Log::error('Admin reply dispatch exception', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'error' => 'Error al enviar a WhatsApp: '.$e->getMessage(),
+            ], 502);
+        }
+
+        if (! ($dispatchResult['ok'] ?? false)) {
+            $this->cleanupOrphanMedia($mediaRecord, $attachmentMediaId);
+
+            $errorMessage = $this->extractProviderError($dispatchResult['error'] ?? null)
+                ?? 'No se pudo enviar el mensaje a WhatsApp.';
+
+            return response()->json([
+                'ok' => false,
+                'error' => $errorMessage,
+                'error_detail' => $dispatchResult['raw'] ?? null,
+            ], 502);
+        }
+
+        $this->service->persistAdminMessage($message, $dispatchResult['provider_id'] ?? null);
 
         $conversation->update([
             'assigned_to' => $conversation->assigned_to ?? $request->user()->id,
@@ -310,6 +345,50 @@ class ChatController extends Controller
                 ])->values()->all(),
             ],
         ]);
+    }
+
+    private function cleanupOrphanMedia(?Media $mediaRecord, ?int $attachmentMediaId): void
+    {
+        if (! $mediaRecord) {
+            return;
+        }
+
+        try {
+            if (! empty($mediaRecord->path) && $mediaRecord->disk) {
+                Storage::disk($mediaRecord->disk)->delete($mediaRecord->path);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to delete orphan media file', [
+                'media_id' => $mediaRecord->id,
+                'path' => $mediaRecord->path,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $mediaRecord->delete();
+    }
+
+    private function extractProviderError(?string $rawError): ?string
+    {
+        if (! $rawError) {
+            return null;
+        }
+
+        $decoded = json_decode($rawError, true);
+        if (! is_array($decoded)) {
+            return $rawError;
+        }
+
+        $message = $decoded['response']['message'] ?? $decoded['message'] ?? $decoded['error'] ?? null;
+        if (is_array($message)) {
+            $message = implode(' ', $message);
+        }
+
+        if (is_string($message) && $message !== '') {
+            return $decoded['error'].': '.$message;
+        }
+
+        return $rawError;
     }
 
     private function storeReplyFile(UploadedFile $file, int $userId): int

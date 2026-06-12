@@ -31,9 +31,13 @@ class ChatBotMessageService
         return $message;
     }
 
-    public function sendAdminMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
+    /**
+     * Construye un Message admin en memoria (NO persiste).
+     * Usar antes de enviar a WhatsApp; si el envío falla, descartar el modelo.
+     */
+    public function buildAdminMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
     {
-        $message = Message::create([
+        $message = new Message([
             'conversation_id' => $conversation->id,
             'role' => Message::ROLE_ADMIN,
             'type' => $this->resolveTypeFromMedia($attachmentMediaId, $content),
@@ -41,7 +45,25 @@ class ChatBotMessageService
             'attachment_media_id' => $attachmentMediaId,
         ]);
 
-        $conversation->update([
+        return $message;
+    }
+
+    /**
+     * Persiste un Message admin ya enviado exitosamente a WhatsApp.
+     * Marca como entregado si se tiene provider_id, y broadcastea.
+     */
+    public function persistAdminMessage(Message $message, ?string $providerId = null): Message
+    {
+        $message->save();
+
+        if ($providerId) {
+            $message->update([
+                'external_id' => $providerId,
+                'delivered_at' => now(),
+            ]);
+        }
+
+        $message->conversation->update([
             'last_message_at' => $message->created_at,
             'unread_by_admin' => 0,
         ]);
@@ -49,6 +71,13 @@ class ChatBotMessageService
         ChatBotMessageReceived::dispatch($message);
 
         return $message;
+    }
+
+    public function sendAdminMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
+    {
+        $message = $this->buildAdminMessage($conversation, $content, $attachmentMediaId);
+
+        return $this->persistAdminMessage($message);
     }
 
     private function resolveTypeFromMedia(?int $mediaId, string $content): MessageType
