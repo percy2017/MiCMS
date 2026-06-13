@@ -86,8 +86,8 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 ### Search Syntax
 
 1. Use words for auto-stemmed AND logic: `rate limit` matches both "rate" AND "limit".
-2. Use `"quoted phrases"` for exact position matching: `"infinite scroll"` requires adjacent words in order.
-3. Combine words and phrases for mixed queries: `middleware "rate limit"`.
+2. Use `"quoted phrases"` for exact position matching: `"infinite scroll" requires adjacent words in order`.
+3. Combine words and phrases for mixed queries: `rate limit` `middleware`.
 4. Use multiple queries for OR logic: `queries=["authentication", "middleware"]`.
 
 ## Artisan
@@ -149,6 +149,24 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - `router.cancel()` replaced by `router.cancelAll()`.
 - The `future` configuration namespace has been removed - all v2 future options are now always enabled.
 
+# Inertia v3 — Layout as Wrapper (DYNAMIC BREADCRUMBS)
+
+The `Page.layout` can be a **wrapper component** (function returning JSX) for pages that need **dynamic breadcrumbs** based on page props:
+
+```tsx
+// resources/js/Pages/Some/Edit.tsx
+function SomeEditLayout({ children }: { children: React.ReactNode }) {
+    const { props } = usePage<{ item: SomeItem }>();
+    return <AppLayout breadcrumbs={buildBreadcrumbs(props.item)}>{children}</AppLayout>;
+}
+
+SomeEdit.layout = (page: React.ReactNode): React.ReactElement => <SomeEditLayout>{page}</SomeEditLayout>;
+```
+
+**DO NOT** use `(reply) => ({breadcrumbs: ...})` — Inertia calls `layout` with `(page: ReactNode)`, not with your custom prop. That pattern produces `/undefined` in breadcrumbs.
+
+The simple object pattern `Page.layout = { breadcrumbs: [...] }` is fine for STATIC breadcrumbs (no page data needed).
+
 === laravel/core rules ===
 
 # Do Things the Laravel Way
@@ -171,7 +189,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Testing
 
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
+- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up a model.
 - Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
 - When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
 
@@ -235,9 +253,9 @@ This module implements a **Channel Driver pattern** (Strategy + Registry) for pr
 | `Modules/ChatBot/Channels/Evolution/EvolutionUserLinker.php` | Auto-creates users from phone/jid (used in BOTH `fromMe` branches) |
 | `Modules/ChatBot/Channels/Evolution/EvolutionApiClient.php` | HTTP client wrapper for Evolution REST API |
 | `app/Jobs/FetchLinkPreviewsJob.php` | Async job: scrapes URLs via Node+Chromium, saves to `metadata.media_preview` |
-| `app/Services/LinkPreviewService.php` | Fetches OpenGraph metadata, `SKIP_DOMAINS` list, `SCRIPT_TIMEOUT=180s` |
+| `app/Services/LinkPreviewService.php` | Fetches OpenGraph metadata, `SKIP_DOMAINS` list, `SCRIPT_TIMEOUT=180s`, **scheme-less URL detection** |
 | `Modules/ChatBot/Http/Controllers/Api/Evolution/EvolutionWebhookController.php` | Receives webhook POSTs |
-| `Modules/ChatBot/Http/Controllers/Admin/ChatController.php` | `index/show/reply/read/destroy/update`. `attachmentData()` resolves `attachment_url` (priority: `media_base64` > `Media` row > `media_url` external) |
+| `Modules/ChatBot/Http/Controllers/Admin/ChatController.php` | `index/show/reply/read/destroy/update`. `attachmentData()` resolves `attachment_url` (priority: `media_base64` > `Media` row > `media_url` external). `dispatchMissingLinkPreviews()` uses `LinkPreviewService::extractUrls()`. |
 | `Modules/ChatBot/Events/ChatBotMessageReceived.php` | ShouldBroadcastNow event to `private-chatbot.admin` |
 | `Modules/ChatBot/Events/LinkPreviewsReady.php` | Broadcasts when link preview is ready |
 | `Modules/ChatBot/Models/Message.php` | Eloquent model with `metadata` JSON column (UNIFIED for all media data) |
@@ -394,13 +412,18 @@ enum MessageType: string {
     3. `metadata.media_url` → URL externa (fallback, may be expired)
     4. `null` if nothing
 20. **The `MessageBubble.tsx` hasMedia check** — `hasMedia = Boolean(m.attachment_url) || Boolean(m.metadata?.media_url)`. The fallback to `media_url` ensures stickers/images render even if the enricher failed.
+21. **Scheme-less URLs (e.g. `123.bo/mtv4`, `google.com`, `www.ejemplo.com`) were IGNORED** by the old `https?://...` regex in `LinkPreviewService::extractUrls()` and `ChatController::dispatchMissingLinkPreviews()`. **Fix:** both now use an extended regex that detects domain.tld patterns (with TLD whitelist) and normalizes them to `https://`. Email addresses are filtered out. `message-body.tsx` `autoLinkify()` was also updated to render them as clickable links. **See `app/Services/LinkPreviewService.php::extractUrls()` and `resources/js/components/message-body.tsx` for the canonical implementation.**
+22. **Short link services (`bit.ly`, `123.bo`, etc.) trigger Chromium downloads** — `acceptDownloads: false` + `page.on('download')` handler + `page.on('response')` content-type check bail with `error: "download_blocked"` instead of cryptic "Download is starting" Playwright error. The job still persists the error in `metadata.media_preview.error` for `php artisan link-previews:refetch-failed` to retry.
+23. **`page.goto` `waitUntil: 'load'` HANGS on SPAs** — Use `'commit'` first, then `waitForLoadState('domcontentloaded')` with short timeout. `'load'` and `'networkidle'` can hang 30s on TikTok/Instagram.
 
 ## Testing Notes
 
-- 366 tests passing (Pest 4)
+- **402 tests passing** (Pest 4) — was 366 in 2026-06, +36 new tests in 2026-06-13 batch
 - All SQLite-compatible (no raw `JSON_EXTRACT` in queries — use PHP `filter()` on collections)
 - Test the webhook flow with `EvolutionChannelUserLinkingTest`, `EvolutionChannelMessageTypesTest`, `EvolutionMediaEnricherTest`
 - Test link preview with `RefetchLinkPreviewsTest` (uses `metadata.media_preview`)
+- Test web widget with `WidgetConfigTest` (24 tests covering CRUD, public_key, allowed_domain, wildcards, webhooks)
+- Test quick replies with `QuickReplyTest` (16 tests covering CRUD, shortcut uniqueness, regex, slash command API)
 - Use `Http::fake()` to mock Evolution API calls
 - For media enrichment tests, provide base64 of small test images/audios
 
@@ -464,6 +487,37 @@ foreach ($msgs as $row) {
 echo "Total limpiados: $count" . PHP_EOL;
 ```
 
+## Re-fetching Link Previews for Old Messages
+
+```bash
+# Re-fetch ALL text messages that have URLs in content (or no media_kind yet)
+php artisan tinker --execute '
+use Modules\ChatBot\Models\Message;
+use App\Jobs\FetchLinkPreviewsJob;
+use App\Services\LinkPreviewService;
+
+$svc = app(LinkPreviewService::class);
+$ids = [];
+Message::where("type", "text")
+  ->whereNotNull("content")
+  ->where("content", "!=", "")
+  ->get()
+  ->filter(fn (Message $m) => ($m->metadata["media_kind"] ?? null) !== "link")
+  ->each(function (Message $m) use ($svc, &$ids) {
+    if (count($svc->extractUrls($m->content)) > 0) {
+      $ids[] = $m->id;
+    } else {
+      $m->forceFill(["metadata" => ["media_kind" => "text"] + ($m->metadata ?? [])])->save();
+    }
+  });
+if ($ids) FetchLinkPreviewsJob::dispatch($ids);
+echo "Dispatched: " . count($ids) . PHP_EOL;
+'
+
+# Re-fetch only previously FAILED previews (error is set)
+php artisan link-previews:refetch-failed
+```
+
 ## E2E Smoke Test (verified working in production as of 2026-06-13)
 
 ```bash
@@ -482,5 +536,354 @@ All steps verified working. Sticker flow:
 - Also persists `media_base64` in metadata as fallback
 - Broadcast event sent (WITHOUT `media_base64` to avoid payload size)
 - Frontend receives event → renders sticker immediately
+
+=== chatbot-web-widget rules ===
+
+# ChatBot Module - Web Widget (Multi-Inbox)
+
+Embeddable chat widget for third-party sites. **Multi-inbox**: one channel per domain, each with its own public_key, webhook_token, and embed snippet.
+
+## Key Concepts
+
+- Each `Channel` with `type='web_widget'` is an **independent inbox** for a single domain
+- `allowed_domain` is **required** (no widget can be created without one)
+- `public_key` (16 hex chars) is auto-generated on create; used as embed script key
+- `webhook_token` (32 hex chars) is auto-generated on create; validated with `hash_equals()` constant-time compare
+- Domain validation is **strict** (case-insensitive, strips `https://`, `/path`, etc.)
+- **Wildcards supported**: `*.mitienda.com` matches `shop.mitienda.com` but not `mitienda.com`
+- Embed JS is generated server-side at `/embed/widget/{public_key}.js` with config inlined
+
+## Inbound Webhook Flow (Super Simple)
+
+1. **Script loads** in third-party site via `<script src="https://hostbol.lat/embed/widget/{key}.js" data-channel="{key}" async></script>`
+2. **Browser fetches the script** → server returns JS inline (NOT a static file) with `CFG = {key, name, title, greeting, position, show_typing, webhook_url, ...}` injected
+3. **Origin check** — server validates `Origin`/`Referer` header against `allowed_domain`. If `allowed_domain='mitienda.com'` and origin is `https://evil.com` → returns `// domain_not_allowed` (empty script). **No 4xx**, to avoid breaking the page.
+4. **Script renders** floating button + panel with `<form>` (name + email + message)
+5. **Visitor submits** → `POST /api/webhooks/widget/{channel}/{token}` with `{visitor: {name, email, phone}, message: {content, attachment_media_id}}`
+6. **Webhook validates**:
+   - `Channel::type === 'web_widget'`
+   - `hash_equals($channel->webhook_token, $token)` (constant-time)
+   - `Channel::enabled === true`
+   - `Origin` matches `allowed_domain`
+7. **Backend creates/finds** `User` (by email, assigns role `user`), creates/loads `Conversation` (by `channel_id + user_id`), creates `Message` (role=user)
+8. **Broadcasts** `ChatBotMessageReceived` event → admin `/admin/chats` updates in real time
+
+## Routes
+
+```php
+// Admin (auth + verified)
+GET    /admin/canales/web-widget              → chatBot.admin.widget (list)
+GET    /admin/canales/web-widget/nuevo        → chatBot.admin.widget.create
+POST   /admin/canales/web-widget              → chatBot.admin.widget.store
+GET    /admin/canales/web-widget/{channel}     → chatBot.admin.widget.edit
+PATCH  /admin/canales/web-widget/{channel}     → chatBot.admin.widget.update
+DELETE /admin/canales/web-widget/{channel}     → chatBot.admin.widget.destroy
+
+// Public
+ANY    /api/webhooks/widget/{channel}/{token} → webhooks.widget (webhook receiver)
+GET    /embed/widget/{key}.js                 → embed.widget (serves inline JS)
+```
+
+## Database Schema (channels table additions)
+
+Migration: `2026_06_13_042205_migrate_web_widget_to_multi_inbox` + `2026_06_13_042943_simplify_web_widget_to_single_domain`
+
+```php
+// channels (added columns for web_widget)
+$table->string('allowed_domain')->nullable();   // required for web_widget (single domain)
+$table->string('public_key', 32)->nullable()->unique();  // 16 hex chars, auto-generated
+$table->string('webhook_token', 32)->nullable()->unique(); // 32 hex chars, auto-generated
+```
+
+## Domain Normalization (WidgetController::normalizeDomain)
+
+Input `"  https://WWW.MitIenda.com/some/path  "` → stored as `www.mitienda.com`
+
+```php
+$d = trim($domain);
+$d = preg_replace('#^https?://#i', '', $d);  // strip scheme
+$d = rtrim($d, '/');                          // strip trailing /
+$d = preg_replace('#/.*$#', '', $d);          // strip path
+return strtolower($d);
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `Modules/ChatBot/Models/Channel.php` | Eloquent model. `booted()` hook auto-generates `public_key` + `webhook_token` on `creating` for `web_widget`. `webhookUrl()` returns the full webhook URL. |
+| `Modules/ChatBot/Http/Controllers/Admin/WidgetController.php` | CRUD for widgets. `store/update` validate `allowed_domain` (required, unique per type, not empty after normalization). |
+| `Modules/ChatBot/Http/Controllers/Api/WebWidget/WidgetWebhookController.php` | Webhook receiver. Validates channel type, token (constant-time), enabled, origin. Calls `ChatBotMessageService::findOrCreateUser()`. |
+| `Modules/ChatBot/Http/Controllers/Api/WebWidget/WidgetEmbedController.php` | `__invoke(Request, $key)` — returns inline JS with CFG object inlined. Bails to `// domain_not_allowed` (no 4xx) on bad origin. |
+| `resources/js/components/chatbot/ChatBotWidget.tsx` | NOT used by external embeds. Detects `data-channel` from `<script>` and fetches `/api/chatbot/widget?key=...`. |
+| `resources/js/components/chatbot/ChatBotPanel.tsx` | NOT used by external embeds. Renders the panel inside the admin app. |
+
+## Channel Model Hooks (booted)
+
+```php
+protected static function booted(): void
+{
+    static::creating(function (Channel $channel): void {
+        if ($channel->type === ChannelType::WebWidget) {
+            if (empty($channel->public_key)) {
+                $channel->public_key = self::generatePublicKey(); // 16 hex
+            }
+            if (empty($channel->webhook_token)) {
+                $channel->webhook_token = self::generateWebhookToken(); // 32 hex
+            }
+        }
+    });
+}
+```
+
+## Embed Script Generation (WidgetEmbedController)
+
+The endpoint returns **inline JavaScript** (NOT a static file). The IIFE:
+1. Reads `data-channel` and `data-webhook` from the `<script>` tag
+2. Injects a floating button (position: fixed, bottom + 16px, blue `#2563eb`, 56x56)
+3. On click, opens a panel (360px wide, 520px tall) with header, messages area, and form
+4. Form: name input (first load) → textarea + Send button (subsequent)
+5. On submit: `POST {webhook_url}` with `{visitor: {name, email}, message: {content}}` + `credentials: 'omit'`
+6. Handles errors with system message bubbles
+7. NO WebSocket client (admin reply not yet visible to visitor — needs separate iteration)
+
+**Important**: The embed script `content-type` is `application/javascript` and is cached for 5 minutes (`Cache-Control: public, max-age=300`).
+
+## Common Pitfalls
+
+1. **The `<script>` pointing to `/embed/widget/{key}.js` is a Laravel route**, NOT a static file in `public/`. Make sure `routes/web.php` is not blocked by the `{slug}` catch-all. The catch-all regex MUST include `embed` in the exclusion list: `^(?!admin|api|...|embed).*$`. (See `routes/web.php`.)
+2. **The embed endpoint must NOT return 4xx on bad origin** — that breaks the third-party site. Instead, return a valid JS comment (`// domain_not_allowed`) so the script fails silently. Same pattern for `widget_disabled` and `invalid_key`.
+3. **`hash_equals()` is mandatory** for `webhook_token` validation — never use `===` (timing attack risk).
+4. **Cross-origin POST without `credentials: 'omit'`** will be blocked by CORS. The embed script uses `credentials: 'omit'` and doesn't send cookies. CSRF is not needed for public webhooks (token replaces it).
+5. **The admin inbox (`/admin/chats`) receives messages from web widgets in the same way as Evolution** — the `ChatBotMessageReceived` event fires for both. Frontend doesn't distinguish.
+6. **Visitor cannot see admin replies** (no Reverb in embed script yet). If needed, add polling: `setInterval` calling a public endpoint that returns new messages by `conversation_id` + `last_message_id`.
+
+## Tests
+
+`tests/Feature/ChatBot/WidgetConfigTest.php` — 24 tests covering:
+- CRUD (create, update, delete, list, edit form)
+- Domain normalization (`https://WWW.MitIenda.com/path` → `www.mitienda.com`)
+- Domain uniqueness (cannot create two widgets for same domain)
+- Public_key + webhook_token auto-generation, uniqueness
+- API endpoint validation (key required, invalid key, disabled, bad origin, allowed origin, wildcard subdomain, empty allowed_domain rejected)
+- Webhook receiver: creates user + conversation + message, validates token, blocks bad origin, requires visitor data, reuses existing user/conversation
+
+## Embed Snippet (what admin copies)
+
+```html
+<script src="https://hostbol.lat/embed/widget/{public_key}.js"
+        data-channel="{public_key}"
+        data-webhook="https://hostbol.lat/api/webhooks/widget/{channel_id}/{webhook_token}"
+        async></script>
+```
+
+Paste in the third-party site's footer (before `</body>`). Works in WordPress via "Insert Headers and Footers" plugin or direct `footer.php` edit.
+
+=== chatbot-quick-replies rules ===
+
+# ChatBot Module - Quick Replies (Slash Commands)
+
+Reusable canned responses admins can invoke from the chat composer with `/shortcut` syntax (like WhatsApp Web, Slack, Telegram, Discord).
+
+## Key Concepts
+
+- Each `QuickReply` is a `shortcut` + `content` + optional `media_id` + optional `category`
+- **1 quick reply = 1 message** sent to WhatsApp (text + optional media). NOT a multi-message template.
+- The `shortcut` is unique, lowercase, alphanumeric + `_-` only, max 50 chars (the `/` is added by the UI)
+- At least one of `content` or `media_id` is required
+- **`enabled=false`** responses don't appear in the composer dropdown but stay in the admin UI
+- **`soft deletes`** — when deleted, the response is gone from `find()` but stays in DB for audit
+- **Composer uses `/` slash commands** (WhatsApp Web style) — typing `/` opens a dropdown filtered by the query
+- The dropdown shows: shortcut (mono), title, media badge, category badge, content preview
+- Selection (Tab/Enter/click) replaces the `/query` line with the response content and attaches the media
+- The admin can then edit the text and click Send (or hit Enter) to actually send to WhatsApp
+
+## Routes
+
+```php
+// Admin CRUD
+GET    /admin/canales/respuestas-rapidas                 → chatBot.admin.quick-replies.index
+GET    /admin/canales/respuestas-rapidas/nueva           → chatBot.admin.quick-replies.create
+POST   /admin/canales/respuestas-rapidas                 → chatBot.admin.quick-replies.store
+GET    /admin/canales/respuestas-rapidas/{qr}/edit      → chatBot.admin.quick-replies.edit
+PATCH  /admin/canales/respuestas-rapidas/{qr}           → chatBot.admin.quick-replies.update
+DELETE /admin/canales/respuestas-rapidas/{qr}           → chatBot.admin.quick-replies.destroy
+
+// Public API (auth required, for the composer dropdown)
+GET    /api/chatbot/quick-replies                        → chatBot.api.quick-replies
+```
+
+## Database Schema (quick_replies table)
+
+Migration: `2026_06_13_142605_create_quick_replies_table`
+
+```php
+Schema::create('quick_replies', function (Blueprint $table) {
+    $table->id();
+    $table->string('shortcut', 50)->unique();
+    $table->string('title', 100);
+    $table->text('content')->nullable();
+    $table->string('category', 50)->nullable();
+    $table->foreignId('media_id')->nullable()->constrained('media')->nullOnDelete();
+    $table->integer('sort')->default(0);
+    $table->boolean('enabled')->default(true);
+    $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+    $table->timestamps();
+    $table->softDeletes();
+    $table->index(['enabled', 'category', 'sort']);
+});
+```
+
+## Permissions
+
+Added to `PermissionSeeder::PERMISSIONS` and `RoleSeeder::EDITOR_PERMISSIONS`:
+- `view quick replies` (editor: yes)
+- `create quick replies` (admin only)
+- `update quick replies` (admin only)
+- `delete quick replies` (admin only)
+
+## Default Seeder (QuickRepliesSeeder)
+
+Added to `DatabaseSeeder`. Creates 3 defaults on `php artisan db:seed`:
+
+| Shortcut | Title | Content | Category |
+|---|---|---|---|
+| `/saludo` | Saludo inicial | "¡Hola! 👋 Bienvenido a *Hostbol*... ¿En qué podemos ayudarte?" | saludos |
+| `/gracias` | Agradecimiento | "Muchas gracias por contactarnos. ✨ Te responderemos a la brevedad." | saludos |
+| `/horario` | Horario de atención | Horario con `_cursiva_` y `*negrita*` | informacion |
+
+Uses `updateOrCreate(['shortcut' => ...])` → idempotent.
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `Modules/ChatBot/Models/QuickReply.php` | Eloquent model with `media()` and `creator()` relations |
+| `Modules/ChatBot/database/factories/QuickReplyFactory.php` | Factory with `mediaOnly()` state |
+| `Modules/ChatBot/Http/Controllers/Admin/QuickReplyController.php` | CRUD + `api()` endpoint returning only `enabled=true` |
+| `Modules/ChatBot/Http/Requests/StoreQuickReplyRequest.php` | Validates shortcut (regex `[a-zA-Z0-9_-]+`, unique), content/media_id required_without each other |
+| `Modules/ChatBot/Http/Requests/UpdateQuickReplyRequest.php` | Same as Store but with unique:shortcut,{id} |
+| `Modules/ChatBot/resources/js/Pages/QuickReplies/Index.tsx` | List page (yellow theme, Zap icon) |
+| `Modules/ChatBot/resources/js/Pages/QuickReplies/Edit.tsx` | Form with auto-slugify + WhatsAppEditor + media upload |
+| `resources/js/components/ui/whatsapp-editor.tsx` | **Reusable** textarea + WhatsApp preview component |
+| `resources/js/lib/whatsapp-markdown.ts` | `renderWhatsAppMarkdown()` + `slugifyShortcut()` helpers |
+| `resources/js/components/chat/QuickReplyDropdown.tsx` | Slash command dropdown UI (keyboard nav, mouse hover, click to select) |
+| `Modules/ChatBot/resources/js/Hooks/use-quick-replies.ts` | Cached fetch hook for the dropdown list |
+| `database/seeders/QuickRepliesSeeder.php` | Default 3 responses |
+
+## WhatsApp Markdown Editor (resources/js/components/ui/whatsapp-editor.tsx)
+
+Reusable component for any message that will be sent to WhatsApp. Layout: toolbar (B/I/S/code/link buttons) + textarea on the left, live preview on the right (WhatsApp bubble colors `#ECE5DD` bg, `#DCF8C6` bubble).
+
+Supported syntax (rendered live in preview):
+- `*bold*` → **negrita**
+- `_italic_` → *cursiva*
+- `~strike~` → ~~tachado~~
+- ````code```` → `código` monoespaciado
+- `[texto](url)` → link azul underlined
+- `\n` → `<br>`
+
+Preview CSS lives in `resources/css/app.css` under `.wa-preview` (link color `#027EB5`, code background, etc.).
+
+## Slugify Logic (resources/js/lib/whatsapp-markdown.ts::slugifyShortcut)
+
+Transforms a title into a valid shortcut:
+1. `NFD` unicode normalization → separates accents
+2. Strip combining marks (á → a, ñ → n, ï → i, etc.)
+3. `lowercase`
+4. `[^a-z0-9]+` → `-`
+5. Collapse `--` → `-`
+6. Trim `-` from start/end
+7. Truncate to 50 chars
+
+Examples:
+- `"Saludo Inicial"` → `saludo-inicial`
+- `"Hola, ¿en qué podemos ayudarte?"` → `hola-en-que-podemos-ayudarte`
+- `"100% Oferta!!"` → `100-oferta`
+- `"Añoro más info"` → `anoro-mas-info` (accents removed)
+
+## Auto-slugify UX in Edit Form
+
+- When admin types the **title**, the **shortcut** auto-fills with the slugified version
+- If the admin manually edits the shortcut, the auto-fill STOPS (sets `shortcutTouched=true`)
+- A "↻" button next to the shortcut re-enables auto-fill from the current title
+- A blue badge "Auto desde título" indicates the auto-sync is active
+- On initial load of an existing reply, `shortcutTouched` is `true` (don't overwrite saved value)
+
+## Composer Integration (Modules/ChatBot/resources/js/Pages/Chats/Index.tsx)
+
+The composer now has a `QuickReplyDropdown` triggered by typing `/`:
+
+```tsx
+// State added to ChatsIndex component
+const { replies: quickReplies, loading: quickRepliesLoading } = useQuickReplies();
+const [qrOpen, setQrOpen] = useState(false);
+const [qrSelectedIndex, setQrSelectedIndex] = useState(0);
+const [pickedMediaId, setPickedMediaId] = useState<number | null>(null);
+const [pickedMediaMeta, setPickedMediaMeta] = useState<...>(null);
+
+// Detection: when last line of draft is /query, open dropdown
+onChange={(e) => {
+  const value = e.target.value;
+  setDraft(value);
+  const lastLine = value.split('\n').pop() ?? '';
+  if (/^\/[a-zA-Z0-9_-]*$/.test(lastLine)) {
+    setQrOpen(true);
+    setQrSelectedIndex(0);
+  } else {
+    setQrOpen(false);
+  }
+}}
+
+// Keyboard handler
+onKeyDown={(e) => {
+  if (qrOpen) {
+    if (e.key === 'ArrowDown') { ... }
+    if (e.key === 'ArrowUp') { ... }
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      if (qrFiltered[qrSelectedIndex]) applyQuickReply(qrFiltered[qrSelectedIndex]);
+    }
+    if (e.key === 'Escape') { setQrOpen(false); }
+  }
+  if (e.key === 'Enter' && !e.shiftKey) { sendMessage(); }
+}}
+
+// sendMessage() now also sends attachment_media_id when picked from quick reply
+const formData = new FormData();
+formData.append('content', content);
+if (file) formData.append('file', file);
+else if (mediaId) formData.append('attachment_media_id', String(mediaId));
+```
+
+## Common Pitfalls
+
+1. **Don't send `media_base64` for quick replies** — only `attachment_media_id`. The `Media` row already has the file on disk. The `ChatController::reply` already supports both.
+2. **The `useQuickReplies` hook caches the list in a module-level variable** — first call fetches, subsequent calls return cache. If the admin creates a new reply, the cache is stale until the page reloads.
+3. **`/shortcut` is a single-line trigger** — if the user has multi-line text and the last line is `/query`, the dropdown opens. If they navigate to a different line, the dropdown closes. This is intentional (matches Slack/Discord behavior).
+4. **The dropdown doesn't auto-send** — the admin always clicks Send (or hits Enter without the dropdown). This prevents accidental sends.
+5. **The shortcut field in the form has `maxLength=50`** but the `slugifyShortcut` already truncates. The DB column is `string(50)` unique.
+6. **Media `nullOnDelete`** — if a `Media` row is deleted, the `quick_replies.media_id` becomes NULL but the reply stays. The reply is marked "incomplete" (no preview shown).
+7. **The `bail-on-` empty content** validation (`required_without:media_id`) — if both `content` and `media_id` are empty, the request fails. This is enforced on both Store and Update.
+8. **The Edit form uses the layout wrapper pattern** (NOT `(reply) => ({breadcrumbs})`) to get dynamic breadcrumbs showing the shortcut name. See "Inertia v3 — Layout as Wrapper" above.
+
+## Tests
+
+`tests/Feature/ChatBot/QuickReplyTest.php` — 16 tests covering:
+- CRUD (list, create, view, edit, update, delete)
+- Permission gates (admin, basic user forbidden)
+- Shortcut validation (required, unique, regex, max 50, leading `/` stripped)
+- Content/media_id validation (at least one required)
+- API endpoint: returns only enabled, requires auth, requires permission
+- Soft deleted replies are not in API
+
+## E2E Flow (verified 2026-06-13)
+
+1. Admin types `/` in the composer textarea → dropdown appears
+2. Admin types `salu` → filters to `/saludo`
+3. Admin presses Tab → `/saludo` replaced with "¡Hola! 👋 Bienvenido a *Hostbol*..."
+4. Admin can edit the text, then clicks Send
+5. Message goes to WhatsApp via the same `ChatController::reply` flow
+6. Visitor receives the formatted message (WhatsApp renders `*bold*` as bold, `_italic_` as italic)
 
 </laravel-boost-guidelines>
