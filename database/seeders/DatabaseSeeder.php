@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             CoreSeeder::class,
             ContentSeeder::class,
+            QuickRepliesSeeder::class,
         ]);
     }
 }

@@ -18,6 +18,7 @@ class UpdateWidgetRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
+            'allowed_domain' => ['required', 'string', 'max:255'],
             'enabled' => ['required', 'boolean'],
             'title' => ['required', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:255'],
@@ -27,8 +28,6 @@ class UpdateWidgetRequest extends FormRequest
             'require_auth' => ['required', 'boolean'],
             'show_typing' => ['required', 'boolean'],
             'offline_message' => ['nullable', 'string', 'max:1000'],
-            'allowed_domains' => ['nullable', 'array'],
-            'allowed_domains.*' => ['string', 'max:255'],
         ];
     }
 }

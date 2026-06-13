@@ -25,7 +25,16 @@ class LinkPreviewService
     private const MAX_URLS_PER_MESSAGE = 5;
 
     /**
-     * Extrae todas las URLs http/https de un texto.
+     * Extrae todas las URLs (con o sin esquema) de un texto.
+     *
+     * Detecta:
+     *   - https://example.com
+     *   - http://example.com
+     *   - www.example.com
+     *   - example.com
+     *   - sub.example.com/path?x=1
+     *
+     * Ignora emails, paths sin TLD y palabras sueltas.
      *
      * @return array<int, string>
      */
@@ -35,11 +44,49 @@ class LinkPreviewService
             return [];
         }
 
-        preg_match_all('#https?://[^\s<>"\'\\)\]]+#i', $text, $matches);
-
-        $urls = $matches[0] ?? [];
         $unique = [];
-        foreach ($urls as $u) {
+
+        // 1. URLs con esquema explícito (https?://...)
+        preg_match_all('#https?://[^\s<>"\'\\)\]]+#i', $text, $m1);
+        foreach ($m1[0] as $u) {
+            $clean = rtrim($u, '.,;:!?)');
+            $key = md5($clean);
+            $unique[$key] = $clean;
+            if (count($unique) >= self::MAX_URLS_PER_MESSAGE) {
+                return array_values($unique);
+            }
+        }
+
+        // 2. URLs scheme-less: www.foo.com o foo.tld (con path/query opcional)
+        // - empieza con "www." o es preceded by whitespace/start/(["'])
+        // - debe tener un TLD de 2+ letras
+        // - puede tener path /query/fragment
+        preg_match_all(
+            '#(?<![\w@/.])((?:www\.)?[a-zA-Z0-9][a-zA-Z0-9\-]{0,62}(?:\.[a-zA-Z0-9\-]{1,62}){1,}(?:/[^\s<>"\x27\\)\]]*)?)#i',
+            $text,
+            $m2,
+        );
+
+        $tldPattern = '/\.(com|net|org|io|co|bo|es|mx|ar|cl|pe|ve|uy|py|ec|pe|cr|gt|hn|ni|pa|cu|do|pr|us|uk|de|fr|it|pt|br|info|biz|dev|app|ai|me|tv|cc|tk|ml|ga|cf|gq|xyz|top|site|online|store|tech|news|wiki|gov|edu|mil|int)(?:\b|\/|$)/i';
+
+        foreach ($m2[1] as $u) {
+            $lower = strtolower($u);
+
+            // Ignorar emails
+            if (str_contains($lower, '@')) {
+                continue;
+            }
+
+            // Debe tener un TLD conocido
+            if (! preg_match($tldPattern, $lower)) {
+                continue;
+            }
+
+            // Ignorar paths sueltos sin punto (no son URLs)
+            if (! str_contains($u, '.')) {
+                continue;
+            }
+
             $clean = rtrim($u, '.,;:!?)');
             $key = md5($clean);
             if (! isset($unique[$key])) {
@@ -50,7 +97,11 @@ class LinkPreviewService
             }
         }
 
-        return array_values($unique);
+        // Normalizar scheme-less a https://
+        return array_values(array_map(
+            fn (string $u): string => preg_match('#^https?://#i', $u) ? $u : 'https://'.$u,
+            $unique,
+        ));
     }
 
     /**

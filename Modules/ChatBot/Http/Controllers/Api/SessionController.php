@@ -37,8 +37,7 @@ class SessionController extends Controller
             return response()->json(['enabled' => false, 'reason' => 'disabled']);
         }
 
-        $allowed = $channel->allowed_domains ?? [];
-        if (! empty($allowed) && ! $this->originAllowed($request, $allowed)) {
+        if (! $this->originAllowed($request, $channel->allowed_domain)) {
             return response()->json(['enabled' => false, 'reason' => 'domain_not_allowed'], 403);
         }
 
@@ -52,41 +51,35 @@ class SessionController extends Controller
             'subtitle' => $settings['subtitle'] ?? 'Te respondemos en minutos',
             'greeting' => $settings['greeting'] ?? '¡Hola! ¿En qué podemos ayudarte?',
             'position' => $settings['position'] ?? 'right',
-            'require_auth' => $settings['require_auth'] ?? true,
+            'require_auth' => $settings['require_auth'] ?? false,
             'show_typing' => $settings['show_typing'] ?? true,
             'offline_message' => $settings['offline_message'] ?? null,
             'avatar_url' => null,
         ]);
     }
 
-    /**
-     * @param  array<int, string>  $allowed
-     */
-    private function originAllowed(Request $request, array $allowed): bool
+    private function originAllowed(Request $request, ?string $allowedDomain): bool
     {
+        if (empty($allowedDomain)) {
+            return false;
+        }
+
         $origin = $this->extractHost($request->header('Origin') ?? $request->header('Referer') ?? '');
 
         if ($origin === '') {
             return true;
         }
 
-        foreach ($allowed as $d) {
-            $d = strtolower(trim($d));
-            if ($d === '') {
-                continue;
-            }
-            if (str_starts_with($d, '*.')) {
-                $suffix = substr($d, 1);
-                if (str_ends_with($origin, $suffix)) {
-                    return true;
-                }
-            }
-            if (strtolower($origin) === $d) {
-                return true;
-            }
+        $allowedDomain = strtolower(trim($allowedDomain));
+        $origin = strtolower($origin);
+
+        if (str_starts_with($allowedDomain, '*.')) {
+            $suffix = substr($allowedDomain, 1);
+
+            return str_ends_with($origin, $suffix);
         }
 
-        return false;
+        return $origin === $allowedDomain;
     }
 
     private function extractHost(string $url): string

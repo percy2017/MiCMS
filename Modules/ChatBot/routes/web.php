@@ -4,7 +4,13 @@ use App\Http\Controllers\ChatBot\MessageReactionController;
 use Illuminate\Support\Facades\Route;
 use Modules\ChatBot\Http\Controllers\Admin\ChannelAdminController;
 use Modules\ChatBot\Http\Controllers\Admin\ChatController;
+use Modules\ChatBot\Http\Controllers\Admin\QuickReplyController;
 use Modules\ChatBot\Http\Controllers\Admin\WidgetController;
+use Modules\ChatBot\Http\Controllers\Api\WebWidget\WidgetEmbedController;
+
+// Public embed script for web widgets (no auth)
+Route::get('/embed/widget/{key}.js', WidgetEmbedController::class)
+    ->name('embed.widget');
 
 // Old routes - redirect 301 to new structure
 Route::permanentRedirect('/admin/chatbot/config', '/admin/canales/web-widget');
@@ -85,4 +91,18 @@ Route::middleware(['auth', 'verified'])
             ->name('chats.reactions.store');
         Route::delete('/chats/{conversation}/messages/{message}/reactions', [MessageReactionController::class, 'destroy'])
             ->name('chats.reactions.destroy');
+
+        // Quick replies
+        Route::get('/canales/respuestas-rapidas', [QuickReplyController::class, 'index'])
+            ->name('quick-replies.index');
+        Route::get('/canales/respuestas-rapidas/nueva', [QuickReplyController::class, 'create'])
+            ->name('quick-replies.create');
+        Route::post('/canales/respuestas-rapidas', [QuickReplyController::class, 'store'])
+            ->name('quick-replies.store');
+        Route::get('/canales/respuestas-rapidas/{quickReply}/edit', [QuickReplyController::class, 'edit'])
+            ->name('quick-replies.edit');
+        Route::patch('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'update'])
+            ->name('quick-replies.update');
+        Route::delete('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'destroy'])
+            ->name('quick-replies.destroy');
     });

@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { BadgeCheck, Building2, Copy, ExternalLink, Globe, Loader2, Mail, MessageCircle, Phone, User } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Building2, Copy, Loader2, Mail, MessageCircle, Phone, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import AvatarPicker from '@/components/avatar-picker';
 import { EvolutionTabContent } from '@/components/evolution-tab-content';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { describeCountry } from '@/lib/country';
 import { admin } from '@/routes';
@@ -62,14 +63,14 @@ function CopyableField({ label, value, mono = false }: { label: string; value: s
     );
 }
 
-function CountryBadge({ countryCode }: { countryCode: string | null; phone?: string | null }): React.ReactElement {
-    const detected = useMemo(() => describeCountry(countryCode), [countryCode]);
+function CountryBadge({ countryCode, phone }: { countryCode: string | null; phone: string | null }): React.ReactElement | null {
     const [imgFailed, setImgFailed] = useState(false);
+    const detected = countryCode ? describeCountry(countryCode) : null;
 
     if (!detected) {
+        if (!phone || phone.trim() === '') return null;
         return (
             <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Globe className="size-3" />
                 País no detectado aún (se detecta al guardar)
             </p>
         );
@@ -92,10 +93,35 @@ function CountryBadge({ countryCode }: { countryCode: string | null; phone?: str
                 />
             )}
             <span className="font-medium text-foreground">{detected.name}</span>
-            {detected.dialCode && (
-                <span className="font-mono text-[10px]">{detected.dialCode}</span>
-            )}
+            {detected.dialCode && <span className="font-mono text-[10px]">{detected.dialCode}</span>}
         </p>
+    );
+}
+
+function SettingRow({
+    label,
+    description,
+    checked,
+    onChange,
+    icon: Icon,
+}: {
+    label: string;
+    description?: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    icon?: React.ComponentType<{ className?: string }>;
+}): React.ReactElement {
+    return (
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border bg-card px-3 py-2.5 transition hover:bg-muted/30">
+            <div className="flex items-start gap-2.5">
+                {Icon && <Icon className={`mt-0.5 size-4 shrink-0 ${checked ? 'text-emerald-500' : 'text-muted-foreground/60'}`} />}
+                <div className="grid gap-0.5">
+                    <span className="text-sm font-medium leading-none">{label}</span>
+                    {description && <span className="text-xs text-muted-foreground">{description}</span>}
+                </div>
+            </div>
+            <Switch checked={checked} onCheckedChange={onChange} />
+        </label>
     );
 }
 
@@ -128,12 +154,23 @@ export default function UsuariosEdit({ user, roles }: PageProps) {
             password_confirmation: '',
             roles: user.roles,
         });
-    }, [user.id, user.name, user.email, user.phone, user.whatsapp_jid, user.is_whatsapp_business, user.email_verified_at, user.avatar_media_id, user.avatar_url, JSON.stringify(user.roles)]);
+    }, [
+        user.id,
+        user.name,
+        user.email,
+        user.phone,
+        user.whatsapp_jid,
+        user.is_whatsapp_business,
+        user.email_verified_at,
+        user.avatar_media_id,
+        user.avatar_url,
+        JSON.stringify(user.roles),
+    ]);
 
     function toggleRole(name: string): void {
-        setData('roles', data.roles.includes(name)
-            ? data.roles.filter((r) => r !== name)
-            : [...data.roles, name],
+        setData(
+            'roles',
+            data.roles.includes(name) ? data.roles.filter((r) => r !== name) : [...data.roles, name],
         );
     }
 
@@ -159,13 +196,13 @@ export default function UsuariosEdit({ user, roles }: PageProps) {
 
                     <TabsContent value="manual" className="mt-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Datos personales</CardTitle>
-                                    <CardDescription>Información básica de contacto.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_220px]">
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                                <Card className="lg:col-span-2">
+                                    <CardHeader>
+                                        <CardTitle>Datos personales</CardTitle>
+                                        <CardDescription>Información básica de contacto.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div className="grid gap-2">
                                                 <Label htmlFor="name">Nombre completo</Label>
@@ -223,46 +260,42 @@ export default function UsuariosEdit({ user, roles }: PageProps) {
                                                 {errors.whatsapp_jid && <p className="text-sm text-destructive">{errors.whatsapp_jid}</p>}
                                             </div>
                                         </div>
+                                    </CardContent>
+                                </Card>
 
-                                        <div className="flex flex-col items-center gap-2 border-t pt-6 md:border-l md:border-t-0 md:pl-6 md:pt-0">
-                                            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                                <User className="size-3" />
-                                                Avatar
-                                            </p>
-                                            <AvatarPicker
-                                                value={data.avatar_media_id}
-                                                previewUrl={user.avatar_url}
-                                                name={data.name}
-                                                onChange={(id) => setData('avatar_media_id', id)}
-                                                error={errors.avatar_media_id}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Perfil</CardTitle>
+                                        <CardDescription>Avatar y estado de la cuenta.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-col items-center gap-4">
+                                        <AvatarPicker
+                                            value={data.avatar_media_id}
+                                            previewUrl={user.avatar_url}
+                                            name={data.name}
+                                            onChange={(id) => setData('avatar_media_id', id)}
+                                            error={errors.avatar_media_id}
+                                        />
+
+                                        <div className="grid w-full gap-2">
+                                            <SettingRow
+                                                label="Email verificado"
+                                                description="Marca al usuario como verificado"
+                                                checked={data.email_verified}
+                                                onChange={(v) => setData('email_verified', v)}
+                                                icon={User}
                                             />
-
-                                            <div className="mt-4 grid w-full grid-cols-2 gap-2 border-t pt-4">
-                                                <label className="flex cursor-pointer flex-col items-center gap-1 rounded-md border bg-muted/30 px-2 py-2 text-center text-xs transition hover:bg-muted/50">
-                                                    <BadgeCheck className={data.email_verified ? 'size-4 text-emerald-500' : 'size-4 text-muted-foreground/50'} />
-                                                    <span className="font-medium">¿Verificado?</span>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={data.email_verified}
-                                                        onChange={(e) => setData('email_verified', e.target.checked)}
-                                                        className="size-4 accent-primary"
-                                                    />
-                                                </label>
-                                                <label className="flex cursor-pointer flex-col items-center gap-1 rounded-md border bg-muted/30 px-2 py-2 text-center text-xs transition hover:bg-muted/50">
-                                                    <Building2 className={data.is_whatsapp_business ? 'size-4 text-emerald-500' : 'size-4 text-muted-foreground/50'} />
-                                                    <span className="font-medium">¿Business?</span>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={data.is_whatsapp_business}
-                                                        onChange={(e) => setData('is_whatsapp_business', e.target.checked)}
-                                                        className="size-4 accent-primary"
-                                                    />
-                                                </label>
-                                            </div>
+                                            <SettingRow
+                                                label="WhatsApp Business"
+                                                description="Cuenta comercial de WhatsApp"
+                                                checked={data.is_whatsapp_business}
+                                                onChange={(v) => setData('is_whatsapp_business', v)}
+                                                icon={Building2}
+                                            />
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <Card>

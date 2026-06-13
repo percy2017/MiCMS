@@ -5,6 +5,7 @@ namespace Modules\ChatBot\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Jobs\FetchLinkPreviewsJob;
 use App\Models\Media;
+use App\Services\LinkPreviewService;
 use App\Support\MediaStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -590,10 +591,11 @@ class ChatController extends Controller
             return;
         }
 
-        $urlRegex = '#https?://[^\s<>"\'\\)\]]+#i';
+        $previewService = app(LinkPreviewService::class);
         $idsToProcess = [];
         foreach ($messages as $message) {
-            if (preg_match($urlRegex, (string) $message->content) === 1) {
+            $urls = $previewService->extractUrls((string) $message->content);
+            if ($urls !== []) {
                 $idsToProcess[] = $message->id;
             } else {
                 $meta = $message->metadata ?? [];

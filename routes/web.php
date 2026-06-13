@@ -18,7 +18,7 @@ Route::get('sitemap.xml', [SitemapController::class, 'index'])
     ->name('sitemap');
 
 Route::get('{slug}', [PageController::class, 'show'])
-    ->where('slug', '^(?!admin|api|docs|login|register|forgot-password|two-factor|user|settings|storage|livewire|build|up).*$')
+    ->where('slug', '^(?!admin|api|docs|login|register|forgot-password|two-factor|user|settings|storage|livewire|build|up|embed).*$')
     ->middleware('throttle:public-pages')
     ->name('pages.show');
 

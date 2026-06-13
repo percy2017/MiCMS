@@ -10,8 +10,8 @@ type Widget = {
     name: string;
     enabled: boolean;
     title: string;
+    domain: string | null;
     public_key: string | null;
-    allowed_domains: string[];
     conversations_count: number;
 };
 
@@ -20,7 +20,7 @@ type PageProps = { widgets: Widget[] };
 export default function WidgetIndex({ widgets }: PageProps) {
     const table = useClientTableSearch<Widget>({
         initialData: widgets,
-        searchFields: ['name', 'title', 'public_key'],
+        searchFields: ['name', 'title', 'public_key', 'domain'],
         perPage: 50,
         initialFilters: { enabled: '' },
     });
@@ -102,17 +102,15 @@ export default function WidgetIndex({ widgets }: PageProps) {
                                                         <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
                                                     </div>
                                                     <p className="truncate text-sm text-muted-foreground">{w.title}</p>
+                                                    {w.domain && (
+                                                        <p className="truncate text-xs font-medium text-[#2563eb]">
+                                                            {w.domain}
+                                                        </p>
+                                                    )}
                                                     {w.public_key && (
                                                         <p className="truncate font-mono text-[11px] text-muted-foreground/80">
                                                             key: {w.public_key}
                                                         </p>
-                                                    )}
-                                                    {w.allowed_domains.length > 0 ? (
-                                                        <p className="truncate text-xs text-muted-foreground">
-                                                            {w.allowed_domains.length} dominio{w.allowed_domains.length !== 1 ? 's' : ''}
-                                                        </p>
-                                                    ) : (
-                                                        <p className="truncate text-xs text-amber-600">Todos los dominios</p>
                                                     )}
                                                     <div className="mt-2 flex items-center gap-2">
                                                         <span

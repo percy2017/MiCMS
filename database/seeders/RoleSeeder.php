@@ -30,6 +30,7 @@ class RoleSeeder extends Seeder
         'view chats',
         'view chatbot conversations',
         'reply chatbot',
+        'view quick replies',
     ];
 
     public function run(): void

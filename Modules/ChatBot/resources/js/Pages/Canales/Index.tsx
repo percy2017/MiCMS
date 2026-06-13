@@ -20,7 +20,7 @@ type ChannelItem = {
     connection_status?: string;
     widget_title?: string | null;
     public_key?: string | null;
-    allowed_domains?: string[];
+    allowed_domain?: string | null;
     conversations_count?: number;
 };
 
@@ -82,7 +82,7 @@ function connectionLabel(status: string): string {
 export default function CanalesIndex({ channels }: PageProps) {
     const table = useClientTableSearch<ChannelItem>({
         initialData: channels,
-        searchFields: ['name', 'profile_name', 'instance_name', 'widget_title', 'owner_jid', 'public_key'],
+        searchFields: ['name', 'profile_name', 'instance_name', 'widget_title', 'owner_jid', 'public_key', 'allowed_domain'],
         perPage: 50,
         initialFilters: { type: '', enabled: '' },
     });
@@ -305,9 +305,9 @@ export default function CanalesIndex({ channels }: PageProps) {
                                                             </p>
                                                         )}
 
-                                                        {c.type === 'web_widget' && c.allowed_domains && c.allowed_domains.length > 0 && (
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                Dominios: {c.allowed_domains.join(', ')}
+                                                        {c.type === 'web_widget' && c.allowed_domain && (
+                                                            <p className="truncate text-xs font-medium text-[#2563eb]">
+                                                                {c.allowed_domain}
                                                             </p>
                                                         )}
 

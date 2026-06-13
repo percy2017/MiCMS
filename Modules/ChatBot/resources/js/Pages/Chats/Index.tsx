@@ -10,11 +10,13 @@ import {
     Smile,
     Trash2,
     X,
+    Zap,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import ChatLayout from '@/layouts/chat/chat-layout';
 import { MessageBubble } from '@/components/chat/MessageBubble';
+import { QuickReplyDropdown, filterReplies, type QuickReply } from '@/components/chat/QuickReplyDropdown';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -26,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useChatSync } from '@/hooks/use-chat-sync';
+import { useQuickReplies } from '../../Hooks/use-quick-replies';
 import { csrfHeaders, formatBytes, formatChatDate } from '@/lib/chat-utils';
 import { cn } from '@/lib/utils';
 import ChatDetailsPanel from '../../Components/ChatDetailsPanel';
@@ -50,10 +53,30 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
     const [draft, setDraft] = useState('');
     const [attachment, setAttachment] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+    const [pickedMediaId, setPickedMediaId] = useState<number | null>(null);
+    const [pickedMediaMeta, setPickedMediaMeta] = useState<{ name: string | null; url: string | null; mime: string | null } | null>(null);
     const [sending, setSending] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+    // Quick reply slash command state
+    const { replies: quickReplies, loading: quickRepliesLoading } = useQuickReplies();
+    const [qrOpen, setQrOpen] = useState(false);
+    const [qrSelectedIndex, setQrSelectedIndex] = useState(0);
+
+    const qrQuery = useMemo((): string => {
+        if (!qrOpen) return '';
+        const lines = draft.split('\n');
+        const lastLine = lines[lines.length - 1] ?? '';
+        const match = lastLine.match(/^\/([a-zA-Z0-9_-]*)$/);
+        return match ? match[1] : '';
+    }, [draft, qrOpen]);
+
+    const qrFiltered = useMemo((): QuickReply[] => {
+        if (!qrOpen) return [];
+        return filterReplies(quickReplies, qrQuery);
+    }, [quickReplies, qrQuery, qrOpen]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,33 +104,33 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
 
             setFilteredConversations((prevList) => {
                 const base = prevList ?? (Array.isArray(safeConversations.data) ? safeConversations.data : []);
-                const exists = base.some((c) => c.id === e.conversation.id);
-                if (exists) {
-                    return base.map((c) =>
-                        c.id === e.conversation.id
-                            ? {
-                                ...c,
-                                last_message_at: e.conversation.last_message_at ?? c.last_message_at,
-                                unread_by_admin: e.message.role === 'user' ? c.unread_by_admin + 1 : c.unread_by_admin,
-                                messages_count: c.messages_count + 1,
-                            }
-                            : c,
-                    );
-                }
-                return [
-                    {
+                const updated: ConversationSummary = {
+                    ...(base.find((c) => c.id === e.conversation.id) ?? {
                         id: e.conversation.id,
                         visitor_name: e.conversation.visitor_name,
                         visitor_email: e.conversation.visitor_email ?? '',
                         status: 'open',
-                        unread_by_admin: e.message.role === 'user' ? 1 : 0,
-                        messages_count: 1,
-                        last_message_at: e.message.created_at ?? null,
                         channel_id: e.conversation.channel_id,
                         channel_name: e.conversation.channel_name,
-                    },
-                    ...base,
-                ];
+                    }),
+                    last_message_at: e.conversation.last_message_at ?? e.message.created_at ?? null,
+                    unread_by_admin: e.message.role === 'user'
+                        ? (e.conversation.unread_by_admin ?? ((base.find((c) => c.id === e.conversation.id)?.unread_by_admin ?? 0) + 1))
+                        : (base.find((c) => c.id === e.conversation.id)?.unread_by_admin ?? 0),
+                    messages_count: (base.find((c) => c.id === e.conversation.id)?.messages_count ?? 0) + 1,
+                };
+                const without = base.filter((c) => c.id !== e.conversation.id);
+
+                return [updated, ...without].sort((a, b) => {
+                    const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+                    const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+
+                    if (tb !== ta) {
+                        return tb - ta;
+                    }
+
+                    return (b.id ?? 0) - (a.id ?? 0);
+                });
             });
         },
         onReaction: (e) => {
@@ -184,6 +207,11 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
 
     function openConversation(conv: ConversationSummary): void {
         setActiveId(conv.id);
+        setFilteredConversations((prevList) => {
+            const base = prevList ?? (Array.isArray(safeConversations.data) ? safeConversations.data : []);
+
+            return base.map((c) => (c.id === conv.id ? { ...c, unread_by_admin: 0 } : c));
+        });
         const params: Record<string, string | number> = { active: conv.id };
         if (safeFilters.search) params.search = safeFilters.search;
         if (safeFilters.channel_id !== null && safeFilters.channel_id !== undefined) params.channel_id = safeFilters.channel_id;
@@ -216,26 +244,69 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
 
     function clearAttachment(): void {
         setAttachment(null);
+        setPickedMediaId(null);
+        setPickedMediaMeta(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+
+    function applyQuickReply(reply: QuickReply): void {
+        // Replace the `/query` line with the reply's content
+        const lines = draft.split('\n');
+        const lastIdx = lines.length - 1;
+        if (qrQuery !== undefined) {
+            lines[lastIdx] = reply.content ?? '';
+        }
+        setDraft(lines.join('\n').replace(/^\s+|\s+$/g, ''));
+
+        if (reply.media_id) {
+            setPickedMediaId(reply.media_id);
+            setPickedMediaMeta({
+                name: reply.media_name,
+                url: reply.media_url,
+                mime: reply.media_mime,
+            });
+        }
+        setQrOpen(false);
+        setQrSelectedIndex(0);
+        // Refocus textarea
+        setTimeout(() => draftRef.current?.focus(), 0);
     }
 
     function sendMessage(e: React.FormEvent): void {
         e.preventDefault();
-        if (!activeId || (!draft.trim() && !attachment)) return;
+        if (qrOpen) {
+            // Enter while dropdown is open → select the highlighted reply
+            e.preventDefault();
+            if (qrFiltered[qrSelectedIndex]) {
+                applyQuickReply(qrFiltered[qrSelectedIndex]);
+            }
+            return;
+        }
+        if (!activeId || (!draft.trim() && !attachment && !pickedMediaId)) return;
         const content = draft;
         const file = attachment;
+        const mediaId = pickedMediaId;
+        const mediaMeta = pickedMediaMeta;
         setDraft('');
         setAttachment(null);
+        setPickedMediaId(null);
+        setPickedMediaMeta(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setSending(true);
 
         const formData = new FormData();
         formData.append('content', content);
-        if (file) formData.append('file', file);
+        if (file) {
+            formData.append('file', file);
+        } else if (mediaId) {
+            formData.append('attachment_media_id', String(mediaId));
+        }
 
         function restoreInput(): void {
             setDraft(content);
             setAttachment(file);
+            setPickedMediaId(mediaId);
+            setPickedMediaMeta(mediaMeta);
             if (fileInputRef.current && file) {
                 const dt = new DataTransfer();
                 dt.items.add(file);
@@ -541,7 +612,26 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                                             </button>
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-2">
+                                    {!attachment && pickedMediaId && pickedMediaMeta && (
+                                        <div className="flex items-center gap-2 rounded-md border bg-yellow-50 px-3 py-2 text-xs">
+                                            {pickedMediaMeta.mime?.startsWith('image/') && pickedMediaMeta.url ? (
+                                                <img src={pickedMediaMeta.url} alt="" className="size-10 shrink-0 rounded object-cover" />
+                                            ) : (
+                                                <Zap className="size-5 shrink-0 text-yellow-600" />
+                                            )}
+                                            <span className="truncate font-medium">{pickedMediaMeta.name ?? 'Archivo de respuesta rápida'}</span>
+                                            {pickedMediaMeta.mime && <span className="shrink-0 text-muted-foreground">{pickedMediaMeta.mime}</span>}
+                                            <button
+                                                type="button"
+                                                onClick={clearAttachment}
+                                                className="ml-auto shrink-0 rounded p-0.5 hover:bg-muted"
+                                                title="Quitar adjunto"
+                                            >
+                                                <X className="size-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="relative flex items-center gap-2">
                                         <input
                                             ref={fileInputRef}
                                             type="file"
@@ -560,42 +650,92 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                                         >
                                             <Paperclip className="size-4" />
                                         </Button>
-                                        <textarea
-                                            ref={draftRef}
-                                            value={draft}
-                                            onChange={(e) => setDraft(e.target.value)}
-                                            onPaste={(e) => {
-                                                const items = e.clipboardData?.items;
-                                                if (!items) return;
-                                                for (let i = 0; i < items.length; i += 1) {
-                                                    const item = items[i];
-                                                    if (item.kind === 'file' && item.type.startsWith('image/')) {
-                                                        e.preventDefault();
-                                                        const file = item.getAsFile();
-                                                        if (file) setAttachment(file);
-                                                        return;
+                                        <div className="relative flex-1">
+                                            <QuickReplyDropdown
+                                                open={qrOpen}
+                                                query={qrQuery}
+                                                replies={quickReplies}
+                                                selectedIndex={qrSelectedIndex}
+                                                loading={quickRepliesLoading}
+                                                onSelect={applyQuickReply}
+                                                onHover={setQrSelectedIndex}
+                                                onClose={() => {
+                                                    setQrOpen(false);
+                                                    setQrSelectedIndex(0);
+                                                }}
+                                            />
+                                            <textarea
+                                                ref={draftRef}
+                                                value={draft}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setDraft(value);
+                                                    const lines = value.split('\n');
+                                                    const lastLine = lines[lines.length - 1] ?? '';
+                                                    if (/^\/[a-zA-Z0-9_-]*$/.test(lastLine)) {
+                                                        setQrOpen(true);
+                                                        setQrSelectedIndex(0);
+                                                    } else {
+                                                        setQrOpen(false);
                                                     }
-                                                }
-                                            }}
-                                            onDragOver={(e) => e.preventDefault()}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                const file = e.dataTransfer?.files?.[0];
-                                                if (file) setAttachment(file);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                }}
+                                                onPaste={(e) => {
+                                                    const items = e.clipboardData?.items;
+                                                    if (!items) return;
+                                                    for (let i = 0; i < items.length; i += 1) {
+                                                        const item = items[i];
+                                                        if (item.kind === 'file' && item.type.startsWith('image/')) {
+                                                            e.preventDefault();
+                                                            const file = item.getAsFile();
+                                                            if (file) setAttachment(file);
+                                                            return;
+                                                        }
+                                                    }
+                                                }}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
                                                     e.preventDefault();
-                                                    sendMessage(e as unknown as React.FormEvent);
-                                                }
-                                            }}
-                                            placeholder={attachment ? 'Añade un comentario (opcional)...' : 'Escribe una respuesta o pega una imagen...'}
-                                            className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6"
-                                            rows={1}
-                                        />
+                                                    const file = e.dataTransfer?.files?.[0];
+                                                    if (file) setAttachment(file);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (qrOpen) {
+                                                        if (e.key === 'ArrowDown') {
+                                                            e.preventDefault();
+                                                            setQrSelectedIndex((i) => Math.min(i + 1, qrFiltered.length - 1));
+                                                            return;
+                                                        }
+                                                        if (e.key === 'ArrowUp') {
+                                                            e.preventDefault();
+                                                            setQrSelectedIndex((i) => Math.max(i - 1, 0));
+                                                            return;
+                                                        }
+                                                        if (e.key === 'Tab' || (e.key === 'Enter' && qrFiltered.length > 0)) {
+                                                            e.preventDefault();
+                                                            if (qrFiltered[qrSelectedIndex]) {
+                                                                applyQuickReply(qrFiltered[qrSelectedIndex]);
+                                                            }
+                                                            return;
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                            e.preventDefault();
+                                                            setQrOpen(false);
+                                                            return;
+                                                        }
+                                                    }
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        sendMessage(e as unknown as React.FormEvent);
+                                                    }
+                                                }}
+                                                placeholder={attachment ? 'Añade un comentario (opcional)...' : 'Escribe una respuesta, / para respuestas rápidas, o pega una imagen...'}
+                                                className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6"
+                                                rows={1}
+                                            />
+                                        </div>
                                         <Button
                                             type="submit"
-                                            disabled={sending || (!draft.trim() && !attachment)}
+                                            disabled={sending || (!draft.trim() && !attachment && !pickedMediaId)}
                                             className="h-10 w-10"
                                             size="icon"
                                             title="Enviar"

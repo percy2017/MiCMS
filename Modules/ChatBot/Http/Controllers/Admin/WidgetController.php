@@ -25,8 +25,8 @@ class WidgetController extends Controller
                 'name' => $c->name,
                 'enabled' => $c->enabled,
                 'title' => $c->settings['title'] ?? 'Asistente virtual',
+                'domain' => $c->allowed_domain,
                 'public_key' => $c->public_key,
-                'allowed_domains' => $c->allowed_domains ?? [],
                 'conversations_count' => $c->conversations()->count(),
             ]);
 
@@ -54,8 +54,10 @@ class WidgetController extends Controller
                 'require_auth' => true,
                 'show_typing' => true,
                 'offline_message' => null,
-                'allowed_domains' => [],
+                'allowed_domain' => '',
                 'public_key' => null,
+                'webhook_token' => null,
+                'webhook_url' => null,
             ],
         ]);
     }
@@ -66,10 +68,21 @@ class WidgetController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'allowed_domain' => ['required', 'string', 'max:255'],
             'enabled' => ['boolean'],
-            'allowed_domains' => ['nullable', 'array'],
-            'allowed_domains.*' => ['string', 'max:255'],
         ]);
+
+        $domain = $this->normalizeDomain($data['allowed_domain']);
+        if ($domain === '') {
+            return back()->withErrors(['allowed_domain' => 'Dominio inválido. Ej: mitienda.com']);
+        }
+
+        $exists = Channel::where('type', 'web_widget')
+            ->where('allowed_domain', $domain)
+            ->exists();
+        if ($exists) {
+            return back()->withErrors(['allowed_domain' => "Ya existe un inbox para el dominio '{$domain}'."]);
+        }
 
         $channel = Channel::create([
             'type' => 'web_widget',
@@ -77,12 +90,12 @@ class WidgetController extends Controller
             'enabled' => $data['enabled'] ?? true,
             'config' => [],
             'settings' => $this->defaultSettings($data['name']),
-            'allowed_domains' => $this->normalizeDomains($data['allowed_domains'] ?? []),
+            'allowed_domain' => $domain,
             'sort' => (Channel::where('type', 'web_widget')->max('sort') ?? 0) + 1,
         ]);
 
         return redirect()->route('chatbot.admin.widget.edit', $channel)
-            ->with('success', 'Widget creado. Configura sus opciones y copia el snippet de embed.');
+            ->with('success', 'Widget creado. Copia el snippet y pégalo en tu sitio.');
     }
 
     public function edit(Channel $webWidget): Response
@@ -107,8 +120,10 @@ class WidgetController extends Controller
                 'require_auth' => $settings['require_auth'] ?? true,
                 'show_typing' => $settings['show_typing'] ?? true,
                 'offline_message' => $settings['offline_message'] ?? null,
-                'allowed_domains' => $webWidget->allowed_domains ?? [],
+                'allowed_domain' => $webWidget->allowed_domain ?? '',
                 'public_key' => $webWidget->public_key,
+                'webhook_token' => $webWidget->webhook_token,
+                'webhook_url' => $webWidget->webhookUrl(),
             ],
         ]);
     }
@@ -118,6 +133,19 @@ class WidgetController extends Controller
         abort_unless($webWidget->type->value === 'web_widget', 404);
 
         $data = $request->validated();
+
+        $domain = $this->normalizeDomain($data['allowed_domain']);
+        if ($domain === '') {
+            return back()->withErrors(['allowed_domain' => 'Dominio inválido. Ej: mitienda.com']);
+        }
+
+        $exists = Channel::where('type', 'web_widget')
+            ->where('id', '!=', $webWidget->id)
+            ->where('allowed_domain', $domain)
+            ->exists();
+        if ($exists) {
+            return back()->withErrors(['allowed_domain' => "Ya existe otro inbox para el dominio '{$domain}'."]);
+        }
 
         $settings = $webWidget->settings ?? [];
         foreach (['title', 'subtitle', 'greeting', 'position', 'avatar_media_id', 'require_auth', 'show_typing', 'offline_message'] as $key) {
@@ -130,7 +158,7 @@ class WidgetController extends Controller
             'name' => $data['name'] ?? $webWidget->name,
             'enabled' => $data['enabled'] ?? $webWidget->enabled,
             'settings' => $settings,
-            'allowed_domains' => $this->normalizeDomains($data['allowed_domains'] ?? []),
+            'allowed_domain' => $domain,
         ]);
 
         return back()->with('success', 'Configuración del widget actualizada.');
@@ -158,32 +186,19 @@ class WidgetController extends Controller
             'subtitle' => 'Te respondemos en minutos',
             'greeting' => '¡Hola! ¿En qué podemos ayudarte?',
             'position' => 'right',
-            'require_auth' => true,
+            'require_auth' => false,
             'show_typing' => true,
             'offline_message' => null,
         ];
     }
 
-    /**
-     * @param  array<int, string>|null  $domains
-     * @return array<int, string>
-     */
-    private function normalizeDomains(?array $domains): array
+    private function normalizeDomain(string $domain): string
     {
-        if (empty($domains)) {
-            return [];
-        }
+        $d = trim($domain);
+        $d = preg_replace('#^https?://#i', '', $d);
+        $d = rtrim($d, '/');
+        $d = preg_replace('#/.*$#', '', $d);
 
-        $clean = [];
-        foreach ($domains as $d) {
-            $d = trim((string) $d);
-            $d = preg_replace('#^https?://#i', '', $d);
-            $d = rtrim($d, '/');
-            if ($d !== '') {
-                $clean[] = $d;
-            }
-        }
-
-        return array_values(array_unique($clean));
+        return strtolower($d);
     }
 }

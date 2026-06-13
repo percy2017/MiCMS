@@ -150,6 +150,7 @@ export function AppSidebar() {
             children: [
                 { title: 'Chats', href: '/admin/chats' },
                 { title: 'Canales', href: '/admin/canales' },
+                { title: 'Respuestas rápidas', href: '/admin/canales/respuestas-rapidas' },
             ],
         });
     }

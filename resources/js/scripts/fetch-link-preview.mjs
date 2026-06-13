@@ -176,15 +176,52 @@ try {
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         javaScriptEnabled: true,
+        acceptDownloads: false, // Evitar que bit.ly etc triggereen downloads
     });
     const page = await context.newPage();
 
+    // Si el server intenta forzar download, abortar y usar fallback
+    let forcedDownload = false;
+    page.on('download', async (download) => {
+        forcedDownload = true;
+        try { await download.cancel(); } catch {}
+    });
+
+    // Detectar responses que NO son HTML (descargas binarias)
+    let nonHtmlResponse = false;
+    page.on('response', async (response) => {
+        const ct = response.headers()['content-type'] || '';
+        if (response.status() < 400 && !ct.includes('text/html') && !ct.includes('application/xhtml') && !ct.includes('application/json')) {
+            nonHtmlResponse = true;
+        }
+    });
+
     try {
-        // 'load' en vez de 'domcontentloaded' para que el JS inicial corra.
-        // networkidle puede colgar 30s en TikTok/Instagram.
-        await page.goto(url, { waitUntil: 'load', timeout: 15000 });
+        // 'commit' en vez de 'load' para short links que sirven archivos directos.
+        // commit espera solo la primera respuesta del servidor.
+        const response = await page.goto(url, { waitUntil: 'commit', timeout: 10000 });
+
+        // Si el response no es HTML, abortar inmediatamente
+        if (response) {
+            const ct = response.headers()['content-type'] || '';
+            if (!ct.includes('text/html') && !ct.includes('application/xhtml')) {
+                await browser.close();
+                bail('non_html_response: ' + (ct || 'unknown'));
+            }
+        }
+
+        if (forcedDownload || nonHtmlResponse) {
+            await browser.close();
+            bail('download_blocked');
+        }
+
+        // Esperar un poco más para que el JS inyecte OG tags
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
     } catch (e) {
         await browser.close();
+        if (forcedDownload || nonHtmlResponse) {
+            bail('download_blocked');
+        }
         bail('navigation_failed: ' + (e?.message || 'unknown'));
     }
 

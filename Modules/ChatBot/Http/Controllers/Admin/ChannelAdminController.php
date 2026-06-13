@@ -63,7 +63,7 @@ class ChannelAdminController extends Controller
             if ($c->type->value === 'web_widget') {
                 $base['widget_title'] = $c->settings['title'] ?? null;
                 $base['public_key'] = $c->public_key;
-                $base['allowed_domains'] = $c->allowed_domains ?? [];
+                $base['allowed_domain'] = $c->allowed_domain;
                 $base['conversations_count'] = $c->conversations()->count();
             }
 

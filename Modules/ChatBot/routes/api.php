@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\ChatBot\Http\Controllers\Admin\QuickReplyController;
 use Modules\ChatBot\Http\Controllers\Api\MessageController;
 use Modules\ChatBot\Http\Controllers\Api\SessionController;
 
@@ -19,5 +20,7 @@ Route::prefix('chatbot')->name('chatbot.api.')->group(function () {
             ->name('messages.store');
         Route::post('/conversations/{conversation}/typing', [MessageController::class, 'typing'])
             ->name('messages.typing');
+        Route::get('/quick-replies', [QuickReplyController::class, 'api'])
+            ->name('quick-replies');
     });
 });

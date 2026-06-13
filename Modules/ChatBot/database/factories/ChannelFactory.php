@@ -33,12 +33,13 @@ class ChannelFactory extends Factory
                 'subtitle' => 'Te respondemos en minutos',
                 'greeting' => '¡Hola! ¿En qué podemos ayudarte?',
                 'position' => 'right',
-                'require_auth' => true,
+                'require_auth' => false,
                 'show_typing' => true,
                 'offline_message' => 'Estamos fuera de horario.',
             ],
-            'allowed_domains' => [],
+            'allowed_domain' => 'mitienda.com',
             'public_key' => Channel::generatePublicKey(),
+            'webhook_token' => Channel::generateWebhookToken(),
         ]);
     }
 

@@ -30,8 +30,9 @@ class Channel extends Model
         'enabled',
         'config',
         'settings',
-        'allowed_domains',
+        'allowed_domain',
         'public_key',
+        'webhook_token',
         'sort',
     ];
 
@@ -40,7 +41,6 @@ class Channel extends Model
         'enabled' => 'boolean',
         'config' => 'encrypted:array',
         'settings' => 'array',
-        'allowed_domains' => 'array',
         'sort' => 'integer',
     ];
 
@@ -49,11 +49,30 @@ class Channel extends Model
         return substr(bin2hex(random_bytes(8)), 0, 16);
     }
 
+    public static function generateWebhookToken(): string
+    {
+        return substr(bin2hex(random_bytes(16)), 0, 32);
+    }
+
+    public function webhookUrl(): ?string
+    {
+        if ($this->type !== ChannelType::WebWidget) {
+            return null;
+        }
+
+        return route('webhooks.widget', ['channel' => $this, 'token' => $this->webhook_token]);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Channel $channel): void {
-            if ($channel->type === ChannelType::WebWidget && empty($channel->public_key)) {
-                $channel->public_key = self::generatePublicKey();
+            if ($channel->type === ChannelType::WebWidget) {
+                if (empty($channel->public_key)) {
+                    $channel->public_key = self::generatePublicKey();
+                }
+                if (empty($channel->webhook_token)) {
+                    $channel->webhook_token = self::generateWebhookToken();
+                }
             }
         });
     }

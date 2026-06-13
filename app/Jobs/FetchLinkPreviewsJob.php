@@ -79,6 +79,18 @@ class FetchLinkPreviewsJob implements ShouldQueue
                     'message_id' => $message->id,
                     'error' => $e->getMessage(),
                 ]);
+
+                // Persistir estado de error para que pueda ser re-intentado
+                // por `php artisan link-previews:refetch-failed`
+                $meta = $message->metadata ?? [];
+                $meta['media_kind'] = 'link';
+                $meta['media_external_url'] = $urls[0] ?? null;
+                $meta['media_preview'] = [
+                    'url' => $urls[0] ?? null,
+                    'final_url' => $urls[0] ?? null,
+                    'error' => 'fetch_failed: '.substr($e->getMessage(), 0, 200),
+                ];
+                $message->forceFill(['metadata' => $meta])->save();
             }
         }
     }

@@ -3,6 +3,8 @@
 namespace Modules\ChatBot\Services;
 
 use App\Models\Media;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Events\ChatBotMessageRead;
 use Modules\ChatBot\Events\ChatBotMessageReceived;
@@ -11,6 +13,39 @@ use Modules\ChatBot\Models\Message;
 
 class ChatBotMessageService
 {
+    public function findOrCreateUser(string $email, string $name, ?string $phone = null): User
+    {
+        $email = strtolower(trim($email));
+
+        $user = User::where('email', $email)->first();
+
+        if (! $user) {
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make(bin2hex(random_bytes(8))),
+                'phone' => $phone,
+            ]);
+
+            if (method_exists($user, 'assignRole')) {
+                $user->assignRole('user');
+            }
+        } else {
+            $updates = [];
+            if ($name && $user->name !== $name) {
+                $updates['name'] = $name;
+            }
+            if ($phone && $user->phone !== $phone) {
+                $updates['phone'] = $phone;
+            }
+            if (! empty($updates)) {
+                $user->update($updates);
+            }
+        }
+
+        return $user;
+    }
+
     public function sendUserMessage(Conversation $conversation, string $content, ?int $attachmentMediaId = null): Message
     {
         $message = Message::create([

@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, Copy, Globe, Loader2, Save, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertTriangle, ArrowLeft, Copy, Globe, Loader2, Save, Trash2, Webhook } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,27 +29,42 @@ type Widget = {
     require_auth: boolean;
     show_typing: boolean;
     offline_message: string | null;
-    allowed_domains: string[];
+    allowed_domain: string;
     public_key: string | null;
+    webhook_token: string | null;
+    webhook_url: string | null;
 };
 
 type PageProps = { widget: Widget };
 
-function normalize(d: string): string {
-    return d.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+function embedSnippet(publicKey: string | null, webhookUrl: string | null): string {
+    if (! publicKey || ! webhookUrl) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hostbol.lat';
+    return `<script src="${origin}/embed/widget/${publicKey}.js" data-channel="${publicKey}" data-webhook="${webhookUrl}" async></script>`;
 }
 
-function embedSnippet(publicKey: string | null): string {
-    if (! publicKey) return '';
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hostbol.lat';
-    return `<script src="${origin}/embed/widget/${publicKey}.js" data-channel="${publicKey}" async></script>`;
+function CopyButton({ value, label = 'Copiar' }: { value: string; label?: string }): JSX.Element {
+    const [copied, setCopied] = useState(false);
+    async function copy(): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // ignore
+        }
+    }
+    return (
+        <Button type="button" size="sm" variant="outline" onClick={copy}>
+            <Copy className="mr-1 size-3" />
+            {copied ? 'Copiado' : label}
+        </Button>
+    );
 }
 
 export default function WidgetEdit({ widget }: PageProps) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [domainInput, setDomainInput] = useState('');
-    const [copied, setCopied] = useState(false);
 
     const { data, setData, processing, errors } = useForm({
         enabled: widget.enabled,
@@ -62,28 +77,8 @@ export default function WidgetEdit({ widget }: PageProps) {
         require_auth: widget.require_auth,
         show_typing: widget.show_typing,
         offline_message: widget.offline_message ?? '',
-        allowed_domains: widget.allowed_domains,
+        allowed_domain: widget.allowed_domain ?? '',
     });
-
-    const domains = data.allowed_domains;
-
-    function addDomain(): void {
-        const d = normalize(domainInput);
-        if (d === '') return;
-        if (domains.includes(d)) {
-            setDomainInput('');
-            return;
-        }
-        setData('allowed_domains', [...domains, d]);
-        setDomainInput('');
-    }
-
-    function removeDomain(d: string): void {
-        setData(
-            'allowed_domains',
-            domains.filter((x) => x !== d),
-        );
-    }
 
     function handleSubmit(e: React.FormEvent): void {
         e.preventDefault();
@@ -103,22 +98,7 @@ export default function WidgetEdit({ widget }: PageProps) {
         });
     }
 
-    async function copySnippet(): Promise<void> {
-        if (! widget.public_key) return;
-        try {
-            await navigator.clipboard.writeText(embedSnippet(widget.public_key));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {
-            // ignore
-        }
-    }
-
-    const submitUrl = widget.is_new
-        ? '/admin/canales/web-widget'
-        : `/admin/canales/web-widget/${widget.id}`;
-
-    const isFormValid = useMemo(() => data.name.trim().length > 0 && data.title.trim().length > 0, [data.name, data.title]);
+    const isFormValid = data.name.trim().length > 0 && data.title.trim().length > 0 && data.allowed_domain.trim().length > 0;
 
     return (
         <>
@@ -133,9 +113,7 @@ export default function WidgetEdit({ widget }: PageProps) {
                     </Button>
                 </div>
 
-                <form onSubmit={handleSubmit} action={submitUrl} method={widget.is_new ? 'post' : 'patch'}>
-                    <input type="hidden" name="_method" value={widget.is_new ? 'post' : 'patch'} />
-
+                <form onSubmit={handleSubmit}>
                     <div className="grid gap-6 lg:grid-cols-2">
                         <div className="space-y-6">
                             <Card>
@@ -156,6 +134,26 @@ export default function WidgetEdit({ widget }: PageProps) {
                                             required
                                         />
                                         {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="allowed_domain">
+                                            Dominio
+                                            <span className="ml-1 text-destructive">*</span>
+                                        </Label>
+                                        <Input
+                                            id="allowed_domain"
+                                            value={data.allowed_domain}
+                                            onChange={(e) => setData('allowed_domain', e.target.value)}
+                                            placeholder="mitienda.com"
+                                            required
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Solo este dominio podrá cargar el widget y enviar mensajes. Usa <code>*.mitienda.com</code> para permitir subdominios.
+                                        </p>
+                                        {errors.allowed_domain && (
+                                            <p className="text-sm text-destructive">{errors.allowed_domain}</p>
+                                        )}
                                     </div>
 
                                     <label className="flex items-center gap-2 text-sm">
@@ -232,64 +230,10 @@ export default function WidgetEdit({ widget }: PageProps) {
                         <div className="space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Dominios permitidos</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <p className="text-xs text-muted-foreground">
-                                        Lista de dominios donde el widget puede cargarse. Si está vacío, se permite en cualquier dominio.
-                                    </p>
-
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={domainInput}
-                                            onChange={(e) => setDomainInput(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    addDomain();
-                                                }
-                                            }}
-                                            placeholder="mitienda.com"
-                                        />
-                                        <Button type="button" variant="outline" onClick={addDomain}>
-                                            Añadir
-                                        </Button>
-                                    </div>
-
-                                    {domains.length === 0 ? (
-                                        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                            ⚠ Sin dominios. El script podrá inyectarse en cualquier sitio (menos seguro).
-                                        </p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {domains.map((d) => (
-                                                <span
-                                                    key={d}
-                                                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
-                                                >
-                                                    {d}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeDomain(d)}
-                                                        className="ml-1 text-blue-700/70 hover:text-blue-900"
-                                                        aria-label={`Quitar ${d}`}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Apariencia</CardTitle>
+                                    <CardTitle>Avatar</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid gap-2">
-                                        <Label>Avatar</Label>
                                         {widget.avatar_url ? (
                                             <div className="flex items-center gap-3">
                                                 <img
@@ -338,9 +282,8 @@ export default function WidgetEdit({ widget }: PageProps) {
                                             checked={data.require_auth}
                                             onChange={(e) => setData('require_auth', e.target.checked)}
                                         />
-                                        <span>Requerir inicio de sesión/registro para chatear</span>
+                                        <span>Requerir login al recargar (no al primer mensaje)</span>
                                     </label>
-                                    {errors.require_auth && <p className="text-sm text-destructive">{errors.require_auth}</p>}
 
                                     <label className="flex items-center gap-2 text-sm">
                                         <input
@@ -363,33 +306,50 @@ export default function WidgetEdit({ widget }: PageProps) {
                                 </CardContent>
                             </Card>
 
-                            {! widget.is_new && widget.public_key && (
+                            {! widget.is_new && widget.public_key && widget.webhook_url && (
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Snippet de embed</CardTitle>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Webhook className="size-4" />
+                                            Integración
+                                        </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        <p className="text-xs text-muted-foreground">
-                                            Pega este snippet en el HTML de tu sitio (antes de <code>&lt;/body&gt;</code>):
-                                        </p>
-                                        <div className="relative">
-                                            <pre className="overflow-x-auto rounded-md bg-slate-950 px-3 py-2 text-xs text-slate-100">
-                                                {embedSnippet(widget.public_key)}
-                                            </pre>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                className="absolute right-2 top-2"
-                                                onClick={copySnippet}
-                                            >
-                                                <Copy className="mr-1 size-3" />
-                                                {copied ? 'Copiado' : 'Copiar'}
-                                            </Button>
+                                    <CardContent className="space-y-3">
+                                        <div>
+                                            <p className="mb-1 text-xs font-medium">Snippet de embed</p>
+                                            <p className="mb-2 text-xs text-muted-foreground">
+                                                Pega esto en el HTML de <span className="font-mono">{widget.allowed_domain}</span> antes de <code>&lt;/body&gt;</code>:
+                                            </p>
+                                            <div className="relative">
+                                                <pre className="overflow-x-auto rounded-md bg-slate-950 px-3 py-2 pr-24 text-xs text-slate-100">
+                                                    {embedSnippet(widget.public_key, widget.webhook_url)}
+                                                </pre>
+                                                <div className="absolute right-2 top-2">
+                                                    <CopyButton value={embedSnippet(widget.public_key, widget.webhook_url)} />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Public key: <span className="font-mono">{widget.public_key}</span>
-                                        </p>
+
+                                        <div>
+                                            <p className="mb-1 text-xs font-medium">Webhook URL</p>
+                                            <div className="flex items-center gap-2">
+                                                <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">
+                                                    {widget.webhook_url}
+                                                </code>
+                                                <CopyButton value={widget.webhook_url} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div>
+                                                <p className="font-medium">Public key</p>
+                                                <p className="font-mono text-muted-foreground">{widget.public_key}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium">Webhook token</p>
+                                                <p className="font-mono text-muted-foreground">{widget.webhook_token}</p>
+                                            </div>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             )}

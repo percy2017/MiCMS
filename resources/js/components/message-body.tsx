@@ -7,7 +7,20 @@ type Props = {
     mediaPreview?: LinkPreviewItem | null;
 };
 
-const URL_REGEX = /https?:\/\/[^\s<>"')]+/gi;
+// Match: http(s)://...   OR   (www.)?domain.tld[/path]
+const URL_REGEX = /(?:https?:\/\/[^\s<>")']+|(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9\-]{0,62}(?:\.[a-zA-Z0-9\-]{1,62}){1,}(?:\/[^\s<>")']*)?)/gi;
+
+const TLD_PATTERN = /\.(com|net|org|io|co|bo|es|mx|ar|cl|pe|ve|uy|py|ec|cr|gt|hn|ni|pa|cu|do|pr|us|uk|de|fr|it|pt|br|info|biz|dev|app|ai|me|tv|cc|tk|ml|ga|cf|gq|xyz|top|site|online|store|tech|news|wiki|gov|edu|mil|int)(?:\b|\/|$)/i;
+
+function isValidUrl(token: string): boolean {
+    if (token.includes('@')) return false;
+    if (!token.includes('.')) return false;
+    return TLD_PATTERN.test(token.toLowerCase());
+}
+
+function normalizeUrl(url: string): string {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
 
 function autoLinkify(text: string): React.ReactNode[] {
     const parts: React.ReactNode[] = [];
@@ -17,16 +30,19 @@ function autoLinkify(text: string): React.ReactNode[] {
     let key = 0;
 
     while ((match = URL_REGEX.exec(text)) !== null) {
+        const raw = match[0];
+        if (!isValidUrl(raw)) continue;
+
         if (match.index > lastIndex) {
             parts.push(text.slice(lastIndex, match.index));
         }
-        const raw = match[0];
         const clean = raw.replace(/[.,;:!?)]+$/, '');
         const trailing = raw.slice(clean.length);
+        const href = normalizeUrl(clean);
         parts.push(
             <a
                 key={`l-${key++}`}
-                href={clean}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
@@ -61,7 +77,9 @@ export function MessageBody({ content, linkPreviews, mediaPreview }: Props) {
     let m: RegExpExecArray | null;
     const seen = new Set<string>();
     while ((m = URL_REGEX.exec(content)) !== null) {
-        const clean = m[0].replace(/[.,;:!?)]+$/, '');
+        const raw = m[0];
+        if (!isValidUrl(raw)) continue;
+        const clean = raw.replace(/[.,;:!?)]+$/, '');
         if (!seen.has(clean)) {
             seen.add(clean);
             urlsInContent.push(clean);
