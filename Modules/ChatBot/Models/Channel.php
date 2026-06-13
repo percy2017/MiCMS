@@ -30,6 +30,8 @@ class Channel extends Model
         'enabled',
         'config',
         'settings',
+        'allowed_domains',
+        'public_key',
         'sort',
     ];
 
@@ -38,8 +40,23 @@ class Channel extends Model
         'enabled' => 'boolean',
         'config' => 'encrypted:array',
         'settings' => 'array',
+        'allowed_domains' => 'array',
         'sort' => 'integer',
     ];
+
+    public static function generatePublicKey(): string
+    {
+        return substr(bin2hex(random_bytes(8)), 0, 16);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Channel $channel): void {
+            if ($channel->type === ChannelType::WebWidget && empty($channel->public_key)) {
+                $channel->public_key = self::generatePublicKey();
+            }
+        });
+    }
 
     public function conversations(): HasMany
     {

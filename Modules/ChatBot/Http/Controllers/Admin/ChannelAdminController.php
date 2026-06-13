@@ -38,7 +38,7 @@ class ChannelAdminController extends Controller
                 'url' => match ($c->type->value) {
                     'evolution' => route('chatbot.admin.evolution.edit', $c),
                     'openwa' => route('chatbot.admin.openwa.edit', $c),
-                    'web_widget' => route('chatbot.admin.widget'),
+                    'web_widget' => route('chatbot.admin.widget.edit', $c),
                     default => '#',
                 },
             ];
@@ -62,6 +62,9 @@ class ChannelAdminController extends Controller
 
             if ($c->type->value === 'web_widget') {
                 $base['widget_title'] = $c->settings['title'] ?? null;
+                $base['public_key'] = $c->public_key;
+                $base['allowed_domains'] = $c->allowed_domains ?? [];
+                $base['conversations_count'] = $c->conversations()->count();
             }
 
             return $base;
@@ -78,7 +81,7 @@ class ChannelAdminController extends Controller
 
         return match ($channel->type->value) {
             'evolution' => redirect()->route('chatbot.admin.evolution.edit', $channel),
-            'web_widget' => redirect()->route('chatbot.admin.widget'),
+            'web_widget' => redirect()->route('chatbot.admin.widget.edit', $channel),
             default => redirect()->route('chatbot.admin.canales'),
         };
     }

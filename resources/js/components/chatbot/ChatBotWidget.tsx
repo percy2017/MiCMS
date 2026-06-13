@@ -5,6 +5,8 @@ import { ChatBotPanel } from '@/components/chatbot/ChatBotPanel';
 
 type WidgetConfig = {
     enabled: boolean;
+    key?: string;
+    name?: string;
     title: string;
     subtitle?: string | null;
     greeting?: string | null;
@@ -25,6 +27,23 @@ function csrfHeaders(): Record<string, string> {
     };
 }
 
+function detectChannelKey(): string | null {
+    if (typeof document === 'undefined') return null;
+
+    const current = document.currentScript as HTMLScriptElement | null;
+    if (current?.dataset.channel) {
+        return current.dataset.channel;
+    }
+
+    const scripts = document.querySelectorAll<HTMLScriptElement>('script[data-channel]');
+    for (const s of Array.from(scripts)) {
+        if (s.src && s.src === (document.currentScript as HTMLScriptElement | null)?.src) {
+            return s.dataset.channel ?? null;
+        }
+    }
+    return scripts[0]?.dataset.channel ?? null;
+}
+
 export function ChatBotWidget() {
     const [open, setOpen] = useState(false);
     const [config, setConfig] = useState<WidgetConfig | null>(null);
@@ -33,7 +52,15 @@ export function ChatBotWidget() {
         if (window.location.pathname.startsWith('/admin')) {
             return;
         }
-        fetch('/api/chatbot/widget', { headers: csrfHeaders(), credentials: 'same-origin' })
+
+        const key = detectChannelKey();
+        if (! key) {
+            return;
+        }
+
+        const url = `/api/chatbot/widget?key=${encodeURIComponent(key)}`;
+
+        fetch(url, { headers: csrfHeaders(), credentials: 'same-origin' })
             .then((r) => (r.ok ? r.json() : null))
             .then((data) => {
                 if (data && data.enabled) {

@@ -17,18 +17,37 @@ class SessionController extends Controller
         private readonly ChatBotAuthService $auth,
     ) {}
 
-    public function widget(): JsonResponse
+    public function widget(Request $request): JsonResponse
     {
-        $channel = Channel::where('type', 'web_widget')->first();
+        $publicKey = $request->string('key')->toString();
+
+        if ($publicKey === '') {
+            return response()->json(['enabled' => false, 'reason' => 'missing_key'], 400);
+        }
+
+        $channel = Channel::where('type', 'web_widget')
+            ->where('public_key', $publicKey)
+            ->first();
 
         if (! $channel) {
-            return response()->json(['enabled' => false]);
+            return response()->json(['enabled' => false, 'reason' => 'invalid_key'], 404);
+        }
+
+        if (! $channel->enabled) {
+            return response()->json(['enabled' => false, 'reason' => 'disabled']);
+        }
+
+        $allowed = $channel->allowed_domains ?? [];
+        if (! empty($allowed) && ! $this->originAllowed($request, $allowed)) {
+            return response()->json(['enabled' => false, 'reason' => 'domain_not_allowed'], 403);
         }
 
         $settings = $channel->settings ?? [];
 
         return response()->json([
-            'enabled' => $channel->enabled,
+            'enabled' => true,
+            'key' => $channel->public_key,
+            'name' => $channel->name,
             'title' => $settings['title'] ?? 'Asistente virtual',
             'subtitle' => $settings['subtitle'] ?? 'Te respondemos en minutos',
             'greeting' => $settings['greeting'] ?? '¡Hola! ¿En qué podemos ayudarte?',
@@ -38,6 +57,49 @@ class SessionController extends Controller
             'offline_message' => $settings['offline_message'] ?? null,
             'avatar_url' => null,
         ]);
+    }
+
+    /**
+     * @param  array<int, string>  $allowed
+     */
+    private function originAllowed(Request $request, array $allowed): bool
+    {
+        $origin = $this->extractHost($request->header('Origin') ?? $request->header('Referer') ?? '');
+
+        if ($origin === '') {
+            return true;
+        }
+
+        foreach ($allowed as $d) {
+            $d = strtolower(trim($d));
+            if ($d === '') {
+                continue;
+            }
+            if (str_starts_with($d, '*.')) {
+                $suffix = substr($d, 1);
+                if (str_ends_with($origin, $suffix)) {
+                    return true;
+                }
+            }
+            if (strtolower($origin) === $d) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function extractHost(string $url): string
+    {
+        if ($url === '') {
+            return '';
+        }
+        $host = parse_url($url, PHP_URL_HOST);
+        if (is_string($host) && $host !== '') {
+            return $host;
+        }
+
+        return preg_replace('#^https?://#i', '', $url) ?? '';
     }
 
     public function start(StartSessionRequest $request): JsonResponse

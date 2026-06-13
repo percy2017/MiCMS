@@ -19,12 +19,16 @@ Route::middleware(['auth', 'verified'])
         Route::get('/canales', [ChannelAdminController::class, 'index'])
             ->name('canales');
 
-        // Web widget channels
+        // Web widget channels (multi-inbox)
+        Route::get('/canales/web-widget', [WidgetController::class, 'index'])
+            ->name('widget');
+        Route::get('/canales/web-widget/nuevo', [WidgetController::class, 'create'])
+            ->name('widget.create');
         Route::post('/canales/web-widget', [WidgetController::class, 'store'])
             ->name('widget.store');
-        Route::get('/canales/web-widget', [WidgetController::class, 'edit'])
-            ->name('widget');
-        Route::patch('/canales/web-widget', [WidgetController::class, 'update'])
+        Route::get('/canales/web-widget/{webWidget}', [WidgetController::class, 'edit'])
+            ->name('widget.edit');
+        Route::patch('/canales/web-widget/{webWidget}', [WidgetController::class, 'update'])
             ->name('widget.update');
         Route::delete('/canales/web-widget/{webWidget}', [WidgetController::class, 'destroy'])
             ->name('widget.destroy');

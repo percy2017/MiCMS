@@ -37,6 +37,8 @@ class ChannelFactory extends Factory
                 'show_typing' => true,
                 'offline_message' => 'Estamos fuera de horario.',
             ],
+            'allowed_domains' => [],
+            'public_key' => Channel::generatePublicKey(),
         ]);
     }
 

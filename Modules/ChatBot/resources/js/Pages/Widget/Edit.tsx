@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, Loader2, Save, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, ArrowLeft, Copy, Globe, Loader2, Save, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,8 +16,10 @@ import { Label } from '@/components/ui/label';
 import { admin } from '@/routes';
 
 type Widget = {
-    id: number;
+    id: number | null;
+    is_new: boolean;
     enabled: boolean;
+    name: string;
     title: string;
     subtitle: string | null;
     greeting: string | null;
@@ -27,16 +29,31 @@ type Widget = {
     require_auth: boolean;
     show_typing: boolean;
     offline_message: string | null;
+    allowed_domains: string[];
+    public_key: string | null;
 };
 
 type PageProps = { widget: Widget };
 
-export default function ChatBotWidgetConfig({ widget }: PageProps) {
+function normalize(d: string): string {
+    return d.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+}
+
+function embedSnippet(publicKey: string | null): string {
+    if (! publicKey) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hostbol.lat';
+    return `<script src="${origin}/embed/widget/${publicKey}.js" data-channel="${publicKey}" async></script>`;
+}
+
+export default function WidgetEdit({ widget }: PageProps) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [domainInput, setDomainInput] = useState('');
+    const [copied, setCopied] = useState(false);
 
-    const { data, setData, patch, processing, errors } = useForm({
+    const { data, setData, processing, errors } = useForm({
         enabled: widget.enabled,
+        name: widget.name,
         title: widget.title,
         subtitle: widget.subtitle ?? '',
         greeting: widget.greeting ?? '',
@@ -45,14 +62,40 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
         require_auth: widget.require_auth,
         show_typing: widget.show_typing,
         offline_message: widget.offline_message ?? '',
+        allowed_domains: widget.allowed_domains,
     });
+
+    const domains = data.allowed_domains;
+
+    function addDomain(): void {
+        const d = normalize(domainInput);
+        if (d === '') return;
+        if (domains.includes(d)) {
+            setDomainInput('');
+            return;
+        }
+        setData('allowed_domains', [...domains, d]);
+        setDomainInput('');
+    }
+
+    function removeDomain(d: string): void {
+        setData(
+            'allowed_domains',
+            domains.filter((x) => x !== d),
+        );
+    }
 
     function handleSubmit(e: React.FormEvent): void {
         e.preventDefault();
-        patch('/admin/canales/web-widget', { preserveScroll: true });
+        if (widget.is_new) {
+            router.post('/admin/canales/web-widget', data, { preserveScroll: true });
+        } else {
+            router.patch(`/admin/canales/web-widget/${widget.id}`, data, { preserveScroll: true });
+        }
     }
 
     function confirmDelete(): void {
+        if (! widget.id) return;
         setDeleting(true);
         router.delete(`/admin/canales/web-widget/${widget.id}`, {
             preserveScroll: true,
@@ -60,18 +103,61 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
         });
     }
 
+    async function copySnippet(): Promise<void> {
+        if (! widget.public_key) return;
+        try {
+            await navigator.clipboard.writeText(embedSnippet(widget.public_key));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // ignore
+        }
+    }
+
+    const submitUrl = widget.is_new
+        ? '/admin/canales/web-widget'
+        : `/admin/canales/web-widget/${widget.id}`;
+
+    const isFormValid = useMemo(() => data.name.trim().length > 0 && data.title.trim().length > 0, [data.name, data.title]);
+
     return (
         <>
-            <Head title="Config del Chat Widget" />
-            <div className="space-y-6 p-4">
-                <form onSubmit={handleSubmit}>
+            <Head title={widget.is_new ? 'Nuevo widget' : `Widget: ${widget.name}`} />
+            <div className="h-full min-h-0 space-y-4 overflow-y-auto p-4">
+                <div className="flex items-center gap-3">
+                    <Button asChild variant="ghost" size="sm">
+                        <Link href="/admin/canales/web-widget">
+                            <ArrowLeft className="mr-1 size-4" />
+                            Volver
+                        </Link>
+                    </Button>
+                </div>
+
+                <form onSubmit={handleSubmit} action={submitUrl} method={widget.is_new ? 'post' : 'patch'}>
+                    <input type="hidden" name="_method" value={widget.is_new ? 'post' : 'patch'} />
+
                     <div className="grid gap-6 lg:grid-cols-2">
                         <div className="space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>General</CardTitle>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Globe className="size-4 text-[#2563eb]" />
+                                        General
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="name">Nombre interno</Label>
+                                        <Input
+                                            id="name"
+                                            value={data.name}
+                                            onChange={(e) => setData('name', e.target.value)}
+                                            placeholder="Ej. Tienda Principal"
+                                            required
+                                        />
+                                        {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                                    </div>
+
                                     <label className="flex items-center gap-2 text-sm">
                                         <input
                                             type="checkbox"
@@ -80,8 +166,14 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
                                         />
                                         <span>Widget habilitado</span>
                                     </label>
-                                    {errors.enabled && <p className="text-sm text-destructive">{errors.enabled}</p>}
+                                </CardContent>
+                            </Card>
 
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Apariencia del chat</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="title">Título</Label>
                                         <Input
@@ -138,6 +230,59 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
                         </div>
 
                         <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Dominios permitidos</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        Lista de dominios donde el widget puede cargarse. Si está vacío, se permite en cualquier dominio.
+                                    </p>
+
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={domainInput}
+                                            onChange={(e) => setDomainInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    addDomain();
+                                                }
+                                            }}
+                                            placeholder="mitienda.com"
+                                        />
+                                        <Button type="button" variant="outline" onClick={addDomain}>
+                                            Añadir
+                                        </Button>
+                                    </div>
+
+                                    {domains.length === 0 ? (
+                                        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                            ⚠ Sin dominios. El script podrá inyectarse en cualquier sitio (menos seguro).
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {domains.map((d) => (
+                                                <span
+                                                    key={d}
+                                                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                                                >
+                                                    {d}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeDomain(d)}
+                                                        className="ml-1 text-blue-700/70 hover:text-blue-900"
+                                                        aria-label={`Quitar ${d}`}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Apariencia</CardTitle>
@@ -218,19 +363,52 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
                                 </CardContent>
                             </Card>
 
+                            {! widget.is_new && widget.public_key && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Snippet de embed</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            Pega este snippet en el HTML de tu sitio (antes de <code>&lt;/body&gt;</code>):
+                                        </p>
+                                        <div className="relative">
+                                            <pre className="overflow-x-auto rounded-md bg-slate-950 px-3 py-2 text-xs text-slate-100">
+                                                {embedSnippet(widget.public_key)}
+                                            </pre>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="absolute right-2 top-2"
+                                                onClick={copySnippet}
+                                            >
+                                                <Copy className="mr-1 size-3" />
+                                                {copied ? 'Copiado' : 'Copiar'}
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Public key: <span className="font-mono">{widget.public_key}</span>
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             <div className="flex items-center gap-3">
-                                <Button type="submit" disabled={processing}>
+                                <Button type="submit" disabled={processing || ! isFormValid}>
                                     {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-                                    {processing ? 'Guardando…' : 'Guardar'}
+                                    {processing ? 'Guardando…' : widget.is_new ? 'Crear widget' : 'Guardar'}
                                 </Button>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() => setDeleteDialogOpen(true)}
-                                >
-                                    <Trash2 className="mr-2 size-4" />
-                                    Eliminar
-                                </Button>
+                                {! widget.is_new && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() => setDeleteDialogOpen(true)}
+                                    >
+                                        <Trash2 className="mr-2 size-4" />
+                                        Eliminar
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -252,7 +430,9 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
                     </DialogHeader>
 
                     <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>¿Estás seguro de eliminar este Widget Web?</p>
+                        <p>
+                            ¿Estás seguro de eliminar <span className="font-medium text-foreground">"{widget.name}"</span>?
+                        </p>
                         <p>
                             Se eliminarán <span className="font-medium text-foreground">permanentemente</span> todas las
                             conversaciones, mensajes y archivos adjuntos.
@@ -274,10 +454,13 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
     );
 }
 
-ChatBotWidgetConfig.layout = {
+WidgetEdit.layout = (widget: Widget) => ({
     breadcrumbs: [
         { title: 'Admin', href: admin() },
         { title: 'Canales', href: '/admin/canales' },
-        { title: 'Widget Web', href: '/admin/canales/web-widget' },
+        { title: 'Widgets Web', href: '/admin/canales/web-widget' },
+        ...(widget?.is_new
+            ? [{ title: 'Nuevo', href: '/admin/canales/web-widget/nuevo' }]
+            : [{ title: widget?.name ?? 'Editar', href: `/admin/canales/web-widget/${widget?.id}` }]),
     ],
-};
+});

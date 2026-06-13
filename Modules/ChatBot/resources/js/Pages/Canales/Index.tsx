@@ -19,14 +19,35 @@ type ChannelItem = {
     owner_jid?: string | null;
     connection_status?: string;
     widget_title?: string | null;
+    public_key?: string | null;
+    allowed_domains?: string[];
+    conversations_count?: number;
 };
 
 type PageProps = { channels: ChannelItem[] };
 
 const CHANNEL_TYPES: { type: string; icon: typeof Globe; color: string; name: string; description: string }[] = [
-    { type: 'web_widget', icon: Globe, color: '#2563eb', name: 'Widget Web', description: 'Chat widget integrado en el sitio web' },
-    { type: 'evolution', icon: MessageCircle, color: '#25D366', name: 'WhatsApp', description: 'WhatsApp mediante Evolution API' },
-    { type: 'openwa', icon: MessageCircle, color: '#0066CC', name: 'WhatsApp (OpenWA)', description: 'WhatsApp mediante OpenWA con HMAC + idempotencia' },
+    {
+        type: 'web_widget',
+        icon: Globe,
+        color: '#2563eb',
+        name: 'Widget Web',
+        description: 'Chat embebido en tu sitio (multi-inbox con dominios)',
+    },
+    {
+        type: 'evolution',
+        icon: MessageCircle,
+        color: '#25D366',
+        name: 'Evolution (WhatsApp)',
+        description: 'WhatsApp mediante Evolution API v2',
+    },
+    {
+        type: 'openwa',
+        icon: MessageCircle,
+        color: '#0066CC',
+        name: 'OpenWA (WhatsApp)',
+        description: 'WhatsApp mediante OpenWA con HMAC + idempotencia',
+    },
 ];
 
 const CHANNEL_META = Object.fromEntries(CHANNEL_TYPES.map((c) => [c.type, c]));
@@ -61,7 +82,7 @@ function connectionLabel(status: string): string {
 export default function CanalesIndex({ channels }: PageProps) {
     const table = useClientTableSearch<ChannelItem>({
         initialData: channels,
-        searchFields: ['name', 'profile_name', 'instance_name', 'widget_title', 'owner_jid'],
+        searchFields: ['name', 'profile_name', 'instance_name', 'widget_title', 'owner_jid', 'public_key'],
         perPage: 50,
         initialFilters: { type: '', enabled: '' },
     });
@@ -74,8 +95,9 @@ export default function CanalesIndex({ channels }: PageProps) {
             onChange: (v) => table.setFilter('type', v),
             placeholder: 'Todos los tipos',
             options: [
-                { value: 'evolution', label: 'WhatsApp' },
                 { value: 'web_widget', label: 'Widget Web' },
+                { value: 'evolution', label: 'Evolution (WhatsApp)' },
+                { value: 'openwa', label: 'OpenWA (WhatsApp)' },
             ],
         },
         {
@@ -93,7 +115,7 @@ export default function CanalesIndex({ channels }: PageProps) {
 
     function createChannel(type: string): void {
         if (type === 'web_widget') {
-            router.post('/admin/canales/web-widget');
+            router.visit('/admin/canales/web-widget/nuevo');
             return;
         }
         if (type === 'openwa') {
@@ -133,11 +155,17 @@ export default function CanalesIndex({ channels }: PageProps) {
                                     className="group block w-full text-left"
                                 >
                                     <Card className="flex min-h-[80px] cursor-pointer flex-row items-center gap-3 border-2 border-dashed border-muted-300 bg-muted/10 px-4 text-center transition hover:border-primary hover:bg-primary/5 hover:shadow-sm">
-                                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-muted-300 text-muted-400 transition group-hover:border-primary group-hover:text-primary">
+                                        <div
+                                            className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-dashed text-muted-400 transition group-hover:border-primary group-hover:text-primary"
+                                            style={{ borderColor: `${a.color}66` }}
+                                        >
                                             <Plus className="size-4" />
                                         </div>
                                         <div className="text-left">
-                                            <CardTitle className="text-sm">{a.name}</CardTitle>
+                                            <div className="flex items-center gap-2">
+                                                <Icon className="size-4" style={{ color: a.color }} />
+                                                <CardTitle className="text-sm">{a.name}</CardTitle>
+                                            </div>
                                             <p className="text-xs text-muted-foreground">{a.description}</p>
                                         </div>
                                     </Card>
@@ -174,11 +202,16 @@ export default function CanalesIndex({ channels }: PageProps) {
 
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center justify-between gap-2">
-                                                                <CardTitle className="truncate text-base">
-                                                                    {c.profile_name || c.name}
-                                                                </CardTitle>
+                                                                <div className="flex items-center gap-2">
+                                                                    <MessageCircle className="size-4 text-[#25D366]" />
+                                                                    <CardTitle className="truncate text-base">
+                                                                        {c.profile_name || c.name}
+                                                                    </CardTitle>
+                                                                </div>
                                                                 <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
                                                             </div>
+
+                                                            <p className="text-[10px] font-medium uppercase tracking-wide text-[#25D366]">Evolution</p>
 
                                                             {c.owner_jid && (
                                                                 <p className="truncate text-sm text-muted-foreground">
@@ -228,13 +261,21 @@ export default function CanalesIndex({ channels }: PageProps) {
                                         );
                                     }
 
+                                    const isOpenWa = c.type === 'openwa';
+
                                     return (
                                         <Link key={c.id} href={c.url} className="group block">
-                                            <Card className="relative overflow-hidden border-l-4 transition hover:shadow-md" style={{ borderLeftColor: meta?.color ?? '#666' }}>
+                                            <Card
+                                                className="relative overflow-hidden border-l-4 transition hover:shadow-md"
+                                                style={{ borderLeftColor: meta?.color ?? '#666' }}
+                                            >
                                                 <div className="flex items-start gap-4 p-5">
                                                     <div
                                                         className="flex size-14 shrink-0 items-center justify-center rounded-lg"
-                                                        style={{ backgroundColor: `${meta?.color ?? '#666'}15`, color: meta?.color ?? '#666' }}
+                                                        style={{
+                                                            backgroundColor: `${meta?.color ?? '#666'}15`,
+                                                            color: meta?.color ?? '#666',
+                                                        }}
                                                     >
                                                         {meta ? <meta.icon className="size-6" /> : <Globe className="size-6" />}
                                                     </div>
@@ -245,9 +286,34 @@ export default function CanalesIndex({ channels }: PageProps) {
                                                             <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
                                                         </div>
 
-                                                        {c.widget_title && (
+                                                        <p
+                                                            className="text-[10px] font-medium uppercase tracking-wide"
+                                                            style={{ color: meta?.color ?? '#666' }}
+                                                        >
+                                                            {meta?.name ?? c.type}
+                                                        </p>
+
+                                                        {c.widget_title && c.type === 'web_widget' && (
                                                             <p className="truncate text-sm text-muted-foreground">
                                                                 {c.widget_title}
+                                                            </p>
+                                                        )}
+
+                                                        {c.type === 'web_widget' && c.public_key && (
+                                                            <p className="truncate font-mono text-[11px] text-muted-foreground/80">
+                                                                key: {c.public_key}
+                                                            </p>
+                                                        )}
+
+                                                        {c.type === 'web_widget' && c.allowed_domains && c.allowed_domains.length > 0 && (
+                                                            <p className="truncate text-xs text-muted-foreground">
+                                                                Dominios: {c.allowed_domains.join(', ')}
+                                                            </p>
+                                                        )}
+
+                                                        {isOpenWa && c.instance_name && (
+                                                            <p className="truncate text-xs text-muted-foreground">
+                                                                Sesión: {c.instance_name}
                                                             </p>
                                                         )}
 
