@@ -22,27 +22,28 @@ export function LinkPreviewCard({ item }: Props) {
     const showFavicon = Boolean(item.favicon) && !faviconFailed;
     const host = hostname(href);
     const displayTitle = item.title?.trim() || host;
+    const hasContent = Boolean(item.title?.trim() || item.description?.trim());
 
     return (
         <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1.5 block max-w-sm overflow-hidden rounded-md border border-border bg-background text-foreground transition hover:bg-muted/40"
+            className="mt-1.5 flex max-w-sm gap-2.5 overflow-hidden rounded-md border border-border bg-background text-foreground transition hover:bg-muted/40"
         >
             {showImage && (
-                <div className="relative bg-muted">
+                <div className="relative w-24 shrink-0 bg-muted sm:w-32">
                     <img
                         src={item.image ?? ''}
                         alt=""
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={() => setImgFailed(true)}
-                        className="block max-h-44 w-full object-cover"
+                        className="block h-full w-full object-cover"
                     />
                 </div>
             )}
-            <div className="space-y-0.5 p-2.5">
+            <div className="min-w-0 flex-1 space-y-0.5 p-2.5">
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                     {showFavicon ? (
                         <img
@@ -59,10 +60,18 @@ export function LinkPreviewCard({ item }: Props) {
                     <span className="truncate">{item.site_name?.trim() || host}</span>
                     <ExternalLink className="ml-auto size-3 shrink-0 opacity-60" />
                 </div>
-                <p className="line-clamp-2 text-xs font-semibold leading-tight">{displayTitle}</p>
-                {item.description && (
+                {hasContent ? (
+                    <>
+                        <p className="line-clamp-2 text-xs font-semibold leading-tight">{displayTitle}</p>
+                        {item.description && (
+                            <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                                {item.description}
+                            </p>
+                        )}
+                    </>
+                ) : (
                     <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-                        {item.description}
+                        Visita {host}
                     </p>
                 )}
             </div>

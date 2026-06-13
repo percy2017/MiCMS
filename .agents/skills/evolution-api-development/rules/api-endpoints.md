@@ -434,25 +434,50 @@ Actions: `add`, `remove`, `promote`, `demote`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/webhook/findWebhook/{instance}` | Fetch current webhook config |
-| PUT | `/webhook/setWebhook/{instance}` | Set/update webhook for instance |
+| GET | `/webhook/find/{instance}` | Fetch current webhook config |
+| POST | `/webhook/set/{instance}` | Set/update webhook for instance |
+
+> **NOTE:** The endpoints `/webhook/findWebhook/{instance}` (GET) and `/webhook/setWebhook/{instance}` (PUT) shown in some docs are **deprecated or wrong**. The actual working endpoints are:
+> - `GET /webhook/find/{instance}` to fetch
+> - `POST /webhook/set/{instance}` to set/update
+>
+> The `PUT /webhook/setWebhook/{instance}` endpoint returns `Cannot PUT /webhook/setWebhook/{instance}` (HTTP 404).
 
 ### Set Webhook — Request Body
 
+**Endpoint:** `POST /webhook/set/{instance}`
+
+**Body shape:** The webhook config MUST be wrapped in a `webhook` object:
+
 ```json
 {
-  "url": "https://your-server.com/api/webhooks/evolution/my-instance",
-  "webhook_by_events": false,
-  "webhook_base64": false,
-  "webhook_events": [
-    "messages.upsert",
-    "messages.update",
-    "send.message",
-    "connection.update",
-    "call"
-  ]
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-server.com/api/webhooks/evolution/my-instance",
+    "webhook_by_events": false,
+    "webhook_base64": true,
+    "events": [
+      "MESSAGES_UPSERT"
+    ]
+  }
 }
 ```
+
+**Required fields:** `enabled` (boolean), `url` (string), `events` (array of uppercase event names).
+
+**Note:** Event names in the request body use UPPERCASE (`MESSAGES_UPSERT`, `MESSAGES_UPDATE`, etc.), not lowercase.
+
+### Reconfiguring Webhooks from CLI
+
+This project provides an artisan command to reconfigure the webhook for all Evolution channels:
+
+```bash
+php artisan evolution:setup-webhook
+# or for a specific channel:
+php artisan evolution:setup-webhook --channel=1
+```
+
+By default this configures `MESSAGES_UPSERT` only (sufficient for simple chat apps).
 
 ---
 

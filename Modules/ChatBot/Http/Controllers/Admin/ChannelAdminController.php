@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\ChatBot\Channels\ChannelRegistry;
-use Modules\ChatBot\Channels\EvolutionApiClient;
+use Modules\ChatBot\Channels\Evolution\EvolutionApiClient;
+use Modules\ChatBot\Channels\OpenWa\OpenWaStatsProvider;
+use Modules\ChatBot\Enums\ChannelType;
 use Modules\ChatBot\Models\Channel;
 
 class ChannelAdminController extends Controller
@@ -35,6 +37,7 @@ class ChannelAdminController extends Controller
                 'enabled' => $c->enabled,
                 'url' => match ($c->type->value) {
                     'evolution' => route('chatbot.admin.evolution.edit', $c),
+                    'openwa' => route('chatbot.admin.openwa.edit', $c),
                     'web_widget' => route('chatbot.admin.widget'),
                     default => '#',
                 },
@@ -82,7 +85,7 @@ class ChannelAdminController extends Controller
 
     public function storeEvolution(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('update chatbot widget'), 403);
+        abort_unless($request->user()?->can('view chatbot'), 403);
 
         $channel = Channel::create([
             'type' => 'evolution',
@@ -131,7 +134,7 @@ class ChannelAdminController extends Controller
 
     public function updateEvolution(Request $request, Channel $evolution): RedirectResponse
     {
-        abort_unless($request->user()?->can('update chatbot widget'), 403);
+        abort_unless($request->user()?->can('view chatbot'), 403);
         abort_unless($evolution->type->value === 'evolution', 404);
 
         $data = $request->validate([
@@ -195,11 +198,11 @@ class ChannelAdminController extends Controller
             ->with('success', 'Canal WhatsApp actualizado.');
     }
 
-    public function destroy(Channel $evolution): RedirectResponse
+    public function destroy(Channel $channel): RedirectResponse
     {
-        abort_unless(request()->user()?->can('delete chatbot conversations'), 403);
+        abort_unless(request()->user()?->can('view chatbot'), 403);
 
-        $mediaIds = $evolution->conversations()
+        $mediaIds = $channel->conversations()
             ->with('messages')
             ->get()
             ->flatMap(fn ($conv) => $conv->messages->pluck('attachment_media_id'))
@@ -208,12 +211,12 @@ class ChannelAdminController extends Controller
             ->values()
             ->all();
 
-        $evolution->conversations()->each(fn ($conv) => $conv->messages()->forceDelete());
-        $evolution->conversations()->forceDelete();
+        $channel->conversations()->each(fn ($conv) => $conv->messages()->forceDelete());
+        $channel->conversations()->forceDelete();
 
         $this->purgeMedia($mediaIds);
 
-        if ($evolution->type?->value === 'evolution' && ($config = $evolution->config)) {
+        if ($channel->type?->value === 'evolution' && ($config = $channel->config)) {
             try {
                 $client = new EvolutionApiClient(
                     serverUrl: rtrim($config['server_url'] ?? '', '/'),
@@ -223,13 +226,13 @@ class ChannelAdminController extends Controller
                 $client->disconnectInstance();
             } catch (\Throwable $e) {
                 Log::warning('Evolution disconnectInstance failed on channel delete', [
-                    'channel_id' => $evolution->id,
+                    'channel_id' => $channel->id,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        $evolution->forceDelete();
+        $channel->forceDelete();
 
         return redirect()->route('chatbot.admin.canales')
             ->with('success', 'Canal eliminado permanentemente.');
@@ -262,13 +265,23 @@ class ChannelAdminController extends Controller
 
     public function fetchInstances(Request $request): JsonResponse
     {
-        abort_unless($request->user()?->can('update chatbot widget'), 403);
+        abort_unless($request->user()?->can('view chatbot'), 403);
 
         $data = $request->validate([
-            'server_url' => ['required', 'string', 'url'],
-            'api_key' => ['required', 'string'],
-            'exclude' => ['nullable', 'integer', 'exists:channels,id'],
+            'server_url' => ['nullable', 'string', 'url'],
+            'api_key' => ['nullable', 'string'],
+            'exclude' => ['nullable', 'integer'],
         ]);
+
+        $serverUrl = $data['server_url'] ?? (string) env('EVOLUTION_DEFAULT_SERVER_URL', '');
+        $apiKey = $data['api_key'] ?? (string) env('EVOLUTION_DEFAULT_API_KEY', '');
+
+        if ($serverUrl === '' || $apiKey === '') {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Configura EVOLUTION_DEFAULT_SERVER_URL y EVOLUTION_DEFAULT_API_KEY en .env.',
+            ], 422);
+        }
 
         // Collect instance_names already assigned to other evolution channels
         $takenNames = Channel::where('type', 'evolution')
@@ -281,8 +294,8 @@ class ChannelAdminController extends Controller
 
         try {
             $client = new EvolutionApiClient(
-                serverUrl: rtrim($data['server_url'], '/'),
-                apiKey: $data['api_key'],
+                serverUrl: rtrim($serverUrl, '/'),
+                apiKey: $apiKey,
                 instanceName: '',
             );
 
@@ -323,5 +336,180 @@ class ChannelAdminController extends Controller
                 'error' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    // ============== OpenWA ==============
+
+    /**
+     * Página selector: lista sesiones de OpenWA para crear un inbox.
+     */
+    public function openwaSelector(): Response
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        return Inertia::render('ChatBot::Canales/OpenWaSelector');
+    }
+
+    /**
+     * Devuelve las sesiones disponibles en OpenWA.
+     */
+    public function openwaAvailableSessions(): JsonResponse
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        $provider = new OpenWaStatsProvider;
+
+        return response()->json($provider->listAvailableSessions());
+    }
+
+    /**
+     * Crea un Channel OpenWA vinculando la session_name seleccionada.
+     * Redirige a la página de edición.
+     */
+    public function storeOpenWa(Request $request): RedirectResponse
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        $data = $request->validate([
+            'session_name' => 'required|string|max:100',
+        ]);
+
+        $existing = null;
+        foreach (Channel::where('type', ChannelType::OpenWa)->where('enabled', true)->get() as $ch) {
+            if (is_array($ch->config ?? null) && ($ch->config['session_name'] ?? null) === $data['session_name']) {
+                $existing = $ch;
+                break;
+            }
+        }
+
+        if ($existing) {
+            return back()->withErrors(['session_name' => "La sesión '{$data['session_name']}' ya está vinculada al canal #{$existing->id}."]);
+        }
+
+        $channel = Channel::create([
+            'type' => ChannelType::OpenWa,
+            'name' => $data['session_name'],
+            'enabled' => true,
+            'config' => ['session_name' => $data['session_name']],
+            'settings' => ['display_name' => $data['session_name']],
+            'sort' => (Channel::max('sort') ?? 0) + 1,
+        ]);
+
+        return redirect()->route('chatbot.admin.openwa.edit', $channel)->with('success', "Inbox OpenWA '{$data['session_name']}' creado.");
+    }
+
+    /**
+     * Página de edición de un canal OpenWa existente.
+     */
+    public function editOpenWa(Channel $openwa): Response
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        if ($openwa->type->value !== 'openwa') {
+            abort(404);
+        }
+
+        return Inertia::render('ChatBot::Canales/OpenWaEdit', [
+            'channel' => [
+                'id' => $openwa->id,
+                'type' => $openwa->type->value,
+                'name' => $openwa->name,
+                'enabled' => $openwa->enabled,
+                'config' => $openwa->config ?? [],
+                'settings' => $openwa->settings ?? [],
+            ],
+        ]);
+    }
+
+    /**
+     * Actualiza un canal OpenWa (session_name + display_name + auto_reply + enabled).
+     */
+    public function updateOpenWa(Request $request, Channel $openwa): RedirectResponse
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        if ($openwa->type->value !== 'openwa') {
+            abort(404);
+        }
+
+        $data = $request->validate([
+            'enabled' => 'boolean',
+            'config.session_name' => 'required|string|max:100',
+            'settings.display_name' => 'nullable|string|max:100',
+            'settings.auto_reply' => 'nullable|string',
+        ]);
+
+        $openwa->update([
+            'enabled' => $data['enabled'] ?? false,
+            'config' => ['session_name' => $data['config']['session_name']],
+            'settings' => $data['settings'] ?? [],
+        ]);
+
+        return back()->with('success', 'Canal OpenWA actualizado.');
+    }
+
+    public function openwaStats(Channel $openwa): JsonResponse
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        if ($openwa->type->value !== 'openwa') {
+            abort(404);
+        }
+
+        $driver = $this->registry->get('openwa');
+        if (! $driver) {
+            return response()->json(['connected' => false, 'error' => 'Driver OpenWA no registrado'], 500);
+        }
+
+        return response()->json($driver->stats($openwa));
+    }
+
+    // ============== Evolution Selector ==============
+
+    /**
+     * Página selector: lista instancias de Evolution para crear un inbox.
+     */
+    public function evolutionSelector(): Response
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        return Inertia::render('ChatBot::Canales/EvolutionSelector');
+    }
+
+    /**
+     * Crea un Channel Evolution a partir del instance_name seleccionado.
+     * Redirige a la página de edición.
+     */
+    public function evolutionSelectStore(Request $request): RedirectResponse
+    {
+        abort_unless(auth()->user()?->can('view chatbot'), 403);
+
+        $data = $request->validate([
+            'instance_name' => 'required|string|max:100',
+        ]);
+
+        $existing = Channel::where('type', ChannelType::Evolution)
+            ->where('config->instance_name', $data['instance_name'])
+            ->where('enabled', true)
+            ->first();
+
+        if ($existing) {
+            return back()->withErrors(['instance_name' => "La instancia '{$data['instance_name']}' ya está vinculada."]);
+        }
+
+        $channel = Channel::create([
+            'type' => ChannelType::Evolution,
+            'name' => $data['instance_name'],
+            'enabled' => true,
+            'config' => [
+                'server_url' => env('EVOLUTION_DEFAULT_SERVER_URL', ''),
+                'api_key' => env('EVOLUTION_DEFAULT_API_KEY', ''),
+                'instance_name' => $data['instance_name'],
+            ],
+            'settings' => ['display_name' => $data['instance_name']],
+            'sort' => (Channel::max('sort') ?? 0) + 1,
+        ]);
+
+        return redirect()->route('chatbot.admin.evolution.edit', $channel)->with('success', "Inbox Evolution '{$data['instance_name']}' creado.");
     }
 }

@@ -4,6 +4,25 @@ Complete reference for all webhook events sent by Evolution API v2.
 
 ---
 
+## ⚠️ CRITICAL: fromMe Processing (Project-Specific)
+
+**In our project (`Modules\ChatBot/Channels/Evolution/EvolutionChannel.php`), `fromMe=true` is NOT filtered out.** We process BOTH directions:
+
+- `fromMe=false` (incoming) → save as `role=user`
+- `fromMe=true` (outgoing echo) → save as `role=admin` (the admin's own message)
+
+**Why?** Because the admin can send messages from the WhatsApp app (not from our CRM panel), and we need to track those too. The `fromMe=true` echo is the ONLY way the CRM knows about messages sent directly from the phone.
+
+When processing `fromMe=true`:
+- `remoteJid` = the **recipient** (the client being messaged) — NOT the admin
+- `pushName` = the **admin's own name** (the sender) — NOT the client's
+- The user should be looked up/created using `remoteJid`, not `pushName`
+- The `linkOrCreate()` should be called with `name=null` (the admin's pushName is irrelevant for the client's user record)
+
+See `rules/common-pitfalls.md` #11 for the full breakdown.
+
+---
+
 ## Common Payload Structure
 
 All webhooks share this base structure:
@@ -25,9 +44,46 @@ All webhooks share this base structure:
 
 ## 1. messages.upsert
 
-**Description:** New message received or sent. Most frequent event (~95% of traffic).
+**Description:** New message received or sent. Most frequent event (~95% of traffic). This event fires for BOTH incoming and outgoing messages — distinguish them with `key.fromMe`.
 
-**Filter in controller:** Only process `fromMe: false` (incoming messages).
+**CRITICAL: `fromMe` MUST be processed in both directions.** Filtering out `fromMe: true` will cause:
+- Outgoing admin messages sent from the panel to be MISSING from the database entirely (only the webhook echo is what tells you the message went out).
+- The `external_id` returned by Evolution (e.g. `3EB0FA07A6B525A7894F56`) will never be linked to the local admin message.
+- Later `messages.update` status events (DELIVERY_ACK, READ) cannot update the local message because its `external_id` is empty.
+
+### Processing Logic
+
+```php
+// In EvolutionChannel::processIncoming():
+$fromMe = (bool) ($key['fromMe'] ?? false);
+$messageId = $key['id'] ?? null;
+
+if ($fromMe) {
+    // Outgoing: admin sent from the panel, Evolution confirms.
+    // Check if local admin message already exists (may have been saved before webhook arrived).
+    if ($messageId) {
+        $existing = Message::withTrashed()->where('external_id', $messageId)->first();
+        if ($existing) {
+            return $existing;
+        }
+    }
+    // Create new admin message from the webhook payload
+    $message = Message::create([
+        'conversation_id' => $conversation->id,
+        'role' => Message::ROLE_ADMIN,
+        'type' => $type,
+        'content' => $content,
+        'external_id' => $messageId,
+        // ...
+    ]);
+    return $message;
+}
+
+// Incoming: user sent from phone.
+// (existing logic, unchanged)
+```
+
+**Idempotency:** A `messages.upsert` webhook may fire twice for the same `messageId` (Evolution retries). Always check `external_id` first.
 
 ### Data Structure
 

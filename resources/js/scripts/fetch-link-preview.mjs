@@ -5,8 +5,8 @@
  * Lee una URL desde argv[2] (o stdin), navega con Playwright headless
  * y devuelve un JSON con los Open Graph / Twitter Card / meta tags.
  *
- * Para plataformas que NO exponen OG (YouTube), construye el preview
- * determinísticamente a partir del patrón de URL.
+ * Para plataformas que NO exponen OG de forma inmediata (YouTube, TikTok),
+ * construye el preview determinísticamente a partir del patrón de URL.
  *
  * Salida (stdout): JSON con { url, final_url, title, description, image,
  *                                  image_width, image_height, site_name,
@@ -94,6 +94,62 @@ function buildYouTubePreview(targetUrl) {
     };
 }
 
+/**
+ * TikTok es un SPA pesado que solo expone OG tags después de que JS
+ * se hidrata. Para URLs canónicas (`/@user/video/{id}` o `/t/{shortId}`)
+ * construimos un preview con título y link al video, dejando que el
+ * frontend aplique open-graph al hacer click.
+ * Para `vt.tiktok.com/{shortId}` (links cortos) seguimos necesitando
+ * Chromium para resolver la URL canónica.
+ *
+ * Devuelve `null` si la URL no es TikTok reconocible, o
+ * `needsResolve: true` si es un short link que necesita seguir.
+ */
+function buildTikTokPreview(targetUrl) {
+    if (!host.endsWith('tiktok.com')) {
+        return null;
+    }
+
+    const tiktokFavicon = 'https://www.tiktok.com/favicon.ico';
+
+    // Short link (vt.tiktok.com): dejar que Playwright resuelva el redirect
+    if (host === 'vt.tiktok.com') {
+        return { needsResolve: true, favicon: tiktokFavicon };
+    }
+
+    // /@user/video/{id}
+    const videoMatch = targetUrl.pathname.match(/^\/@([^/]+)\/video\/(\d+)/);
+    if (videoMatch) {
+        return {
+            url: targetUrl.toString(),
+            final_url: targetUrl.toString(),
+            title: `TikTok · @${videoMatch[1]}`,
+            description: `Video de ${videoMatch[1]} en TikTok`,
+            image: null,
+            site_name: 'TikTok',
+            favicon: tiktokFavicon,
+            error: null,
+        };
+    }
+
+    // /t/{shortId} (legacy share link)
+    const shortMatch = targetUrl.pathname.match(/^\/t\/([\w-]+)/);
+    if (shortMatch) {
+        return {
+            url: targetUrl.toString(),
+            final_url: targetUrl.toString(),
+            title: 'TikTok',
+            description: 'Video de TikTok',
+            image: null,
+            site_name: 'TikTok',
+            favicon: tiktokFavicon,
+            error: null,
+        };
+    }
+
+    return null;
+}
+
 let browser;
 try {
     // Fast path: YouTube. No abrimos Chromium para no esperar 10s.
@@ -105,6 +161,17 @@ try {
         }
     }
 
+    // Fast path: TikTok canónico. No abrimos Chromium.
+    let tiktokCanonical = null;
+    if (u && host.endsWith('tiktok.com')) {
+        const tt = buildTikTokPreview(u);
+        if (tt && !tt.needsResolve) {
+            process.stdout.write(JSON.stringify(tt));
+            process.exit(0);
+        }
+        tiktokCanonical = tt;
+    }
+
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -113,10 +180,30 @@ try {
     const page = await context.newPage();
 
     try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+        // 'load' en vez de 'domcontentloaded' para que el JS inicial corra.
+        // networkidle puede colgar 30s en TikTok/Instagram.
+        await page.goto(url, { waitUntil: 'load', timeout: 15000 });
     } catch (e) {
         await browser.close();
         bail('navigation_failed: ' + (e?.message || 'unknown'));
+    }
+
+    // Para short links de TikTok: si resolvieron a canónico, devolver
+    // preview determinístico (sin confiar en OG de la página hidratada).
+    if (tiktokCanonical?.needsResolve) {
+        await browser.close();
+        const finalUrl = page.url();
+        try {
+            const finalHost = new URL(finalUrl).hostname.toLowerCase();
+            if (finalHost.endsWith('tiktok.com')) {
+                const resolved = buildTikTokPreview(new URL(finalUrl));
+                if (resolved && !resolved.needsResolve) {
+                    process.stdout.write(JSON.stringify(resolved));
+                    process.exit(0);
+                }
+            }
+        } catch {}
+        // No se pudo resolver a un patrón conocido: caer al flujo normal.
     }
 
     const data = await page.evaluate(() => {
@@ -170,6 +257,17 @@ try {
 
     await browser.close();
 
+    // Si no se extrajo nada útil (SPA sin OG), usar favicon de TikTok
+    // como último recurso para que el card no quede vacío.
+    let finalFavicon = data.favicon;
+    if (!finalFavicon && host.endsWith('tiktok.com')) {
+        finalFavicon = 'https://www.tiktok.com/favicon.ico';
+    }
+    let finalSiteName = data.site_name;
+    if (!finalSiteName && host.endsWith('tiktok.com')) {
+        finalSiteName = 'TikTok';
+    }
+
     process.stdout.write(JSON.stringify({
         url,
         final_url: data.final_url,
@@ -178,8 +276,8 @@ try {
         image: data.image,
         image_width: width,
         image_height: height,
-        site_name: data.site_name,
-        favicon: data.favicon,
+        site_name: finalSiteName,
+        favicon: finalFavicon,
         error: null,
     }));
 } catch (e) {

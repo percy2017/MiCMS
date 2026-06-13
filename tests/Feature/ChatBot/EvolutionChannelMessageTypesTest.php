@@ -1,6 +1,6 @@
 <?php
 
-use Modules\ChatBot\Channels\EvolutionChannel;
+use Modules\ChatBot\Channels\Evolution\EvolutionChannel;
 use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Models\Channel;
 

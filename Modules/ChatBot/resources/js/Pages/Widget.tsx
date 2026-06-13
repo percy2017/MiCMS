@@ -1,7 +1,16 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Save, Loader2 } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { AlertTriangle, Loader2, Save, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { admin } from '@/routes';
@@ -23,6 +32,9 @@ type Widget = {
 type PageProps = { widget: Widget };
 
 export default function ChatBotWidgetConfig({ widget }: PageProps) {
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
     const { data, setData, patch, processing, errors } = useForm({
         enabled: widget.enabled,
         title: widget.title,
@@ -38,6 +50,14 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
     function handleSubmit(e: React.FormEvent): void {
         e.preventDefault();
         patch('/admin/canales/web-widget', { preserveScroll: true });
+    }
+
+    function confirmDelete(): void {
+        setDeleting(true);
+        router.delete(`/admin/canales/web-widget/${widget.id}`, {
+            preserveScroll: true,
+            onFinish: () => setDeleting(false),
+        });
     }
 
     return (
@@ -203,11 +223,53 @@ export default function ChatBotWidgetConfig({ widget }: PageProps) {
                                     {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
                                     {processing ? 'Guardando…' : 'Guardar'}
                                 </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => setDeleteDialogOpen(true)}
+                                >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Eliminar
+                                </Button>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
+
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                                <AlertTriangle className="size-5 text-destructive" />
+                            </div>
+                            <div>
+                                <DialogTitle>Eliminar widget</DialogTitle>
+                                <DialogDescription>Esta acción no se puede deshacer.</DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>¿Estás seguro de eliminar este Widget Web?</p>
+                        <p>
+                            Se eliminarán <span className="font-medium text-foreground">permanentemente</span> todas las
+                            conversaciones, mensajes y archivos adjuntos.
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                            No, cancelar
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleting}>
+                            {deleting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                            {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

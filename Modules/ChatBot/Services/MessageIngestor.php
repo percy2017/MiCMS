@@ -17,8 +17,26 @@ class MessageIngestor
 
     public function ingest(Channel $channel, array $payload): ?Message
     {
+        $event = $payload['event'] ?? null;
+        $remoteJid = $payload['data']['key']['remoteJid'] ?? $payload['data']['remoteJid'] ?? null;
+        $fromMe = $payload['data']['key']['fromMe'] ?? $payload['data']['fromMe'] ?? null;
+        $messageId = $payload['data']['key']['id'] ?? $payload['data']['id'] ?? null;
+
+        Log::warning('MessageIngestor: iniciando', [
+            'channel_id' => $channel->id,
+            'event' => $event,
+            'remoteJid' => $remoteJid,
+            'fromMe' => $fromMe,
+            'message_id' => $messageId,
+        ]);
+
         $driver = $this->registry->get($channel->type);
         if (! $driver instanceof ChannelInterface) {
+            Log::warning('MessageIngestor: driver no encontrado', [
+                'channel_id' => $channel->id,
+                'type' => $channel->type->value,
+            ]);
+
             return null;
         }
 
@@ -27,9 +45,9 @@ class MessageIngestor
         } catch (\Throwable $e) {
             Log::error('MessageIngestor::ingest failed', [
                 'channel_id' => $channel->id,
-                'event' => $payload['event'] ?? null,
-                'remoteJid' => $payload['data']['key']['remoteJid'] ?? $payload['data']['remoteJid'] ?? null,
-                'fromMe' => $payload['data']['key']['fromMe'] ?? $payload['data']['fromMe'] ?? null,
+                'event' => $event,
+                'remoteJid' => $remoteJid,
+                'fromMe' => $fromMe,
                 'error' => $e->getMessage(),
                 'exception' => get_class($e),
             ]);
@@ -38,7 +56,23 @@ class MessageIngestor
         }
 
         if ($message && $channel->enabled) {
-            ChatBotMessageReceived::dispatch($message);
+            try {
+                ChatBotMessageReceived::dispatch($message);
+                Log::warning('MessageIngestor: evento broadcast despachado', [
+                    'message_id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('MessageIngestor: fallo al despachar evento', [
+                    'message_id' => $message->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } elseif (! $message) {
+            Log::warning('MessageIngestor: driver no retorno mensaje (ignorado)', [
+                'event' => $event,
+                'remoteJid' => $remoteJid,
+            ]);
         }
 
         return $message;

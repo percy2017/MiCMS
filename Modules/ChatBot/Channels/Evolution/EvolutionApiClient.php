@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\ChatBot\Channels;
+namespace Modules\ChatBot\Channels\Evolution;
 
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -84,7 +84,7 @@ class EvolutionApiClient
     public function setWebhook(array $params): Response
     {
         return Http::withHeaders($this->headers())
-            ->put("{$this->serverUrl}/webhook/setWebhook/{$this->instanceName}", $params);
+            ->post("{$this->serverUrl}/webhook/set/{$this->instanceName}", ['webhook' => $params]);
     }
 
     public function getBase64FromMediaMessage(string $messageKey): Response

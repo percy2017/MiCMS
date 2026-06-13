@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\ChatBot\Channels\EvolutionApiClient;
+use Modules\ChatBot\Channels\Evolution\EvolutionApiClient;
 use Modules\ChatBot\Models\Conversation;
 use Spatie\Permission\Models\Role;
 

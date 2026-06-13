@@ -4,8 +4,9 @@ namespace Modules\ChatBot\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Modules\ChatBot\Channels\ChannelRegistry;
-use Modules\ChatBot\Channels\EvolutionChannel;
-use Modules\ChatBot\Channels\WebWidgetChannel;
+use Modules\ChatBot\Channels\Evolution\EvolutionChannel;
+use Modules\ChatBot\Channels\OpenWa\OpenWaChannel;
+use Modules\ChatBot\Channels\WebWidget\WebWidgetChannel;
 use Modules\ChatBot\Services\ChannelManager;
 use Modules\ChatBot\Services\MessageIngestor;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -50,6 +51,7 @@ class ChatBotServiceProvider extends ModuleServiceProvider
         $registry = $this->app->make(ChannelRegistry::class);
         $registry->register(new WebWidgetChannel);
         $registry->register(new EvolutionChannel);
+        $registry->register(new OpenWaChannel);
     }
 
     protected function registerWebhookRoutes(): void

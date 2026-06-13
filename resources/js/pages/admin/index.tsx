@@ -251,41 +251,42 @@ export default function AdminDashboard({ chats, sales, users, media, expiring_su
                             <p className="mt-2 text-xs text-destructive">No se pudo cargar el módulo de ventas.</p>
                         )}
                     </div>
-
-                    <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                        <SectionHeader title="Suscripciones que vencen hoy" href="/admin/pos-woo/calendario" icon={CalendarClock} />
-                        {expiring_subscriptions.length === 0 ? (
-                            <EmptyState icon={CalendarClock} message="Ninguna suscripción vence hoy" />
+                        <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                        <SectionHeader title="Chats recientes" href="/admin/chats" icon={MessageCircle} />
+                        {chats.recent.length === 0 ? (
+                            <EmptyState icon={Inbox} message="Sin conversaciones" />
                         ) : (
                             <ul className="divide-y">
-                                {expiring_subscriptions.map((s) => (
-                                    <li key={s.id} className="flex items-center gap-3 py-2.5">
-                                        <Avatar url={s.avatar_url} name={s.customer_name || s.customer_email || s.customer_phone || `#${s.id}`} />
+                                {chats.recent.map((c) => (
+                                    <li key={c.id} className="flex items-center gap-3 py-2.5">
+                                        <Avatar url={c.avatar_url} name={c.name} />
                                         <div className="min-w-0 flex-1">
-                                            {s.user_id ? (
-                                                <Link href={`/admin/usuarios/${s.user_id}/editar`} className="text-sm font-medium hover:underline">
-                                                    {s.customer_name || s.customer_email || s.customer_phone}
+                                            <div className="flex items-center gap-2">
+                                                <Link href={`/admin/chats/${c.id}`} className="truncate text-sm font-medium hover:underline">
+                                                    {c.name}
                                                 </Link>
-                                            ) : (
-                                                <Link href={`/admin/pos-woo/pedidos/${s.id}`} className="text-sm font-medium hover:underline">
-                                                    {s.customer_name || s.customer_email || s.customer_phone}
-                                                </Link>
-                                            )}
-                                            <p className="truncate text-[10px] text-muted-foreground">
-                                                {s.title || 'Suscripción'}
-                                                {s.customer_phone ? ` · ${s.customer_phone}` : ''}
+                                                {c.unread_by_admin > 0 && (
+                                                    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                                                        {c.unread_by_admin}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {c.last_message_preview ?? '—'}
                                             </p>
                                         </div>
                                         <div className="shrink-0 text-right">
-                                            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                Vence hoy
-                                            </span>
+                                            {c.channel_name && (
+                                                <p className="text-[10px] text-muted-foreground">{c.channel_name}</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground">{c.last_message_at_diff}</p>
                                         </div>
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
+                    
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -319,34 +320,33 @@ export default function AdminDashboard({ chats, sales, users, media, expiring_su
                     </div>
 
                     <div className="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
-                        <SectionHeader title="Chats recientes" href="/admin/chats" icon={MessageCircle} />
-                        {chats.recent.length === 0 ? (
-                            <EmptyState icon={Inbox} message="Sin conversaciones" />
+                        <SectionHeader title="Suscripciones que vencen hoy" href="/admin/pos-woo/calendario" icon={CalendarClock} />
+                        {expiring_subscriptions.length === 0 ? (
+                            <EmptyState icon={CalendarClock} message="Ninguna suscripción vence hoy" />
                         ) : (
                             <ul className="divide-y">
-                                {chats.recent.map((c) => (
-                                    <li key={c.id} className="flex items-center gap-3 py-2.5">
-                                        <Avatar url={c.avatar_url} name={c.name} />
+                                {expiring_subscriptions.map((s) => (
+                                    <li key={s.id} className="flex items-center gap-3 py-2.5">
+                                        <Avatar url={s.avatar_url} name={s.customer_name || s.customer_email || s.customer_phone || `#${s.id}`} />
                                         <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <Link href={`/admin/chats/${c.id}`} className="truncate text-sm font-medium hover:underline">
-                                                    {c.name}
+                                            {s.user_id ? (
+                                                <Link href={`/admin/usuarios/${s.user_id}/editar`} className="text-sm font-medium hover:underline">
+                                                    {s.customer_name || s.customer_email || s.customer_phone}
                                                 </Link>
-                                                {c.unread_by_admin > 0 && (
-                                                    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
-                                                        {c.unread_by_admin}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="truncate text-xs text-muted-foreground">
-                                                {c.last_message_preview ?? '—'}
+                                            ) : (
+                                                <Link href={`/admin/pos-woo/pedidos/${s.id}`} className="text-sm font-medium hover:underline">
+                                                    {s.customer_name || s.customer_email || s.customer_phone}
+                                                </Link>
+                                            )}
+                                            <p className="truncate text-[10px] text-muted-foreground">
+                                                {s.title || 'Suscripción'}
+                                                {s.customer_phone ? ` · ${s.customer_phone}` : ''}
                                             </p>
                                         </div>
                                         <div className="shrink-0 text-right">
-                                            {c.channel_name && (
-                                                <p className="text-[10px] text-muted-foreground">{c.channel_name}</p>
-                                            )}
-                                            <p className="text-[10px] text-muted-foreground">{c.last_message_at_diff}</p>
+                                            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                Vence hoy
+                                            </span>
                                         </div>
                                     </li>
                                 ))}

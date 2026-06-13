@@ -4,6 +4,7 @@ import type { LinkPreviews, LinkPreviewItem } from '@/types/link-preview';
 type Props = {
     content: string;
     linkPreviews?: LinkPreviews | null;
+    mediaPreview?: LinkPreviewItem | null;
 };
 
 const URL_REGEX = /https?:\/\/[^\s<>"')]+/gi;
@@ -54,7 +55,7 @@ function matchItemToUrl(item: LinkPreviewItem, url: string): boolean {
     return itemUrl.startsWith(url) || url.startsWith(itemUrl);
 }
 
-export function MessageBody({ content, linkPreviews }: Props) {
+export function MessageBody({ content, linkPreviews, mediaPreview }: Props) {
     const urlsInContent: string[] = [];
     URL_REGEX.lastIndex = 0;
     let m: RegExpExecArray | null;
@@ -67,12 +68,17 @@ export function MessageBody({ content, linkPreviews }: Props) {
         }
     }
 
-    const items = (linkPreviews?.items ?? []).filter((it): it is LinkPreviewItem => {
-        if (!it || it.error) {
-            return false;
-        }
-        return urlsInContent.some((u) => matchItemToUrl(it, u));
-    });
+    const items: LinkPreviewItem[] = [];
+    if (linkPreviews?.items) {
+        items.push(...(linkPreviews.items.filter((it): it is LinkPreviewItem => {
+            if (!it || it.error) {
+                return false;
+            }
+            return urlsInContent.some((u) => matchItemToUrl(it, u));
+        })));
+    } else if (mediaPreview && !mediaPreview.error) {
+        items.push(mediaPreview);
+    }
 
     return (
         <div>

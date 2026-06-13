@@ -33,7 +33,7 @@ class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        $response->headers->set('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; connect-src * ws: wss:; frame-src *; font-src * data:; media-src *; style-src * 'unsafe-inline';");
+        $response->headers->set('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; connect-src * ws: wss:; frame-src *; font-src * data:; media-src * data: blob:; style-src * 'unsafe-inline';");
 
         return $response;
     }

@@ -14,7 +14,7 @@ class WidgetController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('update chatbot widget'), 403);
+        abort_unless($request->user()?->can('view chatbot'), 403);
 
         $channel = Channel::create([
             'type' => 'web_widget',
@@ -85,5 +85,18 @@ class WidgetController extends Controller
         ]);
 
         return back()->with('success', 'Configuración del widget actualizada.');
+    }
+
+    public function destroy(Channel $webWidget): RedirectResponse
+    {
+        abort_unless(request()->user()?->can('view chatbot'), 403);
+
+        if ($webWidget->type->value !== 'web_widget') {
+            abort(404);
+        }
+
+        $webWidget->delete();
+
+        return redirect()->route('chatbot.admin.canales')->with('success', 'Widget Web eliminado.');
     }
 }

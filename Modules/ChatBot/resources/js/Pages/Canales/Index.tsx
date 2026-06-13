@@ -26,6 +26,7 @@ type PageProps = { channels: ChannelItem[] };
 const CHANNEL_TYPES: { type: string; icon: typeof Globe; color: string; name: string; description: string }[] = [
     { type: 'web_widget', icon: Globe, color: '#2563eb', name: 'Widget Web', description: 'Chat widget integrado en el sitio web' },
     { type: 'evolution', icon: MessageCircle, color: '#25D366', name: 'WhatsApp', description: 'WhatsApp mediante Evolution API' },
+    { type: 'openwa', icon: MessageCircle, color: '#0066CC', name: 'WhatsApp (OpenWA)', description: 'WhatsApp mediante OpenWA con HMAC + idempotencia' },
 ];
 
 const CHANNEL_META = Object.fromEntries(CHANNEL_TYPES.map((c) => [c.type, c]));
@@ -91,14 +92,25 @@ export default function CanalesIndex({ channels }: PageProps) {
     ];
 
     function createChannel(type: string): void {
-        const url = type === 'web_widget' ? '/admin/canales/web-widget' : `/admin/canales/${type}`;
-        router.post(url);
+        if (type === 'web_widget') {
+            router.post('/admin/canales/web-widget');
+            return;
+        }
+        if (type === 'openwa') {
+            router.visit('/admin/canales/openwa/seleccionar');
+            return;
+        }
+        if (type === 'evolution') {
+            router.visit('/admin/canales/evolution/seleccionar');
+            return;
+        }
+        router.post(`/admin/canales/${type}`);
     }
 
     return (
         <>
             <Head title="Canales" />
-            <div className="space-y-4 p-4">
+            <div className="h-full min-h-0 space-y-4 overflow-y-auto p-4">
                 <DataTableToolbar
                     search={table.search}
                     onSearchChange={table.setSearch}

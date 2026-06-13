@@ -56,4 +56,19 @@ class ChannelFactory extends Factory
             ],
         ]);
     }
+
+    public function openwa(): static
+    {
+        return $this->state(fn (array $a): array => [
+            'type' => ChannelType::OpenWa,
+            'name' => 'openwa-test',
+            'config' => [
+                'session_name' => 'openwa-test',
+            ],
+            'settings' => [
+                'display_name' => 'OpenWA Test',
+                'auto_reply' => '',
+            ],
+        ]);
+    }
 }

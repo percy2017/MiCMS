@@ -40,7 +40,7 @@ class LinkPreviewsReady implements ShouldBroadcastNow
         return [
             'message_id' => $this->message->id,
             'conversation_id' => $this->message->conversation_id,
-            'link_previews' => $this->message->link_previews,
+            'link_previews' => $this->message->metadata['media_preview'] ?? null,
         ];
     }
 }

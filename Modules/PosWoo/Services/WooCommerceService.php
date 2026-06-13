@@ -234,7 +234,8 @@ class WooCommerceService
                 $parts = $fullName !== '' ? explode(' ', $fullName, 2) : ['', ''];
                 $firstName = $parts[0] ?: 'Cliente';
                 $lastName = $parts[1] ?? '';
-                $email = $customer['email'] ?? null;
+                $rawEmail = (string) ($customer['email'] ?? '');
+                $email = $this->sanitizeBillingEmail($rawEmail, (string) ($customer['phone'] ?? ''), (string) ($customer['id'] ?? ''));
                 $phone = $customer['phone'] ?? null;
 
                 $orderData['billing'] = [
@@ -251,6 +252,9 @@ class WooCommerceService
                 $orderData['meta_data'][] = ['key' => '_contact_name', 'value' => $fullName];
                 if ($phone) {
                     $orderData['meta_data'][] = ['key' => '_contact_phone', 'value' => (string) $phone];
+                }
+                if ($rawEmail !== '' && $rawEmail !== $email) {
+                    $orderData['meta_data'][] = ['key' => '_billing_email_sanitized', 'value' => $rawEmail];
                 }
             }
 
@@ -613,5 +617,31 @@ class WooCommerceService
         }
 
         return $default;
+    }
+
+    /**
+     * Devuelve un email RFC-5321 válido para usar como billing.email
+     * de WooCommerce. Si el email original es vacío, malformado (doble
+     *
+     * @, sin local part, etc.) o no es único, genera un placeholder
+     * basado en el teléfono o el id del customer.
+     */
+    public function sanitizeBillingEmail(string $raw, string $phone = '', string $customerId = ''): string
+    {
+        $raw = trim($raw);
+
+        if ($raw !== '' && filter_var($raw, FILTER_VALIDATE_EMAIL) && substr_count($raw, '@') === 1) {
+            return $raw;
+        }
+
+        $seed = $phone !== '' ? preg_replace('/\D+/', '', $phone) : '';
+        if ($seed === '') {
+            $seed = $customerId !== '' ? 'u'.$customerId : 'pos'.time();
+        }
+        if ($seed === '') {
+            $seed = 'unknown';
+        }
+
+        return 'pos-'.$seed.'@pos.local';
     }
 }

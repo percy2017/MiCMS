@@ -10,7 +10,17 @@ class LinkPreviewService
 {
     private const CACHE_TTL = 60 * 60 * 24 * 7;
 
-    private const SCRIPT_TIMEOUT = 15;
+    private const CACHE_TTL_ERROR = 60 * 60;
+
+    private const SCRIPT_TIMEOUT = 180;
+
+    private const SKIP_DOMAINS = [
+        'chat.whatsapp.com',
+        'web.whatsapp.com',
+        'wa.me',
+        't.me',
+        'telegram.me',
+    ];
 
     private const MAX_URLS_PER_MESSAGE = 5;
 
@@ -73,22 +83,45 @@ class LinkPreviewService
             return $this->emptyItem($url, 'invalid_url');
         }
 
+        if ($this->isSkippedDomain($url)) {
+            return $this->emptyItem($url, 'domain_skipped');
+        }
+
         $cacheKey = 'link_preview:'.md5($url);
 
         try {
-            return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($url) {
-                return $this->resolveHostSafely($url)
-                    ? $this->runScript($url)
-                    : $this->emptyItem($url, 'ssrf_blocked');
-            });
+            $item = Cache::get($cacheKey);
+
+            if (is_array($item)) {
+                return $item;
+            }
+
+            $item = $this->resolveHostSafely($url)
+                ? $this->runScript($url)
+                : $this->emptyItem($url, 'ssrf_blocked');
+
+            $ttl = $this->isErrorItem($item) ? self::CACHE_TTL_ERROR : self::CACHE_TTL;
+
+            Cache::put($cacheKey, $item, $ttl);
+
+            return $item;
         } catch (\Throwable $e) {
             Log::warning('LinkPreviewService::fetchOne failed', [
                 'url' => $url,
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->emptyItem($url, 'exception: '.$e->getMessage());
+            return $this->emptyItem($url, 'preview_unavailable');
         }
+    }
+
+    private function isErrorItem(array $item): bool
+    {
+        if (! empty($item['error'])) {
+            return true;
+        }
+
+        return empty($item['title']) && empty($item['description']) && empty($item['image']);
     }
 
     /**
@@ -161,6 +194,22 @@ class LinkPreviewService
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
         );
+    }
+
+    private function isSkippedDomain(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '') {
+            return false;
+        }
+
+        foreach (self::SKIP_DOMAINS as $skip) {
+            if ($host === $skip || str_ends_with($host, '.'.$skip)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-use Modules\ChatBot\Channels\EvolutionChannel;
+use Modules\ChatBot\Channels\Evolution\EvolutionReactionHandler;
 use Modules\ChatBot\Enums\ConversationStatus;
 use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Models\Channel;
@@ -52,8 +52,8 @@ test('processReaction crea MessageReaction al recibir un emoji', function (): vo
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $result = $driver->processReaction($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
     expect($result['action'])->toBe('added');
     expect($result['message']->id)->toBe($this->message->id);
@@ -87,8 +87,8 @@ test('processReaction marca fromMe como admin-self', function (): void {
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $result = $driver->processReaction($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
     expect($result['action'])->toBe('added');
 
@@ -126,8 +126,8 @@ test('processReaction devuelve exists si la reacción ya existe', function (): v
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $result = $driver->processReaction($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
     expect($result['action'])->toBe('exists');
     expect(MessageReaction::where('message_id', $this->message->id)->count())->toBe(1);
@@ -160,8 +160,8 @@ test('processReaction elimina la reacción cuando el texto está vacío', functi
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $result = $driver->processReaction($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
     expect($result['action'])->toBe('removed');
     expect(MessageReaction::where('message_id', $this->message->id)->count())->toBe(0);
@@ -187,14 +187,14 @@ test('processReaction ignora si el mensaje original no existe', function (): voi
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $result = $driver->processReaction($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
     expect($result['action'])->toBe('skipped');
     expect(MessageReaction::count())->toBe(0);
 });
 
-test('processIncoming con evento messages.reaction no crea Message', function (): void {
+test('processReaction con reacción válida crea MessageReaction', function (): void {
     $payload = [
         'event' => 'messages.reaction',
         'data' => [
@@ -204,20 +204,24 @@ test('processIncoming con evento messages.reaction no crea Message', function ()
                 'id' => 'MSG_ID_001',
             ],
             'reaction' => [
-                'text' => '👍',
+                'text' => '🎉',
                 'key' => [
                     'remoteJid' => '59171146267@s.whatsapp.net',
                     'fromMe' => false,
-                    'id' => 'REACTION_ID_004',
+                    'id' => 'REACTION_ID_NEW_001',
                 ],
             ],
         ],
     ];
 
-    $driver = new EvolutionChannel;
-    $message = $driver->processIncoming($payload, $this->channel);
+    $driver = new EvolutionReactionHandler;
+    $result = $driver->process($payload, $this->channel);
 
-    expect($message)->toBeNull();
+    expect($result['action'])->toBe('added');
+    expect($result['message'])->not->toBeNull();
+    expect($result['message']->id)->toBe($this->message->id);
+    expect($result['reaction'])->not->toBeNull();
+    expect($result['reaction']->emoji)->toBe('🎉');
     expect(MessageReaction::where('message_id', $this->message->id)->count())->toBe(1);
 });
 
@@ -239,9 +243,9 @@ test('processReaction ignora si falta messageId o remoteJid', function (): void 
         ],
     ];
 
-    $driver = new EvolutionChannel;
+    $driver = new EvolutionReactionHandler;
     foreach ($payloads as $p) {
-        $result = $driver->processReaction($p, $this->channel);
+        $result = $driver->process($p, $this->channel);
         expect($result['action'])->toBe('skipped');
     }
 

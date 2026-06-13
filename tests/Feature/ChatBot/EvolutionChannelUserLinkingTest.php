@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\User;
-use Modules\ChatBot\Channels\EvolutionChannel;
+use Modules\ChatBot\Channels\Evolution\EvolutionChannel;
 use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
@@ -69,7 +69,7 @@ test('webhook auto-crea user con email derivado del JID y password aleatorio', f
 
     $user = User::where('whatsapp_jid', '59177777777@s.whatsapp.net')->first();
     expect($user)->not->toBeNull();
-    expect($user->email)->toBe('59177777777@s.whatsapp.net@whatsapp.user');
+    expect($user->email)->toBe('wa-59177777777@whatsapp.local');
     expect($user->password)->not->toBeEmpty();
 });
 
@@ -274,7 +274,7 @@ test('webhook con caption de video', function (): void {
     expect($message->content)->toBe('video test');
 });
 
-test('webhook con fromMe=true se ignora (admin manda desde UI, no desde teléfono)', function (): void {
+test('webhook con fromMe=true se guarda como admin (echo de WhatsApp, no fue creado por UI)', function (): void {
     $payload = [
         'event' => 'messages.upsert',
         'data' => [
@@ -294,7 +294,32 @@ test('webhook con fromMe=true se ignora (admin manda desde UI, no desde teléfon
     $channel = new EvolutionChannel;
     $message = $channel->processIncoming($payload, $this->channel);
 
-    expect($message)->toBeNull();
+    expect($message)->not->toBeNull();
+    expect($message->role)->toBe('admin');
+    expect($message->external_id)->toBe('TEST_FROMME_001');
+    expect($message->content)->toBe('yo mismo');
+});
+
+test('webhook con fromMe=true duplicado retorna el mismo mensaje (idempotente)', function (): void {
+    $payload = [
+        'event' => 'messages.upsert',
+        'data' => [
+            'key' => [
+                'remoteJid' => '59171146267@s.whatsapp.net',
+                'fromMe' => true,
+                'id' => 'TEST_FROMME_DUP_001',
+            ],
+            'message' => ['conversation' => 'dup'],
+            'messageType' => 'conversation',
+        ],
+    ];
+
+    $channel = new EvolutionChannel;
+    $first = $channel->processIncoming($payload, $this->channel);
+    $second = $channel->processIncoming($payload, $this->channel);
+
+    expect($first->id)->toBe($second->id);
+    expect(Message::where('external_id', 'TEST_FROMME_DUP_001')->count())->toBe(1);
 });
 
 test('webhook con payload inválido retorna null sin throw', function (): void {

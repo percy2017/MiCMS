@@ -75,3 +75,57 @@ test('fetchOne caches result for the same URL', function (): void {
     $item = $this->service->fetchOne('https://example.com/cached');
     expect($item['title'])->toBe('Cached Title');
 });
+
+test('fetchOne does not cache error items for 7 days', function (): void {
+    $errorItem = [
+        'url' => 'https://example.com/error',
+        'title' => null,
+        'description' => null,
+        'image' => null,
+        'site_name' => null,
+        'favicon' => null,
+        'final_url' => 'https://example.com/error',
+        'error' => 'script_failed',
+    ];
+
+    $reflection = new ReflectionClass($this->service);
+    $method = $reflection->getMethod('isErrorItem');
+    $method->setAccessible(true);
+
+    expect($method->invoke($this->service, $errorItem))->toBeTrue();
+});
+
+test('fetchOne treats empty items (no title/description/image) as errors', function (): void {
+    $emptyItem = [
+        'url' => 'https://example.com/empty',
+        'title' => null,
+        'description' => null,
+        'image' => null,
+        'site_name' => null,
+        'favicon' => null,
+        'final_url' => 'https://example.com/empty',
+        'error' => null,
+    ];
+
+    $reflection = new ReflectionClass($this->service);
+    $method = $reflection->getMethod('isErrorItem');
+    $method->setAccessible(true);
+
+    expect($method->invoke($this->service, $emptyItem))->toBeTrue();
+});
+
+test('fetchOne treats valid items (with title) as non-errors', function (): void {
+    $validItem = [
+        'url' => 'https://example.com/ok',
+        'title' => 'A real title',
+        'description' => null,
+        'image' => null,
+        'error' => null,
+    ];
+
+    $reflection = new ReflectionClass($this->service);
+    $method = $reflection->getMethod('isErrorItem');
+    $method->setAccessible(true);
+
+    expect($method->invoke($this->service, $validItem))->toBeFalse();
+});

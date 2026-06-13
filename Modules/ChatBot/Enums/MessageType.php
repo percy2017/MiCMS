@@ -12,4 +12,12 @@ enum MessageType: string
     case Sticker = 'sticker';
     case Location = 'location';
     case Contact = 'contact';
+
+    public function isMediaDownloadable(): bool
+    {
+        return match ($this) {
+            self::Image, self::Video, self::Audio, self::File, self::Sticker => true,
+            default => false,
+        };
+    }
 }

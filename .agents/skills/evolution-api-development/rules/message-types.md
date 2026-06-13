@@ -6,20 +6,26 @@ All `messageType` values from Evolution API webhooks, their content extraction, 
 
 ## Supported Types (Processed by Controller)
 
-| messageType | Enum | Extracted Content | Status |
-|-------------|------|-------------------|--------|
-| `conversation` | `MessageType::Text` | `$messageData['conversation']` | ✅ |
-| `extendedTextMessage` | `MessageType::Text` | `$messageData['extendedTextMessage']['text']` | ✅ |
-| `imageMessage` | `MessageType::Image` | `$messageData['imageMessage']['caption']` or `[Imagen]` | ✅ |
-| `videoMessage` | `MessageType::Video` | `$messageData['videoMessage']['caption']` or `[Video]` | ✅ |
-| `audioMessage` | `MessageType::Audio` | `[Audio]` | ✅ |
-| `documentMessage` | `MessageType::File` | `[Documento]` | ✅ |
-| `stickerMessage` | `MessageType::Sticker` | `[Sticker]` | ✅ |
-| `locationMessage` | `MessageType::Text` | lat/lng + Google Maps URL | ✅ |
-| `contactMessage` | `MessageType::Text` | Contact name + vcard | ✅ |
-| `productMessage` | `MessageType::Text` | Product title + price | ✅ |
-| `reactionMessage` | N/A | Reaction to another message | ✅ (stored as metadata) |
-| `callLog` | N/A | Call type + status + duration | ✅ (created internally) |
+| messageType | Enum | Content Placeholder | Metadata Keys | Downloadable |
+|-------------|------|---------------------|---------------|--------------|
+| `conversation` | `MessageType::Text` | `$messageData['conversation']` | (none) | ❌ |
+| `extendedTextMessage` | `MessageType::Text` | `$messageData['extendedTextMessage']['text']` | `media_kind=link` + `media_preview` if URL | ❌ |
+| `imageMessage` | `MessageType::Image` | caption or `[Imagen]` | `media_url`, `media_mimetype`, `media_caption`, `media_size`, `media_thumbnail` | ✅ |
+| `videoMessage` | `MessageType::Video` | caption or `[Video]` | `media_url`, `media_mimetype`, `media_caption`, `media_size`, `media_duration` | ✅ |
+| `ptvMessage` | `MessageType::Video` | caption or `[Video]` | (same as videoMessage) | ✅ |
+| `audioMessage` | `MessageType::Audio` | `[Audio]` | `media_url`, `media_mimetype`, `media_duration`, `media_ptt` | ✅ |
+| `documentMessage` | `MessageType::File` | caption or `[Documento]` | `media_url`, `media_mimetype`, `media_filename`, `media_size` | ✅ |
+| `documentWithCaptionMessage` | `MessageType::File` | caption or `[Documento]` | (same as documentMessage) | ✅ |
+| `stickerMessage` | `MessageType::Sticker` | `[Sticker]` | `media_url` (may be empty), `media_mimetype`, `media_filename` | ✅ |
+| `lottieStickerMessage` | `MessageType::Sticker` | `[Sticker]` | (same as stickerMessage) | ✅ |
+| `locationMessage` | `MessageType::Location` | `[Ubicación]` | `media_latitude`, `media_longitude`, `media_name`, `media_address`, `media_url`, `media_thumbnail` | ❌ |
+| `liveLocationMessage` | `MessageType::Location` | `[Ubicación en vivo]` | (same as locationMessage) | ❌ |
+| `contactMessage` | `MessageType::Contact` | `[Contacto] {displayName}` | `media_name`, `media_phone`, `media_vcard` | ❌ |
+| `productMessage` | `MessageType::Text` | `[Producto: {title}]` | (none yet) | ❌ |
+| `orderMessage` | `MessageType::Text` | `[Pedido: {orderTitle}]` | (none yet) | ❌ |
+| `eventMessage` | `MessageType::Text` | `[Evento: {name}]` | (none yet) | ❌ |
+| `pollCreationMessage` | `MessageType::Text` | `[Encuesta: {name}]` | (none yet) | ❌ |
+| `reactionMessage` | N/A | `[Reacción: {text}]` or `[Reacción removida]` | (handled separately) | ❌ |
 
 ## Skipped Types (Explicitly Filtered)
 
@@ -28,385 +34,133 @@ All `messageType` values from Evolution API webhooks, their content extraction, 
 | `albumMessage` | Contains no usable content; individual messages arrive separately |
 | `protocolMessage` | System protocol message, not user content |
 | `groupStatusMentionMessage` | Status mention in group, no useful content |
-| `associatedChildMessage` | Reference to another message |
-| `encReactionMessage` | Encrypted reaction, unreadable |
-| `unknown` | Unrecognized type |
 
 ---
 
-## Content Extraction Logic
+## Content Extraction Patterns
 
-Current implementation in `EvolutionChannel::processIncoming()`:
-
+### Text content
 ```php
-$content = match (true) {
-    // Text messages
-    ! empty($messageData['conversation']) => $messageData['conversation'],
-    ! empty($messageData['extendedTextMessage']['text']) => $messageData['extendedTextMessage']['text'],
-
-    // Media with caption
-    ! empty($messageData['imageMessage']['caption']) => $messageData['imageMessage']['caption'],
-    ! empty($messageData['videoMessage']['caption']) => $messageData['videoMessage']['caption'],
-
-    // Media without caption
-    ! empty($messageData['imageMessage']) => '[Imagen]',
-    ! empty($messageData['videoMessage']) => '[Video]',
-    ! empty($messageData['audioMessage']) => '[Audio]',
-    ! empty($messageData['documentMessage']) => '[Documento]',
-    ! empty($messageData['stickerMessage']) => '[Sticker]',
-
-    // Default
+// EvolutionMessageParser::extractContent()
+return match (true) {
+    ! empty($unwrapped['conversation']) => (string) $unwrapped['conversation'],
+    ! empty($unwrapped['extendedTextMessage']['text']) => (string) $unwrapped['extendedTextMessage']['text'],
+    // ...
+    ! empty($unwrapped['contactMessage']['displayName']) => '[Contacto] '.$unwrapped['contactMessage']['displayName'],
+    ! empty($unwrapped['locationMessage']) => '[Ubicación]',
     default => '[Mensaje no soportado]',
 };
 ```
 
-### Type Mapping
-
+### Type detection
 ```php
-$type = MessageType::Text;
-if (! empty($messageData['imageMessage'])) {
-    $type = MessageType::Image;
-} elseif (! empty($messageData['videoMessage'])) {
-    $type = MessageType::Video;
-} elseif (! empty($messageData['audioMessage'])) {
-    $type = MessageType::Audio;
-} elseif (! empty($messageData['documentMessage'])) {
-    $type = MessageType::File;
+// EvolutionMessageParser::detectType() returns [MessageType, mediaData, mediaKind]
+if (! empty($unwrapped['imageMessage'])) {
+    return [MessageType::Image, (array) $unwrapped['imageMessage'], 'image'];
+}
+if (! empty($unwrapped['stickerMessage']) || ! empty($unwrapped['lottieStickerMessage'])) {
+    $stickerData = $unwrapped['stickerMessage'] ?? $unwrapped['lottieStickerMessage'];
+    return [MessageType::Sticker, (array) $stickerData, 'sticker'];
+}
+if (! empty($unwrapped['locationMessage']) || ! empty($unwrapped['liveLocationMessage'])) {
+    $locData = $unwrapped['locationMessage'] ?? $unwrapped['liveLocationMessage'];
+    return [MessageType::Location, (array) $locData, 'location'];
+}
+if (! empty($unwrapped['contactMessage'])) {
+    return [MessageType::Contact, (array) $unwrapped['contactMessage'], 'contact'];
 }
 ```
 
----
-
-## Detailed Type Examples
-
-### conversation (Plain Text)
-
-```json
-{
-  "message": {
-    "conversation": "Hello, how are you?"
-  },
-  "messageType": "conversation"
-}
-```
-
-**Extraction:** `$messageData['conversation']`
-
----
-
-### extendedTextMessage (Formatted Text)
-
-```json
-{
-  "message": {
-    "extendedTextMessage": {
-      "text": "Hello *bold* and _italic_",
-      "matchedText": "Hello *bold* and _italic_",
-      "canonicalUrl": null,
-      "description": null,
-      "title": null,
-      "previewType": 0
-    }
-  },
-  "messageType": "extendedTextMessage"
-}
-```
-
-**Extraction:** `$messageData['extendedTextMessage']['text']`
-
-**Note:** WhatsApp formatting (`*bold*`, `_italic_`, `~strikethrough~`, `` `code` ``) is preserved in the text.
-
----
-
-### imageMessage
-
-```json
-{
-  "message": {
-    "imageMessage": {
-      "caption": "Check out this photo",
-      "mimetype": "image/jpeg",
-      "url": "https://mmg.whatsapp.net/v/t62.7161-24/...",
-      "fileSha256": ["..."],
-      "fileLength": { "low": 123456, "high": 0, "unsigned": true },
-      "mediaKey": ["..."],
-      "jpegThumbnail": ["..."]
-    }
-  },
-  "messageType": "imageMessage"
-}
-```
-
-**Extraction:** Caption if present, otherwise `[Imagen]`
-
-**Note:** The `url` field is a temporary WhatsApp CDN URL. Download media promptly.
-
----
-
-### videoMessage
-
-```json
-{
-  "message": {
-    "videoMessage": {
-      "caption": "Look at this video",
-      "mimetype": "video/mp4",
-      "seconds": 15,
-      "fileLength": { "low": 1048576, "high": 0, "unsigned": true }
-    }
-  },
-  "messageType": "videoMessage"
-}
-```
-
-**Extraction:** Caption if present, otherwise `[Video]`
-
----
-
-### audioMessage
-
-```json
-{
-  "message": {
-    "audioMessage": {
-      "mimetype": "audio/ogg; codecs=opus",
-      "seconds": 5,
-      "ptt": true
-    }
-  },
-  "messageType": "audioMessage"
-}
-```
-
-**Extraction:** Always `[Audio]`
-
-**Note:** `ptt: true` means it's a voice note (push-to-talk).
-
----
-
-### documentMessage
-
-```json
-{
-  "message": {
-    "documentMessage": {
-      "fileName": "invoice.pdf",
-      "mimetype": "application/pdf",
-      "fileLength": { "low": 524288, "high": 0, "unsigned": true }
-    }
-  },
-  "messageType": "documentMessage"
-}
-```
-
-**Extraction:** Always `[Documento]`
-
----
-
-### stickerMessage
-
-```json
-{
-  "message": {
-    "stickerMessage": {
-      "mimetype": "image/webp",
-      "isAnimated": false
-    }
-  },
-  "messageType": "stickerMessage"
-}
-```
-
-**Extraction:** Always `[Sticker]`
-
----
-
-### locationMessage
-
-```json
-{
-  "message": {
-    "locationMessage": {
-      "degreesLatitude": -16.5000,
-      "degreesLongitude": -68.1500,
-      "name": "Office",
-      "address": "Av. 6 de Octubre, La Paz, Bolivia"
-    }
-  },
-  "messageType": "locationMessage"
-}
-```
-
-**Extraction (enhanced):**
+### Media metadata extraction
 ```php
-if (! empty($messageData['locationMessage'])) {
-    $loc = $messageData['locationMessage'];
-    $lat = $loc['degreesLatitude'] ?? 0;
-    $lng = $loc['degreesLongitude'] ?? 0;
-    $name = $loc['name'] ?? '';
-    $address = $loc['address'] ?? '';
-
-    $content = "📍 {$name}\n{$address}\nhttps://maps.google.com/?q={$lat},{$lng}";
-    $type = MessageType::Text;
-}
+// EvolutionMessageParser::extractMediaMeta($kind, $mediaData) returns media_* prefixed array
+$meta = [
+    'media_kind' => $kind,  // 'image' | 'video' | 'audio' | 'document' | 'sticker'
+    'media_url' => $mediaData['url'] ?? null,
+    'media_mimetype' => $mediaData['mimetype'] ?? null,
+    'media_caption' => $mediaData['caption'] ?? null,
+    'media_size' => (int) $mediaData['fileLength'] ?? null,
+];
 ```
 
----
+### Location metadata extraction
+```php
+// EvolutionMessageParser::extractLocationMeta($locData)
+$meta = [
+    'media_kind' => 'location',
+    'media_latitude' => (float) $locData['degreesLatitude'],
+    'media_longitude' => (float) $locData['degreesLongitude'],
+    'media_name' => $locData['name'] ?? null,
+    'media_address' => $locData['address'] ?? null,
+    'media_url' => $locData['url'] ?? null,  // Google Maps URL
+    'media_thumbnail' => $locData['jpegThumbnail'] ?? null,  // base64
+];
+```
 
-### contactMessage
+### Contact metadata extraction
+```php
+// EvolutionMessageParser::extractContactMeta($contactData)
+$meta = [
+    'media_kind' => 'contact',
+    'media_name' => $contactData['displayName'] ?? null,
+    'media_vcard' => $contactData['vcard'] ?? null,
+];
 
-```json
-{
-  "message": {
-    "contactMessage": {
-      "displayName": "John Doe",
-      "vcard": "BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL;type=CELL;waid=59170000000:+591 7000 0000\nEND:VCARD"
+// Extract phone from vcard (regex: TEL:...)
+if (preg_match_all('/TEL[^:]*:([^\r\n]+)/i', $vcard, $matches)) {
+    foreach ($matches[1] as $raw) {
+        $phone = preg_replace('/[^+\d]/', '', $raw);
+        if ($phone !== '' && strlen($phone) >= 8) {
+            $meta['media_phone'] = $phone;
+            break;
+        }
     }
-  },
-  "messageType": "contactMessage"
-}
-```
-
-**Extraction (enhanced):**
-```php
-if (! empty($messageData['contactMessage'])) {
-    $contact = $messageData['contactMessage'];
-    $content = "👤 Contacto: {$contact['displayName']}";
-    $type = MessageType::Contact;
 }
 ```
 
 ---
 
-### productMessage
+## Media Download Pattern
 
-```json
-{
-  "message": {
-    "productMessage": {
-      "product": {
-        "title": "Product XYZ",
-        "description": "Great product",
-        "priceAmount1000": { "low": 50000, "high": 0, "unsigned": true },
-        "currencyCode": "BOB"
-      }
-    }
-  },
-  "messageType": "productMessage"
-}
-```
+For `isMediaDownloadable()` types (image/video/audio/sticker/file):
 
-**Extraction (enhanced):**
-```php
-if (! empty($messageData['productMessage'])) {
-    $product = $messageData['productMessage']['product'] ?? [];
-    $title = $product['title'] ?? 'Producto';
-    $price = ($product['priceAmount1000']['low'] ?? 0) / 1000;
-    $currency = $product['currencyCode'] ?? '';
-    $content = "🛒 {$title} — {$price} {$currency}";
-    $type = MessageType::Text;
-}
-```
+1. **Parser** extracts metadata with `media_url`, `media_mimetype`, etc. from the webhook payload
+2. **`EvolutionMediaEnricher::enrich()`** is called with the `messageId` (external_id):
+   - Calls `Evolution API: /chat/getBase64FromMediaMessage/{instance}` to get base64
+   - Decodes the base64
+   - Saves to disk via `App\Support\MediaStorage::storeBytes()`
+   - Creates a `Media` record
+   - Sets `message.attachment_media_id = $media->id`
+   - **ALSO persists `media_base64`, `media_mimetype`, `media_filename`, `media_size`, `media_stored_at` in metadata as fallback**
 
----
+3. **Failure case**: if `getBase64FromMediaMessage` returns 400/500 or empty base64:
+   - Sets `media_enrichment_failed_at` in metadata
+   - Does NOT set `attachment_media_id`
+   - Does NOT clear existing `media_url` (frontend can still use it temporarily)
 
-### reactionMessage
+## Important Notes on Sticker Messages
 
-```json
-{
-  "message": {
-    "reactionMessage": {
-      "text": "👍",
-      "key": {
-        "id": "ORIGINAL_MESSAGE_ID",
-        "remoteJid": "59168964000@s.whatsapp.net",
-        "fromMe": false
-      }
-    }
-  },
-  "messageType": "reactionMessage"
-}
-```
+**Stickers often DON'T include `media_url` in the webhook payload.** The only way to get the actual sticker data is via `getBase64FromMediaMessage`. This is why `mediaEnricher->enrich()` is critical for stickers.
 
-**Processing:** Store as metadata, not as a standalone message:
+For expired sticker URLs (sent >5 min ago), `getBase64FromMediaMessage` returns HTTP 400. The sticker is lost. The user must resend it.
 
-```php
-if (! empty($messageData['reactionMessage'])) {
-    $reaction = $messageData['reactionMessage'];
-    // Find the original message by $reaction['key']['id']
-    // Store reaction in metadata or as a separate reaction record
-    return null; // Don't create a new message
-}
-```
+## Important Notes on Location Messages
 
----
+The `locationMessage` payload includes:
+- `degreesLatitude` (float) — required
+- `degreesLongitude` (float) — required
+- `name` (string, optional) — place name
+- `address` (string, optional) — full address
+- `url` (string, optional) — Google Maps link
+- `jpegThumbnail` (string, optional) — base64 thumbnail of the map
 
-### callLog (Internal)
+If `name` and `address` are empty, the frontend shows "Ubicación compartida" + the coordinates + Google Maps link.
 
-Created internally by the controller when processing `call` webhook events:
+## Important Notes on Contact Messages
 
-```php
-$content = "📞 Llamada de {$callType} {$label}";
-// Example: "📞 Llamada de voice entrante — 05:30 min"
-```
+The `contactMessage` payload includes:
+- `displayName` (string) — required
+- `vcard` (string) — full vCard with phone, email, etc.
+- The phone is **extracted from the vcard**, not from a top-level field.
 
-**Type:** Stored as `MessageType::Text` with a `callLog` marker in metadata.
-
----
-
-## Adding New Message Types
-
-### Step 1: Add extraction in processIncoming()
-
-```php
-// In the content match:
-! empty($messageData['pollMessage']) => $messageData['pollMessage']['name'] ?? '[Encuesta]',
-
-// In the type assignment:
-} elseif (! empty($messageData['pollMessage'])) {
-    $type = MessageType::Text;
-}
-```
-
-### Step 2: Add enum value (if needed)
-
-```php
-// In Modules/ChatBot/Enums/MessageType.php
-case Poll = 'poll';
-case Story = 'story';
-```
-
-### Step 3: Add outbound support (if needed)
-
-```php
-// In EvolutionChannel::sendMessage():
-MessageType::Poll => $client->sendPoll([
-    'number' => $number,
-    'name' => $message->content,
-    'selectableCount' => 1,
-    'values' => $message->metadata['options'] ?? [],
-]),
-```
-
-### Step 4: Add factory state (for testing)
-
-```php
-// In Modules/ChatBot/database/factories/MessageFactory.php
-public function poll(): static
-{
-    return $this->state(fn () => [
-        'type' => MessageType::Poll,
-        'content' => 'What is your favorite color?',
-    ]);
-}
-```
-
----
-
-## Media Handling Notes
-
-1. **Temporary URLs** — WhatsApp media URLs (`mmg.whatsapp.net`) expire. Download and store media in your own storage.
-2. **Base64 option** — Set `webhook_base64: true` in webhook config to receive media as base64 instead of URLs.
-3. **MIME types** — Always use the `mimetype` field from the payload, don't guess.
-4. **File size** — `fileLength` is an object `{low, high, unsigned}` — combine for the full size.
-5. **Thumbnails** — `jpegThumbnail` in image messages is a base64-encoded thumbnail.
+The phone is stored in `media_phone` with E.164 format (e.g. `+59172811368`).

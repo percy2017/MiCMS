@@ -44,28 +44,33 @@ class FetchLinkPreviewsJob implements ShouldQueue
 
         $messages = Message::query()
             ->whereIn('id', $ids)
-            ->whereNull('link_previews')
-            ->get();
+            ->where('type', 'text')
+            ->get()
+            ->filter(fn (Message $m): bool => ($m->metadata['media_kind'] ?? null) !== 'link');
 
         foreach ($messages as $message) {
             $content = (string) $message->content;
             $urls = $service->extractUrls($content);
 
             if ($urls === []) {
-                $message->forceFill(['link_previews' => ['version' => 1, 'items' => []]])->save();
-                $this->broadcast($message);
+                $meta = $message->metadata ?? [];
+                $meta['media_kind'] = 'text';
+                $message->forceFill(['metadata' => $meta])->save();
 
                 continue;
             }
 
             try {
                 $items = $service->fetchMany($urls);
+                $firstItem = $items[0] ?? null;
+
+                $meta = $message->metadata ?? [];
+                $meta['media_kind'] = 'link';
+                $meta['media_external_url'] = $firstItem['url'] ?? $firstItem['final_url'] ?? null;
+                $meta['media_preview'] = $firstItem;
+
                 $message->forceFill([
-                    'link_previews' => [
-                        'version' => 1,
-                        'fetched_at' => now()->toIso8601String(),
-                        'items' => $items,
-                    ],
+                    'metadata' => $meta,
                 ])->save();
 
                 $this->broadcast($message);

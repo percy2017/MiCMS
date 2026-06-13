@@ -41,7 +41,6 @@ class Message extends Model
         'content',
         'external_id',
         'metadata',
-        'link_previews',
         'attachment_media_id',
         'delivered_at',
         'read_at',
@@ -50,7 +49,6 @@ class Message extends Model
     protected $casts = [
         'type' => MessageType::class,
         'metadata' => 'array',
-        'link_previews' => 'array',
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
     ];

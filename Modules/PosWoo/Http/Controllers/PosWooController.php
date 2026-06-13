@@ -138,6 +138,13 @@ class PosWooController extends Controller
             }
         }
 
+        if (is_array($customer)) {
+            $rawEmail = (string) ($customer['email'] ?? '');
+            if ($rawEmail !== '' && (substr_count($rawEmail, '@') !== 1 || ! filter_var($rawEmail, FILTER_VALIDATE_EMAIL))) {
+                $customer['email'] = $woo->sanitizeBillingEmail($rawEmail, (string) ($customer['phone'] ?? ''), (string) $customer['id']);
+            }
+        }
+
         $data = $woo->createOrder([
             'items' => $validated['items'],
             'customer' => $customer,

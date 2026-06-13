@@ -26,18 +26,46 @@ Route::middleware(['auth', 'verified'])
             ->name('widget');
         Route::patch('/canales/web-widget', [WidgetController::class, 'update'])
             ->name('widget.update');
+        Route::delete('/canales/web-widget/{webWidget}', [WidgetController::class, 'destroy'])
+            ->name('widget.destroy');
 
         // Evolution channels (order matters: specific routes before wildcard)
         Route::post('/canales/evolution', [ChannelAdminController::class, 'storeEvolution'])
             ->name('evolution.store');
         Route::post('/canales/evolution/fetch-instances', [ChannelAdminController::class, 'fetchInstances'])
             ->name('evolution.fetch-instances');
+        Route::get('/canales/evolution/seleccionar', [ChannelAdminController::class, 'evolutionSelector'])
+            ->name('evolution.selector');
+        Route::post('/canales/evolution/select-store', [ChannelAdminController::class, 'evolutionSelectStore'])
+            ->name('evolution.select-store');
         Route::get('/canales/evolution/{evolution}', [ChannelAdminController::class, 'editEvolution'])
             ->name('evolution.edit');
         Route::patch('/canales/evolution/{evolution}', [ChannelAdminController::class, 'updateEvolution'])
             ->name('evolution.update');
         Route::delete('/canales/evolution/{evolution}', [ChannelAdminController::class, 'destroy'])
             ->name('evolution.destroy');
+
+        // OpenWA channels
+        Route::get('/canales/openwa/seleccionar', [ChannelAdminController::class, 'openwaSelector'])
+            ->name('openwa.selector');
+        Route::post('/canales/openwa', [ChannelAdminController::class, 'storeOpenWa'])
+            ->name('openwa.store');
+        Route::get('/canales/openwa/available', [ChannelAdminController::class, 'openwaAvailableSessions'])
+            ->name('openwa.available');
+        Route::get('/canales/openwa/{openwa}', [ChannelAdminController::class, 'editOpenWa'])
+            ->name('openwa.edit');
+        Route::patch('/canales/openwa/{openwa}', [ChannelAdminController::class, 'updateOpenWa'])
+            ->name('openwa.update');
+        Route::delete('/canales/openwa/{openwa}', [ChannelAdminController::class, 'destroy'])
+            ->name('openwa.destroy');
+        Route::get('/canales/openwa/{openwa}/stats', [ChannelAdminController::class, 'openwaStats'])
+            ->name('openwa.stats');
+
+        // Evolution selector (crear inbox seleccionando instancia)
+        Route::get('/canales/evolution/seleccionar', [ChannelAdminController::class, 'evolutionSelector'])
+            ->name('evolution.selector');
+        Route::post('/canales/evolution/select-store', [ChannelAdminController::class, 'evolutionSelectStore'])
+            ->name('evolution.select-store');
 
         // Unified chats
         Route::get('/chats', [ChatController::class, 'index'])->name('chats');

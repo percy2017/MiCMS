@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\ChatBot\Enums\MessageType;
 use Modules\ChatBot\Http\Requests\ReplyMessageRequest;
 use Modules\ChatBot\Models\Channel;
 use Modules\ChatBot\Models\Conversation;
@@ -89,7 +90,8 @@ class ChatController extends Controller
                         ...$this->attachmentData($m),
                         'read_at' => $m->read_at?->toIso8601String(),
                         'created_at' => $m->created_at?->toIso8601String(),
-                        'link_previews' => $m->link_previews,
+                        'link_previews' => null,
+                        'metadata' => $m->metadata,
                         'reactions' => $m->reactions()
                             ->get(['id', 'user_jid', 'emoji', 'created_at'])
                             ->map(fn ($r) => [
@@ -223,7 +225,8 @@ class ChatController extends Controller
                     ...$this->attachmentData($m),
                     'read_at' => $m->read_at?->toIso8601String(),
                     'created_at' => $m->created_at?->toIso8601String(),
-                    'link_previews' => $m->link_previews,
+                    'link_previews' => null,
+                    'metadata' => $m->metadata,
                     'reactions' => $m->reactions()->get(['id', 'user_jid', 'emoji', 'created_at'])->map(fn ($r) => [
                         'id' => $r->id,
                         'user_jid' => $r->user_jid,
@@ -335,7 +338,8 @@ class ChatController extends Controller
                     ...$this->attachmentData($m),
                     'read_at' => $m->read_at?->toIso8601String(),
                     'created_at' => $m->created_at?->toIso8601String(),
-                    'link_previews' => $m->link_previews,
+                    'link_previews' => null,
+                    'metadata' => $m->metadata,
                     'reactions' => $m->reactions()->get(['id', 'user_jid', 'emoji', 'created_at'])->map(fn ($r) => [
                         'id' => $r->id,
                         'user_jid' => $r->user_jid,
@@ -409,8 +413,11 @@ class ChatController extends Controller
 
     /**
      * Resuelve los datos de attachment de un mensaje.
-     * Si el mensaje tiene un `Media` adjunto (admin replies), usa esos datos.
-     * Si no, cae al `metadata` (mensajes entrantes del webhook Evolution con media).
+     * Prioridad:
+     *  1. `metadata.media_base64` → data URL (mensajes entrantes enriquecidos)
+     *  2. `Message.attachment` (Media local) → URL pública (admin replies o media persistida)
+     *  3. `metadata.media_url` → URL externa (fallback)
+     *  4. `null` si no hay nada
      *
      * @return array{attachment_url: ?string, attachment_mime: ?string, attachment_name: ?string, attachment_size: ?int}
      */
@@ -446,6 +453,16 @@ class ChatController extends Controller
                 'attachment_name' => $meta['media_filename'] ?? null,
                 'attachment_size' => $meta['media_size'] ?? null,
             ];
+        }
+
+        if (in_array($m->type->value, ['image', 'video', 'audio', 'sticker', 'file'], true)) {
+            Log::warning('ChatController: message has media type but no resolvable attachment', [
+                'message_id' => $m->id,
+                'type' => $m->type->value,
+                'has_base64' => ! empty($meta['media_base64']),
+                'has_media_url' => ! empty($meta['media_url']),
+                'has_attachment_media_id' => $m->attachment_media_id !== null,
+            ]);
         }
 
         return [
@@ -557,16 +574,17 @@ class ChatController extends Controller
     }
 
     /**
-     * Detecta mensajes sin `link_previews` pero con URLs en el contenido
-     * y dispara un job en bulk para procesarlos. Idempotente: si todos los
-     * mensajes ya tienen previews o están vacíos, no hace nada.
+     * Detecta mensajes sin `media_kind=link` en metadata pero con URLs
+     * en el contenido y dispara un job en bulk para procesarlos.
+     * Idempotente: si todos los mensajes ya tienen previews o están vacíos, no hace nada.
      */
     private function dispatchMissingLinkPreviews(Conversation $conversation): void
     {
         $messages = $conversation->messages
-            ->filter(fn (Message $m): bool => $m->content !== null
+            ->filter(fn (Message $m): bool => $m->type === MessageType::Text
+                && $m->content !== null
                 && $m->content !== ''
-                && $m->link_previews === null);
+                && (($m->metadata['media_kind'] ?? null) !== 'link'));
 
         if ($messages->isEmpty()) {
             return;
@@ -578,7 +596,9 @@ class ChatController extends Controller
             if (preg_match($urlRegex, (string) $message->content) === 1) {
                 $idsToProcess[] = $message->id;
             } else {
-                $message->forceFill(['link_previews' => ['version' => 1, 'items' => []]])->save();
+                $meta = $message->metadata ?? [];
+                $meta['media_kind'] = 'text';
+                $message->forceFill(['metadata' => $meta])->save();
             }
         }
 

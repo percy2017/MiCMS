@@ -50,6 +50,7 @@ class ChatBotMessageReceived implements ShouldBroadcastNow
                 'attachment_mime' => $this->message->attachment?->mime_type,
                 'attachment_name' => $this->message->attachment?->name,
                 'attachment_size' => $this->message->attachment?->size,
+                'metadata' => $this->message->metadata,
                 'created_at' => $this->message->created_at?->toIso8601String(),
             ],
             'conversation' => [

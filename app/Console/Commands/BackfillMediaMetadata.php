@@ -6,7 +6,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Modules\ChatBot\Channels\EvolutionApiClient;
+use Modules\ChatBot\Channels\Evolution\EvolutionApiClient;
 use Modules\ChatBot\Enums\ChannelType;
 use Modules\ChatBot\Models\Message;
 
