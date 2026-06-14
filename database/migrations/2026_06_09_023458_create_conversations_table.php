@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('visitor_name')->nullable();
             $table->string('visitor_email')->nullable();
             $table->string('page_url')->nullable();
-            $table->string('status')->default('open'); // open, closed, archived
+            $table->string('status')->default('open');
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('last_message_at')->nullable();
             $table->unsignedInteger('unread_by_admin')->default(0);

@@ -12,17 +12,17 @@ beforeEach(function (): void {
     Config::set('chatbot.openwa.api_key', 'test-key');
 });
 
-test('openwaAvailableSessions devuelve configured=false si no hay credenciales en .env', function (): void {
+test('available devuelve configured=false si no hay credenciales en .env', function (): void {
     Config::set('chatbot.openwa.base_url', '');
     Config::set('chatbot.openwa.api_key', '');
 
     actingAs(adminUser())
         ->get('/admin/canales/openwa/available')
         ->assertOk()
-        ->assertJson(['configured' => false, 'sessions' => []]);
+        ->assertJson(['configured' => false, 'items' => []]);
 });
 
-test('openwaAvailableSessions lista sesiones de OpenWA y marca las ya vinculadas', function (): void {
+test('available lista sesiones de OpenWA y marca las ya vinculadas', function (): void {
     Http::fake([
         'openwa.example.com/*' => Http::response([
             ['id' => 's1', 'name' => 'tigo1', 'status' => 'CONNECTED', 'phone' => '59111111'],
@@ -41,14 +41,14 @@ test('openwaAvailableSessions lista sesiones de OpenWA y marca las ya vinculadas
         ->assertOk()
         ->assertJson([
             'configured' => true,
-            'sessions' => [
-                ['name' => 'tigo1', 'already_linked' => true],
-                ['name' => 'entel2', 'already_linked' => false],
+            'items' => [
+                ['external_key' => 'tigo1', 'taken' => true],
+                ['external_key' => 'entel2', 'taken' => false],
             ],
         ]);
 });
 
-test('openwaAvailableSessions maneja errores de HTTP gracefully', function (): void {
+test('available maneja errores de HTTP gracefully', function (): void {
     Http::fake([
         'openwa.example.com/*' => Http::response('Server Error', 500),
     ]);
@@ -56,18 +56,31 @@ test('openwaAvailableSessions maneja errores de HTTP gracefully', function (): v
     actingAs(adminUser())
         ->get('/admin/canales/openwa/available')
         ->assertOk()
-        ->assertJson(['configured' => true, 'sessions' => []])
+        ->assertJson(['configured' => true, 'items' => []])
         ->assertJsonStructure(['error']);
 });
 
-test('storeOpenWa crea un canal con session_name y redirige a edit', function (): void {
-    $response = actingAs(adminUser())
-        ->post('/admin/canales/openwa', [
-            'session_name' => 'tigo1',
-        ]);
+test('create page renderiza con lista + form', function (): void {
+    Http::fake([
+        'openwa.example.com/*' => Http::response([
+            ['id' => 's1', 'name' => 'tigo1', 'status' => 'CONNECTED'],
+        ], 200),
+    ]);
 
-    $response->assertRedirect();
-    $response->assertSessionHas('success');
+    actingAs(adminUser())
+        ->get('/admin/canales/openwa')
+        ->assertOk();
+});
+
+test('store crea un canal con session_name y redirige al listado', function (): void {
+    actingAs(adminUser())
+        ->post('/admin/canales/openwa', [
+            'enabled' => true,
+            'config' => ['session_name' => 'tigo1'],
+            'settings' => ['display_name' => 'Tigo 1'],
+        ])
+        ->assertRedirect(route('chatbot.admin.canales'))
+        ->assertSessionHas('success');
 
     $channel = Channel::where('type', ChannelType::OpenWa)
         ->get()
@@ -79,85 +92,47 @@ test('storeOpenWa crea un canal con session_name y redirige a edit', function ()
     expect($channel->config)->toBe(['session_name' => 'tigo1']);
 });
 
-test('storeOpenWa rechaza session_name duplicada', function (): void {
+test('store rechaza session_name duplicada', function (): void {
     Channel::factory()->openwa()->create([
         'name' => 'tigo1',
         'config' => ['session_name' => 'tigo1'],
         'enabled' => true,
     ]);
 
-    $response = actingAs(adminUser())
+    actingAs(adminUser())
         ->post('/admin/canales/openwa', [
-            'session_name' => 'tigo1',
-        ]);
-
-    $response->assertRedirect();
-    $response->assertSessionHasErrors('session_name');
+            'enabled' => true,
+            'config' => ['session_name' => 'tigo1'],
+            'settings' => ['display_name' => 'Tigo 1'],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('config.session_name');
 });
 
-test('storeOpenWa requiere session_name', function (): void {
+test('store requiere session_name', function (): void {
     actingAs(adminUser())
         ->post('/admin/canales/openwa', [])
-        ->assertSessionHasErrors('session_name');
+        ->assertSessionHasErrors('config.session_name');
 });
 
-test('storeOpenWa permite vincular la misma session_name si el canal previo fue deshabilitado', function (): void {
+test('store permite vincular la misma session_name si el canal previo fue deshabilitado', function (): void {
     Channel::factory()->openwa()->create([
         'name' => 'tigo1',
         'config' => ['session_name' => 'tigo1'],
         'enabled' => false,
     ]);
 
-    $response = actingAs(adminUser())
+    actingAs(adminUser())
         ->post('/admin/canales/openwa', [
-            'session_name' => 'tigo1',
-        ]);
-
-    $response->assertRedirect();
-    $response->assertSessionHas('success');
+            'enabled' => true,
+            'config' => ['session_name' => 'tigo1'],
+            'settings' => ['display_name' => 'Tigo 1'],
+        ])
+        ->assertRedirect(route('chatbot.admin.canales'))
+        ->assertSessionHas('success');
 
     $matches = Channel::where('type', ChannelType::OpenWa)
         ->get()
         ->filter(fn ($c) => is_array($c->config) && ($c->config['session_name'] ?? null) === 'tigo1');
     expect($matches->count())->toBe(2);
-});
-
-test('editOpenWa renderiza la página de edición con los datos del canal', function (): void {
-    $channel = Channel::factory()->openwa()->create([
-        'name' => 'tigo1',
-        'config' => ['session_name' => 'tigo1'],
-    ]);
-
-    actingAs(adminUser())
-        ->get("/admin/canales/openwa/{$channel->id}")
-        ->assertOk();
-});
-
-test('editOpenWa rechaza canales que no son openwa', function (): void {
-    $channel = Channel::factory()->create(['type' => 'web_widget']);
-
-    actingAs(adminUser())
-        ->get("/admin/canales/openwa/{$channel->id}")
-        ->assertNotFound();
-});
-
-test('updateOpenWa actualiza el session_name y settings', function (): void {
-    $channel = Channel::factory()->openwa()->create([
-        'name' => 'tigo1',
-        'config' => ['session_name' => 'tigo1'],
-    ]);
-
-    actingAs(adminUser())
-        ->patch("/admin/canales/openwa/{$channel->id}", [
-            'enabled' => true,
-            'config' => ['session_name' => 'entel1'],
-            'settings' => ['display_name' => 'Entel 1', 'auto_reply' => 'Hola'],
-        ])
-        ->assertRedirect()
-        ->assertSessionHas('success');
-
-    $channel->refresh();
-    expect($channel->enabled)->toBeTrue();
-    expect($channel->config)->toBe(['session_name' => 'entel1']);
-    expect($channel->settings)->toMatchArray(['display_name' => 'Entel 1', 'auto_reply' => 'Hola']);
 });

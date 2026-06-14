@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
@@ -17,9 +14,15 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->text('two_factor_secret')->after('password')->nullable();
+            $table->foreignId('avatar_media_id')->nullable()->constrained('media')->nullOnDelete()->after('password');
+            $table->text('two_factor_secret')->after('avatar_media_id')->nullable();
             $table->text('two_factor_recovery_codes')->after('two_factor_secret')->nullable();
             $table->timestamp('two_factor_confirmed_at')->after('two_factor_recovery_codes')->nullable();
+            $table->string('phone', 32)->nullable()->unique()->after('two_factor_confirmed_at');
+            $table->string('country_code', 2)->nullable()->after('phone')->index();
+            $table->string('whatsapp_jid')->nullable()->unique()->after('country_code');
+            $table->boolean('is_whatsapp_business')->default(false)->after('whatsapp_jid');
+            $table->json('business_data')->nullable()->after('is_whatsapp_business');
             $table->rememberToken();
             $table->timestamps();
         });
@@ -40,13 +43,10 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

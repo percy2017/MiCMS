@@ -1,7 +1,6 @@
 ---
 name: puck-development
-description: |
-  Desarrolla y configura el editor visual Puck (@puckeditor/core) en React.
+description: Desarrolla y configura el editor visual Puck (@puckeditor/core) en React.
   Actívalo cuando trabajes con puckConfig, Config, Components, slot fields,
   root.render, puck.css, <Puck>, <Render>, usePuck, PuckApi, DropZone,
   resolveData, resolveFields, permissions, categorías, viewports, campos

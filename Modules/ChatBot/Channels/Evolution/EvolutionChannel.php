@@ -3,6 +3,7 @@
 namespace Modules\ChatBot\Channels\Evolution;
 
 use App\Jobs\FetchLinkPreviewsJob;
+use App\Services\LinkPreviewService;
 use Illuminate\Support\Facades\Log;
 use Modules\ChatBot\Channels\ChannelInterface;
 use Modules\ChatBot\Enums\ChannelType;
@@ -155,8 +156,6 @@ class EvolutionChannel implements ChannelInterface
                 'external_id' => $remoteJid,
             ],
             [
-                'visitor_name' => $data['pushName'] ?? 'Visitante',
-                'visitor_email' => "{$remoteJid}@whatsapp",
                 'status' => ConversationStatus::Open,
                 'last_message_at' => now(),
                 'unread_by_admin' => $fromMe ? 0 : 1,
@@ -199,8 +198,7 @@ class EvolutionChannel implements ChannelInterface
             ]);
 
             $phonePart = explode('@', $remoteJid)[0] ?? null;
-            $profileName = $this->fetchProfileName($channel, $phonePart);
-            $this->userLinker->linkOrCreate($conversation, $remoteJid, $profileName, $phonePart);
+            $this->userLinker->linkOrCreate($conversation, $channel, $remoteJid, $data['pushName'] ?? null, $phonePart);
 
             if ($type->isMediaDownloadable() && $messageId) {
                 $this->mediaEnricher->enrich($message, $channel, $messageId);
@@ -212,7 +210,6 @@ class EvolutionChannel implements ChannelInterface
                 'message_id' => $message->id,
                 'remoteJid' => $remoteJid,
                 'external_id' => $messageId,
-                'profile_name' => $profileName,
             ]);
 
             return $message;
@@ -222,7 +219,7 @@ class EvolutionChannel implements ChannelInterface
             return null;
         }
 
-        $pushName = $data['pushName'] ?? 'Visitante';
+        $pushName = $data['pushName'] ?? null;
         $messageData = $data['message'] ?? [];
 
         $unwrapped = EvolutionMessageParser::unwrapMessageData($messageData);
@@ -256,7 +253,7 @@ class EvolutionChannel implements ChannelInterface
             ),
         ]);
 
-        $this->userLinker->linkOrCreate($conversation, $remoteJid, $pushName, $phonePart);
+        $this->userLinker->linkOrCreate($conversation, $channel, $remoteJid, $pushName, $phonePart);
 
         if ($type->isMediaDownloadable() && $messageId) {
             $this->mediaEnricher->enrich($message, $channel, $messageId);
@@ -273,51 +270,6 @@ class EvolutionChannel implements ChannelInterface
     }
 
     /**
-     * Obtiene el nombre real del perfil de WhatsApp del destinatario
-     * usando la instancia del webhook actual.
-     */
-    private function fetchProfileName(Channel $channel, ?string $phonePart): ?string
-    {
-        if (! $phonePart) {
-            return null;
-        }
-
-        $serverUrl = (string) ($channel->config['server_url'] ?? '');
-        $apiKey = (string) ($channel->config['api_key'] ?? '');
-        $instanceName = (string) ($channel->config['instance_name'] ?? '');
-
-        if ($serverUrl === '' || $apiKey === '' || $instanceName === '') {
-            return null;
-        }
-
-        try {
-            $client = new EvolutionApiClient(
-                serverUrl: rtrim($serverUrl, '/'),
-                apiKey: $apiKey,
-                instanceName: $instanceName,
-            );
-            $response = $client->fetchProfile($phonePart);
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            $profile = $response->json();
-            $name = $profile['name'] ?? $profile['pushName'] ?? $profile['verifiedName'] ?? null;
-
-            return is_string($name) && trim($name) !== '' ? trim($name) : null;
-        } catch (\Throwable $e) {
-            Log::warning('EvolutionChannel: fetchProfile failed', [
-                'channel_id' => $channel->id,
-                'phone' => $phonePart,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
      * Si el mensaje es de texto y contiene URLs, dispara el job de link preview.
      */
     private function maybeDispatchLinkPreview(Message $message): void
@@ -327,7 +279,12 @@ class EvolutionChannel implements ChannelInterface
         }
 
         $content = (string) $message->content;
-        if ($content === '' || ! preg_match('#https?://[^\s<>"\'\\)\]]+#i', $content)) {
+        if ($content === '') {
+            return;
+        }
+
+        $previewService = app(LinkPreviewService::class);
+        if (count($previewService->extractUrls($content)) === 0) {
             return;
         }
 

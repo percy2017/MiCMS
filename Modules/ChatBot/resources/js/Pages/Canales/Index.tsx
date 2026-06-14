@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowRight, Globe, MessageCircle, Plus, Wifi, WifiOff } from 'lucide-react';
+import { ArrowRight, Globe, MessageCircle, MoreVertical, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { useState } from 'react';
 import { DataTableToolbar, type ToolbarFilter } from '@/components/data-table-toolbar';
 import { Card, CardTitle } from '@/components/ui/card';
 import { useClientTableSearch } from '@/hooks/use-client-table-search';
@@ -87,6 +88,28 @@ export default function CanalesIndex({ channels }: PageProps) {
         initialFilters: { type: '', enabled: '' },
     });
 
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+    function destroyRoute(c: ChannelItem): string {
+        switch (c.type) {
+            case 'evolution':
+                return `/admin/canales/evolution/${c.id}`;
+            case 'openwa':
+                return `/admin/canales/openwa/${c.id}`;
+            case 'web_widget':
+                return `/admin/canales/web-widget/${c.id}`;
+            default:
+                return '#';
+        }
+    }
+
+    function handleDelete(c: ChannelItem): void {
+        if (! confirm(`¿Eliminar el canal "${c.name}"?\n\nSe eliminarán también todas las conversaciones y mensajes asociados. Esta acción no se puede deshacer.`)) {
+            return;
+        }
+        router.delete(destroyRoute(c), { preserveScroll: true });
+    }
+
     const filters: ToolbarFilter[] = [
         {
             key: 'type',
@@ -119,14 +142,32 @@ export default function CanalesIndex({ channels }: PageProps) {
             return;
         }
         if (type === 'openwa') {
-            router.visit('/admin/canales/openwa/seleccionar');
+            router.visit('/admin/canales/openwa');
             return;
         }
         if (type === 'evolution') {
-            router.visit('/admin/canales/evolution/seleccionar');
+            router.visit('/admin/canales/evolution');
             return;
         }
         router.post(`/admin/canales/${type}`);
+    }
+
+    function cardHref(c: ChannelItem): string {
+        // Evolution card goes to the edit page (settings + enable/disable).
+        if (c.type === 'evolution') {
+            return `/admin/canales/evolution/${c.id}/edit`;
+        }
+        if (c.type === 'openwa') {
+            return '/admin/canales/openwa';
+        }
+        return c.url;
+    }
+
+    function editRoute(c: ChannelItem): string {
+        if (c.type === 'evolution') {
+            return `/admin/canales/evolution/${c.id}/edit`;
+        }
+        return c.url;
     }
 
     return (
@@ -187,151 +228,197 @@ export default function CanalesIndex({ channels }: PageProps) {
                                 {table.data.map((c) => {
                                     const meta = CHANNEL_META[c.type];
 
+                                    const deleteButton = (
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === c.id ? null : c.id);
+                                                }}
+                                                className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                                aria-label="Acciones del canal"
+                                            >
+                                                <MoreVertical className="size-4" />
+                                            </button>
+                                            {openMenuId === c.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(null); }} />
+                                                    <div className="absolute right-0 top-8 z-20 min-w-[160px] overflow-hidden rounded-md border bg-popover shadow-md">
+                                                        <Link
+                                                            href={editRoute(c)}
+                                                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }}
+                                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-muted"
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                            Editar
+                                                        </Link>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(null); handleDelete(c); }}
+                                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                            Eliminar
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+
                                     if (c.type === 'evolution') {
                                         return (
-                                            <Link key={c.id} href={c.url} className="group block">
-                                                <Card className="relative overflow-hidden border-l-4 transition hover:shadow-md" style={{ borderLeftColor: '#25D366' }}>
-                                                    <div className="flex items-start gap-4 p-5">
-                                                        {c.profile_picture_url ? (
-                                                            <img src={c.profile_picture_url} alt="" className="size-14 shrink-0 rounded-full object-cover ring-2 ring-muted" />
-                                                        ) : (
-                                                            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-base font-semibold text-[#25D366] ring-2 ring-muted">
-                                                                {c.profile_name ? initials(c.profile_name) : '?'}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <MessageCircle className="size-4 text-[#25D366]" />
-                                                                    <CardTitle className="truncate text-base">
-                                                                        {c.profile_name || c.name}
-                                                                    </CardTitle>
+                                            <div key={c.id} className="relative">
+                                                <Link href={cardHref(c)} className="group block">
+                                                    <Card className="relative overflow-hidden border-l-4 transition hover:shadow-md" style={{ borderLeftColor: '#25D366' }}>
+                                                        <div className="flex items-start gap-4 p-5 pr-12">
+                                                            {c.profile_picture_url ? (
+                                                                <img src={c.profile_picture_url} alt="" className="size-14 shrink-0 rounded-full object-cover ring-2 ring-muted" />
+                                                            ) : (
+                                                                <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-base font-semibold text-[#25D366] ring-2 ring-muted">
+                                                                    {c.profile_name ? initials(c.profile_name) : '?'}
                                                                 </div>
-                                                                <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-                                                            </div>
-
-                                                            <p className="text-[10px] font-medium uppercase tracking-wide text-[#25D366]">Evolution</p>
-
-                                                            {c.owner_jid && (
-                                                                <p className="truncate text-sm text-muted-foreground">
-                                                                    {formatPhone(c.owner_jid)}
-                                                                </p>
                                                             )}
 
-                                                            {c.instance_name && (
-                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                                                    Instancia: {c.instance_name}
-                                                                </p>
-                                                            )}
-                                                            {c.instance_id && (
-                                                                <p className="truncate text-xs text-muted-foreground/60">
-                                                                    ID: {c.instance_id}
-                                                                </p>
-                                                            )}
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <MessageCircle className="size-4 text-[#25D366]" />
+                                                                        <CardTitle className="truncate text-base">
+                                                                            {c.profile_name || c.name}
+                                                                        </CardTitle>
+                                                                    </div>
+                                                                    <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+                                                                </div>
 
-                                                            <div className="mt-2 flex items-center gap-2">
-                                                                <span
-                                                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                                        c.connection_status === 'open'
-                                                                            ? 'bg-green-100 text-green-700'
-                                                                            : c.connection_status === 'connecting'
-                                                                                ? 'bg-yellow-100 text-yellow-700'
-                                                                                : 'bg-muted text-muted-foreground'
-                                                                    }`}
-                                                                >
-                                                                    {c.connection_status === 'open' ? (
-                                                                        <Wifi className="size-3" />
-                                                                    ) : (
-                                                                        <WifiOff className="size-3" />
-                                                                    )}
-                                                                    {connectionLabel(c.connection_status ?? 'unknown')}
-                                                                </span>
+                                                                <p className="text-[10px] font-medium uppercase tracking-wide text-[#25D366]">Evolution</p>
 
-                                                                {!c.enabled && (
-                                                                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                                                                        Inactivo
-                                                                    </span>
+                                                                {c.owner_jid && (
+                                                                    <p className="truncate text-sm text-muted-foreground">
+                                                                        {formatPhone(c.owner_jid)}
+                                                                    </p>
                                                                 )}
+
+                                                                {c.instance_name && (
+                                                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                        Instancia: {c.instance_name}
+                                                                    </p>
+                                                                )}
+                                                                {c.instance_id && (
+                                                                    <p className="truncate text-xs text-muted-foreground/60">
+                                                                        ID: {c.instance_id}
+                                                                    </p>
+                                                                )}
+
+                                                                <div className="mt-2 flex items-center gap-2">
+                                                                    <span
+                                                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                            c.connection_status === 'open'
+                                                                                ? 'bg-green-100 text-green-700'
+                                                                                : c.connection_status === 'connecting'
+                                                                                    ? 'bg-yellow-100 text-yellow-700'
+                                                                                    : 'bg-muted text-muted-foreground'
+                                                                        }`}
+                                                                    >
+                                                                        {c.connection_status === 'open' ? (
+                                                                            <Wifi className="size-3" />
+                                                                        ) : (
+                                                                            <WifiOff className="size-3" />
+                                                                        )}
+                                                                        {connectionLabel(c.connection_status ?? 'unknown')}
+                                                                    </span>
+
+                                                                    {!c.enabled && (
+                                                                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                                                            Inactivo
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </Card>
-                                            </Link>
+                                                    </Card>
+                                                </Link>
+                                                <div className="absolute right-2 top-2 z-5">{deleteButton}</div>
+                                            </div>
                                         );
                                     }
 
                                     const isOpenWa = c.type === 'openwa';
 
                                     return (
-                                        <Link key={c.id} href={c.url} className="group block">
-                                            <Card
-                                                className="relative overflow-hidden border-l-4 transition hover:shadow-md"
-                                                style={{ borderLeftColor: meta?.color ?? '#666' }}
-                                            >
-                                                <div className="flex items-start gap-4 p-5">
-                                                    <div
-                                                        className="flex size-14 shrink-0 items-center justify-center rounded-lg"
-                                                        style={{
-                                                            backgroundColor: `${meta?.color ?? '#666'}15`,
-                                                            color: meta?.color ?? '#666',
-                                                        }}
-                                                    >
-                                                        {meta ? <meta.icon className="size-6" /> : <Globe className="size-6" />}
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <CardTitle className="truncate text-base">{c.name}</CardTitle>
-                                                            <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-                                                        </div>
-
-                                                        <p
-                                                            className="text-[10px] font-medium uppercase tracking-wide"
-                                                            style={{ color: meta?.color ?? '#666' }}
+                                        <div key={c.id} className="relative">
+                                            <Link href={cardHref(c)} className="group block">
+                                                <Card
+                                                    className="relative overflow-hidden border-l-4 transition hover:shadow-md"
+                                                    style={{ borderLeftColor: meta?.color ?? '#666' }}
+                                                >
+                                                    <div className="flex items-start gap-4 p-5 pr-12">
+                                                        <div
+                                                            className="flex size-14 shrink-0 items-center justify-center rounded-lg"
+                                                            style={{
+                                                                backgroundColor: `${meta?.color ?? '#666'}15`,
+                                                                color: meta?.color ?? '#666',
+                                                            }}
                                                         >
-                                                            {meta?.name ?? c.type}
-                                                        </p>
+                                                            {meta ? <meta.icon className="size-6" /> : <Globe className="size-6" />}
+                                                        </div>
 
-                                                        {c.widget_title && c.type === 'web_widget' && (
-                                                            <p className="truncate text-sm text-muted-foreground">
-                                                                {c.widget_title}
-                                                            </p>
-                                                        )}
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <CardTitle className="truncate text-base">{c.name}</CardTitle>
+                                                                <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+                                                            </div>
 
-                                                        {c.type === 'web_widget' && c.public_key && (
-                                                            <p className="truncate font-mono text-[11px] text-muted-foreground/80">
-                                                                key: {c.public_key}
-                                                            </p>
-                                                        )}
-
-                                                        {c.type === 'web_widget' && c.allowed_domain && (
-                                                            <p className="truncate text-xs font-medium text-[#2563eb]">
-                                                                {c.allowed_domain}
-                                                            </p>
-                                                        )}
-
-                                                        {isOpenWa && c.instance_name && (
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                Sesión: {c.instance_name}
-                                                            </p>
-                                                        )}
-
-                                                        <div className="mt-2">
-                                                            <span
-                                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                                    c.enabled
-                                                                        ? 'bg-green-100 text-green-700'
-                                                                        : 'bg-muted text-muted-foreground'
-                                                                }`}
+                                                            <p
+                                                                className="text-[10px] font-medium uppercase tracking-wide"
+                                                                style={{ color: meta?.color ?? '#666' }}
                                                             >
-                                                                {c.enabled ? 'Activo' : 'Inactivo'}
-                                                            </span>
+                                                                {meta?.name ?? c.type}
+                                                            </p>
+
+                                                            {c.widget_title && c.type === 'web_widget' && (
+                                                                <p className="truncate text-sm text-muted-foreground">
+                                                                    {c.widget_title}
+                                                                </p>
+                                                            )}
+
+                                                            {c.type === 'web_widget' && c.public_key && (
+                                                                <p className="truncate font-mono text-[11px] text-muted-foreground/80">
+                                                                    key: {c.public_key}
+                                                                </p>
+                                                            )}
+
+                                                            {c.type === 'web_widget' && c.allowed_domain && (
+                                                                <p className="truncate text-xs font-medium text-[#2563eb]">
+                                                                    {c.allowed_domain}
+                                                                </p>
+                                                            )}
+
+                                                            {isOpenWa && c.instance_name && (
+                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                    Sesión: {c.instance_name}
+                                                                </p>
+                                                            )}
+
+                                                            <div className="mt-2">
+                                                                <span
+                                                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                        c.enabled
+                                                                            ? 'bg-green-100 text-green-700'
+                                                                            : 'bg-muted text-muted-foreground'
+                                                                    }`}
+                                                                >
+                                                                    {c.enabled ? 'Activo' : 'Inactivo'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </Card>
-                                        </Link>
+                                                </Card>
+                                            </Link>
+                                            <div className="absolute right-2 top-2 z-5">{deleteButton}</div>
+                                        </div>
                                     );
                                 })}
                             </div>

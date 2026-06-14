@@ -140,8 +140,6 @@ class ChatBotAuthService
         return Conversation::create([
             'channel_id' => $channel->id,
             'user_id' => $user->id,
-            'visitor_name' => $user->name,
-            'visitor_email' => $user->email,
             'page_url' => $pageUrl,
             'status' => 'open',
             'last_message_at' => now(),

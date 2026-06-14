@@ -18,11 +18,8 @@ class ConversationFactory extends Factory
             'channel_id' => Channel::factory(),
             'user_id' => User::factory(),
             'external_id' => null,
-            'visitor_name' => fake()->name(),
-            'visitor_email' => fake()->email(),
             'page_url' => fake()->url(),
             'status' => ConversationStatus::Open,
-            'assigned_to' => null,
             'last_message_at' => now(),
             'unread_by_admin' => 0,
         ];

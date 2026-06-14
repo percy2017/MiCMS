@@ -135,7 +135,7 @@ class LinkPreviewService
         }
 
         if ($this->isSkippedDomain($url)) {
-            return $this->emptyItem($url, 'domain_skipped');
+            return $this->fallbackPreview($url, 'domain_skipped');
         }
 
         $cacheKey = 'link_preview:'.md5($url);
@@ -151,6 +151,10 @@ class LinkPreviewService
                 ? $this->runScript($url)
                 : $this->emptyItem($url, 'ssrf_blocked');
 
+            if ($this->isErrorItem($item)) {
+                $item = $this->fallbackPreview($url, $item['error'] ?? null);
+            }
+
             $ttl = $this->isErrorItem($item) ? self::CACHE_TTL_ERROR : self::CACHE_TTL;
 
             Cache::put($cacheKey, $item, $ttl);
@@ -162,7 +166,7 @@ class LinkPreviewService
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->emptyItem($url, 'preview_unavailable');
+            return $this->fallbackPreview($url, 'preview_unavailable');
         }
     }
 
@@ -313,6 +317,29 @@ class LinkPreviewService
             'site_name' => $decoded['site_name'] ?? null,
             'favicon' => $decoded['favicon'] ?? null,
             'error' => $decoded['error'] ?? null,
+        ];
+    }
+
+    /**
+     * Construye un preview mínimo a partir de la URL cuando el script falla.
+     * Usa el dominio como título y favicon de Google.
+     */
+    private function fallbackPreview(string $url, ?string $error = null): array
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = preg_replace('/^www\./', '', $host);
+
+        return [
+            'url' => $url,
+            'final_url' => $url,
+            'title' => $host ?: $url,
+            'description' => null,
+            'image' => null,
+            'image_width' => null,
+            'image_height' => null,
+            'site_name' => $host ?: null,
+            'favicon' => $host ? "https://www.google.com/s2/favicons?domain={$host}&sz=64" : null,
+            'error' => $error,
         ];
     }
 }

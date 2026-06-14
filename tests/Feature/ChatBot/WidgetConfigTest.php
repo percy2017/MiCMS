@@ -259,7 +259,7 @@ test('widget webhook creates user, conversation and message from visitor data', 
 
     $this->assertDatabaseHas('conversations', [
         'channel_id' => $channel->id,
-        'visitor_email' => 'visitante@example.com',
+        'user_id' => \App\Models\User::where('email', 'visitante@example.com')->first()->id,
     ]);
 
     $this->assertDatabaseHas('messages', [

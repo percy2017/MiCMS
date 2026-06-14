@@ -61,8 +61,8 @@ class ChatBotMessageReceived implements ShouldBroadcastNow
                         ? ($this->message->conversation->channel->config['instance_name'] ?? $this->message->conversation->channel->settings['display_name'] ?? $this->message->conversation->channel->name)
                         : ($this->message->conversation->channel->settings['display_name'] ?? $this->message->conversation->channel->name))
                     : null,
-                'visitor_name' => $this->message->conversation->visitor_name,
-                'visitor_email' => $this->message->conversation->visitor_email,
+                'visitor_name' => $this->message->conversation->user?->name,
+                'visitor_email' => $this->message->conversation->user?->email,
                 'unread_by_admin' => $this->message->conversation->unread_by_admin,
             ],
         ];

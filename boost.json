@@ -6,6 +6,9 @@
     "guidelines": true,
     "mcp": true,
     "nightwatch": false,
+    "packages": [
+        "spatie/laravel-permission"
+    ],
     "sail": false,
     "skills": [
         "ai-sdk-development",
@@ -16,6 +19,7 @@
         "inertia-react-development",
         "tailwindcss-development",
         "echo-react-development",
-        "echo-development"
+        "echo-development",
+        "laravel-permission-development"
     ]
 }

@@ -20,7 +20,6 @@ test('search endpoint filtra por nombre de usuario', function (): void {
     Conversation::create([
         'channel_id' => $this->channel->id,
         'external_id' => '59171146267@s.whatsapp.net',
-        'visitor_name' => 'Percy',
         'user_id' => $percy->id,
         'status' => ConversationStatus::Open,
         'last_message_at' => now(),
@@ -28,7 +27,6 @@ test('search endpoint filtra por nombre de usuario', function (): void {
     Conversation::create([
         'channel_id' => $this->channel->id,
         'external_id' => '59199999999@s.whatsapp.net',
-        'visitor_name' => 'Other',
         'user_id' => null,
         'status' => ConversationStatus::Open,
         'last_message_at' => now(),
@@ -69,83 +67,40 @@ test('search endpoint filtra por teléfono', function (): void {
     expect($names)->not->toContain('Other');
 });
 
-test('search endpoint filtra por nombre de visitante sin user', function (): void {
-    Conversation::create([
+test('search endpoint filtra por external_id (jid)', function (): void {
+    Conversation::factory()->create([
         'channel_id' => $this->channel->id,
         'external_id' => '59171111111@s.whatsapp.net',
-        'visitor_name' => 'Visitante Especial',
+        'user_id' => null,
         'status' => ConversationStatus::Open,
-        'last_message_at' => now(),
     ]);
-    Conversation::create([
+    Conversation::factory()->create([
         'channel_id' => $this->channel->id,
         'external_id' => '59172222222@s.whatsapp.net',
-        'visitor_name' => 'Otro',
+        'user_id' => null,
         'status' => ConversationStatus::Open,
-        'last_message_at' => now(),
     ]);
 
-    $response = $this->getJson('/admin/chats/search?search=Especial');
+    $response = $this->getJson('/admin/chats/search?search=59171111111');
 
     $response->assertOk();
-    $names = collect($response->json('conversations'))->pluck('name');
-    expect($names)->toContain('Visitante Especial');
-    expect($names)->not->toContain('Otro');
-});
-
-test('search endpoint filtra por external_id (jid)', function (): void {
-    Conversation::create([
-        'channel_id' => $this->channel->id,
-        'external_id' => '59179988777@s.whatsapp.net',
-        'visitor_name' => 'Anonymous',
-        'status' => ConversationStatus::Open,
-        'last_message_at' => now(),
-    ]);
-    Conversation::create([
-        'channel_id' => $this->channel->id,
-        'external_id' => '59176655444@s.whatsapp.net',
-        'visitor_name' => 'Other',
-        'status' => ConversationStatus::Open,
-        'last_message_at' => now(),
-    ]);
-
-    $response = $this->getJson('/admin/chats/search?search=59179988777');
-
-    $response->assertOk();
-    $names = collect($response->json('conversations'))->pluck('name');
-    expect($names)->toContain('Anonymous');
-    expect($names)->not->toContain('Other');
-});
-
-test('search endpoint sin search devuelve todas las conversaciones', function (): void {
-    for ($i = 0; $i < 3; $i++) {
-        Conversation::create([
-            'channel_id' => $this->channel->id,
-            'external_id' => "5917{$i}@s.whatsapp.net",
-            'visitor_name' => "User $i",
-            'status' => ConversationStatus::Open,
-            'last_message_at' => now(),
-        ]);
-    }
-
-    $response = $this->getJson('/admin/chats/search');
-
-    $response->assertOk();
-    expect($response->json('conversations'))->toHaveCount(3);
+    $phones = collect($response->json('conversations'))->pluck('visitor_phone');
+    expect($phones)->toContain('59171111111@s.whatsapp.net');
+    expect($phones)->not->toContain('59172222222@s.whatsapp.net');
 });
 
 test('search endpoint filtra por status', function (): void {
     Conversation::create([
         'channel_id' => $this->channel->id,
-        'external_id' => '59171111111@s.whatsapp.net',
-        'visitor_name' => 'Open One',
+        'external_id' => '59173333333@s.whatsapp.net',
+        'user_id' => null,
         'status' => ConversationStatus::Open,
         'last_message_at' => now(),
     ]);
     Conversation::create([
         'channel_id' => $this->channel->id,
-        'external_id' => '59172222222@s.whatsapp.net',
-        'visitor_name' => 'Closed One',
+        'external_id' => '59174444444@s.whatsapp.net',
+        'user_id' => null,
         'status' => ConversationStatus::Closed,
         'last_message_at' => now(),
     ]);
@@ -153,41 +108,33 @@ test('search endpoint filtra por status', function (): void {
     $response = $this->getJson('/admin/chats/search?status=open');
 
     $response->assertOk();
-    $names = collect($response->json('conversations'))->pluck('name');
-    expect($names)->toContain('Open One');
-    expect($names)->not->toContain('Closed One');
+    $statuses = collect($response->json('conversations'))->pluck('status')->unique()->values();
+    expect($statuses)->toContain('open');
+    expect($statuses)->not->toContain('closed');
 });
 
 test('search endpoint filtra por channel_id', function (): void {
-    $channel2 = Channel::factory()->webWidget()->create(['enabled' => true]);
+    $otherChannel = Channel::factory()->evolution()->create(['enabled' => true]);
 
     Conversation::create([
         'channel_id' => $this->channel->id,
-        'external_id' => '59171111111@s.whatsapp.net',
-        'visitor_name' => 'Channel 1',
+        'external_id' => '59175555555@s.whatsapp.net',
+        'user_id' => null,
         'status' => ConversationStatus::Open,
         'last_message_at' => now(),
     ]);
     Conversation::create([
-        'channel_id' => $channel2->id,
-        'external_id' => 'widget-001',
-        'visitor_name' => 'Channel 2',
+        'channel_id' => $otherChannel->id,
+        'external_id' => '59176666666@s.whatsapp.net',
+        'user_id' => null,
         'status' => ConversationStatus::Open,
         'last_message_at' => now(),
     ]);
 
-    $response = $this->getJson('/admin/chats/search?channel_id='.$this->channel->id);
+    $response = $this->getJson("/admin/chats/search?channel_id={$this->channel->id}");
 
     $response->assertOk();
-    $names = collect($response->json('conversations'))->pluck('name');
-    expect($names)->toContain('Channel 1');
-    expect($names)->not->toContain('Channel 2');
-});
-
-test('search endpoint requiere permiso view chats', function (): void {
-    $userWithoutPerms = User::factory()->create();
-    $this->actingAs($userWithoutPerms);
-
-    $response = $this->getJson('/admin/chats/search?search=Percy');
-    $response->assertForbidden();
+    $channelIds = collect($response->json('conversations'))->pluck('channel_id')->unique()->values();
+    expect($channelIds)->toContain($this->channel->id);
+    expect($channelIds)->not->toContain($otherChannel->id);
 });

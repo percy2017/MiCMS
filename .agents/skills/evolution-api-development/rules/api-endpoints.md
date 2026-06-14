@@ -485,8 +485,8 @@ By default this configures `MESSAGES_UPSERT` only (sufficient for simple chat ap
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/settings/findSettings/{instance}` | Fetch instance settings |
-| PUT | `/settings/setSettings/{instance}` | Update instance settings |
+| GET | `/settings/find/{instance}` | Fetch instance settings (reject_call, groups_ignore, always_online, read_messages, read_status, sync_full_history) |
+| PUT | `/settings/set/{instance}` | Update instance settings |
 
 ---
 

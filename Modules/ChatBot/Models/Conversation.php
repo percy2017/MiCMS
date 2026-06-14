@@ -30,11 +30,9 @@ class Conversation extends Model
         'channel_id',
         'user_id',
         'external_id',
-        'visitor_name',
-        'visitor_email',
+        'external_thread_id',
         'page_url',
         'status',
-        'assigned_to',
         'last_message_at',
         'unread_by_admin',
     ];

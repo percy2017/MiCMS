@@ -4,78 +4,46 @@ use App\Http\Controllers\ChatBot\MessageReactionController;
 use Illuminate\Support\Facades\Route;
 use Modules\ChatBot\Http\Controllers\Admin\ChannelAdminController;
 use Modules\ChatBot\Http\Controllers\Admin\ChatController;
+use Modules\ChatBot\Http\Controllers\Admin\Evolution\EvolutionInboxController;
+use Modules\ChatBot\Http\Controllers\Admin\OpenWa\OpenWaInboxController;
 use Modules\ChatBot\Http\Controllers\Admin\QuickReplyController;
 use Modules\ChatBot\Http\Controllers\Admin\WidgetController;
 use Modules\ChatBot\Http\Controllers\Api\WebWidget\WidgetEmbedController;
 
-// Public embed script for web widgets (no auth)
 Route::get('/embed/widget/{key}.js', WidgetEmbedController::class)
     ->name('embed.widget');
 
-// Old routes - redirect 301 to new structure
 Route::permanentRedirect('/admin/chatbot/config', '/admin/canales/web-widget');
 Route::permanentRedirect('/admin/chatbot/chats', '/admin/chats');
 
-// New admin routes
 Route::middleware(['auth', 'verified'])
     ->prefix('admin')
     ->name('chatbot.admin.')
     ->group(function () {
-        // Channels list
-        Route::get('/canales', [ChannelAdminController::class, 'index'])
-            ->name('canales');
+        Route::get('/canales', [ChannelAdminController::class, 'index'])->name('canales');
 
         // Web widget channels (multi-inbox)
-        Route::get('/canales/web-widget', [WidgetController::class, 'index'])
-            ->name('widget');
-        Route::get('/canales/web-widget/nuevo', [WidgetController::class, 'create'])
-            ->name('widget.create');
-        Route::post('/canales/web-widget', [WidgetController::class, 'store'])
-            ->name('widget.store');
-        Route::get('/canales/web-widget/{webWidget}', [WidgetController::class, 'edit'])
-            ->name('widget.edit');
-        Route::patch('/canales/web-widget/{webWidget}', [WidgetController::class, 'update'])
-            ->name('widget.update');
-        Route::delete('/canales/web-widget/{webWidget}', [WidgetController::class, 'destroy'])
-            ->name('widget.destroy');
+        Route::get('/canales/web-widget', [WidgetController::class, 'index'])->name('widget');
+        Route::get('/canales/web-widget/nuevo', [WidgetController::class, 'create'])->name('widget.create');
+        Route::post('/canales/web-widget', [WidgetController::class, 'store'])->name('widget.store');
+        Route::get('/canales/web-widget/{webWidget}', [WidgetController::class, 'edit'])->name('widget.edit');
+        Route::patch('/canales/web-widget/{webWidget}', [WidgetController::class, 'update'])->name('widget.update');
+        Route::delete('/canales/web-widget/{webWidget}', [WidgetController::class, 'destroy'])->name('widget.destroy');
 
-        // Evolution channels (order matters: specific routes before wildcard)
-        Route::post('/canales/evolution', [ChannelAdminController::class, 'storeEvolution'])
-            ->name('evolution.store');
-        Route::post('/canales/evolution/fetch-instances', [ChannelAdminController::class, 'fetchInstances'])
-            ->name('evolution.fetch-instances');
-        Route::get('/canales/evolution/seleccionar', [ChannelAdminController::class, 'evolutionSelector'])
-            ->name('evolution.selector');
-        Route::post('/canales/evolution/select-store', [ChannelAdminController::class, 'evolutionSelectStore'])
-            ->name('evolution.select-store');
-        Route::get('/canales/evolution/{evolution}', [ChannelAdminController::class, 'editEvolution'])
-            ->name('evolution.edit');
-        Route::patch('/canales/evolution/{evolution}', [ChannelAdminController::class, 'updateEvolution'])
-            ->name('evolution.update');
-        Route::delete('/canales/evolution/{evolution}', [ChannelAdminController::class, 'destroy'])
-            ->name('evolution.destroy');
+        // Evolution inboxes: ONE page (list + form), store -> index
+        Route::get('/canales/evolution', [EvolutionInboxController::class, 'create'])->name('evolution.create');
+        Route::post('/canales/evolution', [EvolutionInboxController::class, 'store'])->name('evolution.store');
+        Route::post('/canales/evolution/fetch-instances', [EvolutionInboxController::class, 'fetchInstances'])->name('evolution.fetch-instances');
+        Route::get('/canales/evolution/{evolution}/edit', [EvolutionInboxController::class, 'edit'])->name('evolution.edit');
+        Route::patch('/canales/evolution/{evolution}', [EvolutionInboxController::class, 'update'])->name('evolution.update');
+        Route::delete('/canales/evolution/{evolution}', [ChannelAdminController::class, 'destroy'])->name('evolution.destroy');
 
-        // OpenWA channels
-        Route::get('/canales/openwa/seleccionar', [ChannelAdminController::class, 'openwaSelector'])
-            ->name('openwa.selector');
-        Route::post('/canales/openwa', [ChannelAdminController::class, 'storeOpenWa'])
-            ->name('openwa.store');
-        Route::get('/canales/openwa/available', [ChannelAdminController::class, 'openwaAvailableSessions'])
-            ->name('openwa.available');
-        Route::get('/canales/openwa/{openwa}', [ChannelAdminController::class, 'editOpenWa'])
-            ->name('openwa.edit');
-        Route::patch('/canales/openwa/{openwa}', [ChannelAdminController::class, 'updateOpenWa'])
-            ->name('openwa.update');
-        Route::delete('/canales/openwa/{openwa}', [ChannelAdminController::class, 'destroy'])
-            ->name('openwa.destroy');
-        Route::get('/canales/openwa/{openwa}/stats', [ChannelAdminController::class, 'openwaStats'])
-            ->name('openwa.stats');
-
-        // Evolution selector (crear inbox seleccionando instancia)
-        Route::get('/canales/evolution/seleccionar', [ChannelAdminController::class, 'evolutionSelector'])
-            ->name('evolution.selector');
-        Route::post('/canales/evolution/select-store', [ChannelAdminController::class, 'evolutionSelectStore'])
-            ->name('evolution.select-store');
+        // OpenWA inboxes: ONE page (list + form), store -> index
+        Route::get('/canales/openwa', [OpenWaInboxController::class, 'create'])->name('openwa.create');
+        Route::post('/canales/openwa', [OpenWaInboxController::class, 'store'])->name('openwa.store');
+        Route::get('/canales/openwa/available', [OpenWaInboxController::class, 'fetchAvailable'])->name('openwa.available');
+        Route::delete('/canales/openwa/{openwa}', [ChannelAdminController::class, 'destroy'])->name('openwa.destroy');
+        Route::get('/canales/openwa/{openwa}/stats', [OpenWaInboxController::class, 'stats'])->name('openwa.stats');
 
         // Unified chats
         Route::get('/chats', [ChatController::class, 'index'])->name('chats');
@@ -93,16 +61,10 @@ Route::middleware(['auth', 'verified'])
             ->name('chats.reactions.destroy');
 
         // Quick replies
-        Route::get('/canales/respuestas-rapidas', [QuickReplyController::class, 'index'])
-            ->name('quick-replies.index');
-        Route::get('/canales/respuestas-rapidas/nueva', [QuickReplyController::class, 'create'])
-            ->name('quick-replies.create');
-        Route::post('/canales/respuestas-rapidas', [QuickReplyController::class, 'store'])
-            ->name('quick-replies.store');
-        Route::get('/canales/respuestas-rapidas/{quickReply}/edit', [QuickReplyController::class, 'edit'])
-            ->name('quick-replies.edit');
-        Route::patch('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'update'])
-            ->name('quick-replies.update');
-        Route::delete('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'destroy'])
-            ->name('quick-replies.destroy');
+        Route::get('/canales/respuestas-rapidas', [QuickReplyController::class, 'index'])->name('quick-replies.index');
+        Route::get('/canales/respuestas-rapidas/nueva', [QuickReplyController::class, 'create'])->name('quick-replies.create');
+        Route::post('/canales/respuestas-rapidas', [QuickReplyController::class, 'store'])->name('quick-replies.store');
+        Route::get('/canales/respuestas-rapidas/{quickReply}/edit', [QuickReplyController::class, 'edit'])->name('quick-replies.edit');
+        Route::patch('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'update'])->name('quick-replies.update');
+        Route::delete('/canales/respuestas-rapidas/{quickReply}', [QuickReplyController::class, 'destroy'])->name('quick-replies.destroy');
     });

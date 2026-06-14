@@ -21,7 +21,7 @@ test('admin can list users via API', function () {
             'meta',
         ]);
 
-    expect($response->json('data'))->toHaveCount(3);
+    expect($response->json('data'))->toHaveCount(4);
 });
 
 test('admin can search users via API', function () {

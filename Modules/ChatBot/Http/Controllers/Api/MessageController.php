@@ -49,7 +49,7 @@ class MessageController extends Controller
 
         ChatBotTyping::dispatch(
             $conversation->id,
-            $conversation->visitor_name,
+            $conversation->user?->name ?? '',
         );
 
         return response()->json(['ok' => true]);

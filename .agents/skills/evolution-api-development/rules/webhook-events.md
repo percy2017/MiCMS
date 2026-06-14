@@ -42,9 +42,11 @@ All webhooks share this base structure:
 
 ---
 
-## 1. messages.upsert
+## 1. MESSAGES_UPSERT (event name in Set Webhook spec)
 
 **Description:** New message received or sent. Most frequent event (~95% of traffic). This event fires for BOTH incoming and outgoing messages — distinguish them with `key.fromMe`.
+
+**Note on event names**: The webhook URL path uses kebab-case (`/messages-upsert`) but the **event enum** in the Set Webhook body uses UPPER_SNAKE_CASE (`MESSAGES_UPSERT`). Always use the UPPER_SNAKE_CASE form when configuring `events` in the Set Webhook request.
 
 **CRITICAL: `fromMe` MUST be processed in both directions.** Filtering out `fromMe: true` will cause:
 - Outgoing admin messages sent from the panel to be MISSING from the database entirely (only the webhook echo is what tells you the message went out).
@@ -262,6 +264,8 @@ if ($event === 'connection.update') {
 ## 5. QRCODE_UPDATED
 
 **Description:** New QR code generated for instance linking. Indicates instance disconnected and needs re-linking.
+
+**Event identifier in the `events` enum** (per official Set Webhook spec): `QRCODE_UPDATED` (NOT `qrcode-updated`).
 
 ### Data
 

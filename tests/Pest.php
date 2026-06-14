@@ -1,8 +1,7 @@
 <?php
 
 use App\Models\User;
-use Database\Seeders\PermissionSeeder;
-use Database\Seeders\RoleSeeder;
+use Database\Seeders\AuthSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -24,8 +23,7 @@ pest()->extend(TestCase::class)
         app()['cache']->forget('spatie.permission.cache');
 
         if (Permission::count() === 0) {
-            app(PermissionSeeder::class)->run();
-            app(RoleSeeder::class)->run();
+            app(AuthSeeder::class)->run();
         }
     })
     ->in('Feature');

@@ -40,6 +40,7 @@ class Message extends Model
         'type',
         'content',
         'external_id',
+        'reply_to_message_id',
         'metadata',
         'attachment_media_id',
         'delivered_at',
@@ -66,5 +67,15 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class, 'message_id');
+    }
+
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'reply_to_message_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(Message::class, 'reply_to_message_id');
     }
 }

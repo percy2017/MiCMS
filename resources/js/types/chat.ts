@@ -18,6 +18,7 @@ export type ChatMessage = {
     role: 'user' | 'admin' | 'system';
     type?: string;
     content: string;
+    reply_to_message_id?: number | null;
     attachment_url?: string | null;
     attachment_mime?: string | null;
     attachment_name?: string | null;
@@ -35,7 +36,7 @@ export type ConversationSummary = {
     email: string | null;
     visitor_phone: string | null;
     status: 'open' | 'closed';
-    unread_by_admin: number;
+    unread: number;
     messages_count: number;
     last_message_at: string | null;
     last_message_at_diff: string | null;
@@ -56,6 +57,7 @@ export type ConversationDetail = {
     user_phone: string | null;
     user_whatsapp_jid: string | null;
     external_id: string | null;
+    external_thread_id?: string | null;
     channel_id: number | null;
     channel_name: string | null;
     last_message_at: string | null;

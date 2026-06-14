@@ -61,11 +61,20 @@ class ChatController extends Controller
             : ($request->integer('active') ?: null);
         $active = null;
         if ($activeId) {
-            $conv = Conversation::with(['user:id,name,email,phone,whatsapp_jid,avatar_media_id', 'user.avatar:id,disk,path', 'channel:id,name,type,settings,config', 'messages.attachment'])->find($activeId);
+            $conv = Conversation::with([
+                'user:id,name,email,phone,whatsapp_jid,avatar_media_id',
+                'user.avatar:id,disk,path',
+                'channel:id,name,type,settings,config',
+                'messages' => function ($q) {
+                    $q->reorder()->orderByDesc('id')->limit(10);
+                },
+                'messages.attachment',
+            ])->find($activeId);
             if ($conv) {
+                $totalCount = (int) $conv->messages()->count();
                 $active = [
                     'id' => $conv->id,
-                    'name' => $conv->user?->name ?? $conv->visitor_name,
+                    'name' => $conv->user?->name,
                     'email' => $conv->user?->email,
                     'page_url' => $conv->page_url,
                     'status' => $conv->status,
@@ -74,6 +83,7 @@ class ChatController extends Controller
                     'user_phone' => $conv->user?->phone,
                     'user_whatsapp_jid' => $conv->user?->whatsapp_jid,
                     'external_id' => $conv->external_id,
+                    'external_thread_id' => $conv->external_thread_id,
                     'channel_id' => $conv->channel_id,
                     'channel_name' => $conv->channel
                         ? ($conv->channel->type?->value === 'evolution'
@@ -81,27 +91,11 @@ class ChatController extends Controller
                             : ($conv->channel->settings['display_name'] ?? $conv->channel->name))
                         : null,
                     'last_message_at' => $conv->last_message_at?->toIso8601String(),
-                    'first_message_at' => $conv->messages->min('created_at')?->toIso8601String(),
-                    'messages_count' => $conv->messages->count(),
-                    'messages' => $conv->messages->map(fn (Message $m): array => [
-                        'id' => $m->id,
-                        'role' => $m->role,
-                        'type' => $m->type->value,
-                        'content' => $m->content,
-                        ...$this->attachmentData($m),
-                        'read_at' => $m->read_at?->toIso8601String(),
-                        'created_at' => $m->created_at?->toIso8601String(),
-                        'link_previews' => null,
-                        'metadata' => $m->metadata,
-                        'reactions' => $m->reactions()
-                            ->get(['id', 'user_jid', 'emoji', 'created_at'])
-                            ->map(fn ($r) => [
-                                'id' => $r->id,
-                                'user_jid' => $r->user_jid,
-                                'emoji' => $r->emoji,
-                                'created_at' => $r->created_at?->toIso8601String(),
-                            ])->all(),
-                    ])->values()->all(),
+                    'first_message_at' => ($firstAt = $conv->messages()->min('created_at')) ? \Illuminate\Support\Carbon::parse($firstAt)->toIso8601String() : null,
+                    'messages_count' => $totalCount,
+                    'has_more_messages' => $totalCount > 10,
+                    'oldest_loaded_id' => $conv->messages->min('id'),
+                    'messages' => $conv->messages->sortBy('id')->values()->map(fn (Message $m): array => $this->serializeMessage($m))->all(),
                 ];
 
                 $this->dispatchMissingLinkPreviews($conv);
@@ -140,7 +134,7 @@ class ChatController extends Controller
     private function listConversations(Request $request): array
     {
         return Conversation::query()
-            ->with(['user:id,name,email,phone,whatsapp_jid,avatar_media_id', 'user.avatar:id,disk,path', 'assignedAdmin:id,name', 'channel:id,name,type,settings,config'])
+            ->with(['user:id,name,email,phone,whatsapp_jid,avatar_media_id', 'user.avatar:id,disk,path', 'channel:id,name,type,settings,config'])
             ->with(['messages' => function ($q) {
                 $q->latest()->limit(1);
             }])
@@ -158,8 +152,7 @@ class ChatController extends Controller
                             ->orWhere('email', 'like', "%{$search}%")
                             ->orWhere('phone', 'like', "%{$search}%")
                             ->orWhere('whatsapp_jid', 'like', "%{$search}%");
-                    })->orWhere('external_id', 'like', "%{$search}%")
-                        ->orWhere('visitor_name', 'like', "%{$search}%");
+                    })->orWhere('external_id', 'like', "%{$search}%");
                 });
             })
             ->orderByDesc('last_message_at')
@@ -167,13 +160,13 @@ class ChatController extends Controller
             ->get()
             ->map(fn (Conversation $c): array => [
                 'id' => $c->id,
-                'name' => $c->user?->name ?? $c->visitor_name,
+                'name' => $c->user?->name,
                 'email' => $c->user?->email,
                 'visitor_phone' => $c->user?->phone
                     ?? ($c->user?->whatsapp_jid ? preg_replace('/@.+$/', '', $c->user->whatsapp_jid) : null)
                     ?? $c->external_id,
                 'status' => $c->status,
-                'unread_by_admin' => $c->unread_by_admin,
+                'unread' => $c->unread_by_admin,
                 'messages_count' => $c->messages()->count(),
                 'last_message_at' => $c->last_message_at?->toIso8601String(),
                 'last_message_at_diff' => $c->last_message_at?->diffForHumans(),
@@ -195,47 +188,33 @@ class ChatController extends Controller
             ->all();
     }
 
-    public function show(Conversation $conversation)
+    public function show(Request $request, Conversation $conversation): JsonResponse
     {
-        abort_unless(request()->user()?->can('view chats'), 403);
+        abort_unless($request->user()?->can('view chats'), 403);
 
-        $conversation->load(['user', 'channel:id,name,type,settings,config', 'messages.attachment']);
+        $perPage = (int) $request->integer('per_page', 10);
+        $perPage = max(1, min($perPage, 50));
+        $beforeId = $request->integer('before_id') ?: null;
+
+        $query = $conversation->messages()->reorder()->orderByDesc('id')->limit($perPage + 1);
+        if ($beforeId) {
+            $query->where('id', '<', $beforeId);
+        }
+
+        $fetched = $query->get();
+        $hasMore = $fetched->count() > $perPage;
+        $page = ($hasMore ? $fetched->slice(0, $perPage) : $fetched)->sortBy('id')->values();
+        $page->load('attachment');
+        $page->loadMissing('reactions');
 
         $this->dispatchMissingLinkPreviews($conversation);
 
         return response()->json([
-            'conversation' => [
-                'id' => $conversation->id,
-                'name' => $conversation->user?->name ?? $conversation->visitor_name,
-                'email' => $conversation->user?->email,
-                'page_url' => $conversation->page_url,
-                'status' => $conversation->status,
-                'user_id' => $conversation->user_id,
-                'channel_id' => $conversation->channel_id,
-                'channel_name' => $conversation->channel
-                    ? ($conversation->channel->type?->value === 'evolution'
-                        ? ($conversation->channel->config['instance_name'] ?? $conversation->channel->settings['display_name'] ?? $conversation->channel->name)
-                        : ($conversation->channel->settings['display_name'] ?? $conversation->channel->name))
-                    : null,
-                'last_message_at' => $conversation->last_message_at?->toIso8601String(),
-                'messages' => $conversation->messages->map(fn (Message $m): array => [
-                    'id' => $m->id,
-                    'role' => $m->role,
-                    'type' => $m->type->value,
-                    'content' => $m->content,
-                    ...$this->attachmentData($m),
-                    'read_at' => $m->read_at?->toIso8601String(),
-                    'created_at' => $m->created_at?->toIso8601String(),
-                    'link_previews' => null,
-                    'metadata' => $m->metadata,
-                    'reactions' => $m->reactions()->get(['id', 'user_jid', 'emoji', 'created_at'])->map(fn ($r) => [
-                        'id' => $r->id,
-                        'user_jid' => $r->user_jid,
-                        'emoji' => $r->emoji,
-                        'created_at' => $r->created_at?->toIso8601String(),
-                    ])->all(),
-                ])->values()->all(),
-            ],
+            'conversation_id' => $conversation->id,
+            'messages' => $page->map(fn (Message $m): array => $this->serializeMessage($m))->all(),
+            'has_more' => $hasMore,
+            'oldest_loaded_id' => $page->first()?->id,
+            'newest_loaded_id' => $page->last()?->id,
         ]);
     }
 
@@ -254,11 +233,8 @@ class ChatController extends Controller
             ], 422);
         }
 
-        $mediaRecord = null;
-
         if ($hasFile) {
-            $mediaRecord = $this->storeReplyFile($request->file('file'), $request->user()->id);
-            $attachmentMediaId = $mediaRecord->id;
+            $attachmentMediaId = $this->storeReplyFile($request->file('file'), $request->user()->id);
         } else {
             $attachmentMediaId = $providedMediaId;
         }
@@ -272,7 +248,7 @@ class ChatController extends Controller
         try {
             $dispatchResult = $this->channelManager->dispatch($conversation, $message);
         } catch (\Throwable $e) {
-            $this->cleanupOrphanMedia($mediaRecord, $attachmentMediaId);
+            $this->cleanupOrphanMedia($attachmentMediaId);
 
             Log::error('Admin reply dispatch exception', [
                 'conversation_id' => $conversation->id,
@@ -286,7 +262,7 @@ class ChatController extends Controller
         }
 
         if (! ($dispatchResult['ok'] ?? false)) {
-            $this->cleanupOrphanMedia($mediaRecord, $attachmentMediaId);
+            $this->cleanupOrphanMedia($attachmentMediaId);
 
             $errorMessage = $this->extractProviderError($dispatchResult['error'] ?? null)
                 ?? 'No se pudo enviar el mensaje a WhatsApp.';
@@ -300,10 +276,6 @@ class ChatController extends Controller
 
         $this->service->persistAdminMessage($message, $dispatchResult['provider_id'] ?? null);
 
-        $conversation->update([
-            'assigned_to' => $conversation->assigned_to ?? $request->user()->id,
-        ]);
-
         $conversation->load([
             'user:id,name,email,phone,whatsapp_jid,avatar_media_id',
             'user.avatar:id,disk,path',
@@ -315,7 +287,7 @@ class ChatController extends Controller
             'ok' => true,
             'conversation' => [
                 'id' => $conversation->id,
-                'name' => $conversation->user?->name ?? $conversation->visitor_name,
+                'name' => $conversation->user?->name,
                 'email' => $conversation->user?->email,
                 'page_url' => $conversation->page_url,
                 'status' => $conversation->status,
@@ -324,6 +296,7 @@ class ChatController extends Controller
                 'user_phone' => $conversation->user?->phone,
                 'user_whatsapp_jid' => $conversation->user?->whatsapp_jid,
                 'external_id' => $conversation->external_id,
+                'external_thread_id' => $conversation->external_thread_id,
                 'channel_id' => $conversation->channel_id,
                 'channel_name' => $conversation->channel
                     ? ($conversation->channel->type?->value === 'evolution'
@@ -331,46 +304,35 @@ class ChatController extends Controller
                         : ($conversation->channel->settings['display_name'] ?? $conversation->channel->name))
                     : null,
                 'last_message_at' => $conversation->last_message_at?->toIso8601String(),
-                'messages' => $conversation->messages->map(fn (Message $m): array => [
-                    'id' => $m->id,
-                    'role' => $m->role,
-                    'type' => $m->type->value,
-                    'content' => $m->content,
-                    ...$this->attachmentData($m),
-                    'read_at' => $m->read_at?->toIso8601String(),
-                    'created_at' => $m->created_at?->toIso8601String(),
-                    'link_previews' => null,
-                    'metadata' => $m->metadata,
-                    'reactions' => $m->reactions()->get(['id', 'user_jid', 'emoji', 'created_at'])->map(fn ($r) => [
-                        'id' => $r->id,
-                        'user_jid' => $r->user_jid,
-                        'emoji' => $r->emoji,
-                        'created_at' => $r->created_at?->toIso8601String(),
-                    ])->all(),
-                ])->values()->all(),
+                'messages' => $conversation->messages->map(fn (Message $m): array => $this->serializeMessage($m))->values()->all(),
             ],
         ]);
     }
 
-    private function cleanupOrphanMedia(?Media $mediaRecord, ?int $attachmentMediaId): void
+    private function cleanupOrphanMedia(?int $attachmentMediaId): void
     {
-        if (! $mediaRecord) {
+        if (! $attachmentMediaId) {
+            return;
+        }
+
+        $media = Media::find($attachmentMediaId);
+        if (! $media) {
             return;
         }
 
         try {
-            if (! empty($mediaRecord->path) && $mediaRecord->disk) {
-                Storage::disk($mediaRecord->disk)->delete($mediaRecord->path);
+            if (! empty($media->path) && $media->disk) {
+                Storage::disk($media->disk)->delete($media->path);
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to delete orphan media file', [
-                'media_id' => $mediaRecord->id,
-                'path' => $mediaRecord->path,
+                'media_id' => $media->id,
+                'path' => $media->path,
                 'error' => $e->getMessage(),
             ]);
         }
 
-        $mediaRecord->delete();
+        $media->delete();
     }
 
     private function extractProviderError(?string $rawError): ?string
@@ -410,6 +372,35 @@ class ChatController extends Controller
         ]);
 
         return $media->id;
+    }
+
+    /**
+     * Serializa un Message al shape que consume el frontend Inertia.
+     *
+     * @return array<string, mixed>
+     */
+    private function serializeMessage(Message $m): array
+    {
+        return [
+            'id' => $m->id,
+            'role' => $m->role,
+            'type' => $m->type->value,
+            'content' => $m->content,
+            'reply_to_message_id' => $m->reply_to_message_id,
+            ...$this->attachmentData($m),
+            'read_at' => $m->read_at?->toIso8601String(),
+            'created_at' => $m->created_at?->toIso8601String(),
+            'link_previews' => null,
+            'metadata' => $m->metadata,
+            'reactions' => $m->reactions()
+                ->get(['id', 'user_jid', 'emoji', 'created_at'])
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'user_jid' => $r->user_jid,
+                    'emoji' => $r->emoji,
+                    'created_at' => $r->created_at?->toIso8601String(),
+                ])->all(),
+        ];
     }
 
     /**

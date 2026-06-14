@@ -19,8 +19,10 @@ return new class extends Migration
             $table->timestamp('published_at')->nullable();
             $table->boolean('is_home')->default(false);
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['status', 'created_at']);
+            $table->index('deleted_at');
         });
 
         DB::statement('CREATE UNIQUE INDEX pages_is_home_unique ON pages (is_home) WHERE is_home = 1');

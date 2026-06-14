@@ -60,6 +60,10 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+    // Pagination state for active conversation (loads last 10, infinite scroll up)
+    const [hasMore, setHasMore] = useState<boolean>(active?.has_more_messages ?? false);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     // Quick reply slash command state
     const { replies: quickReplies, loading: quickRepliesLoading } = useQuickReplies();
     const [qrOpen, setQrOpen] = useState(false);
@@ -107,16 +111,15 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                 const updated: ConversationSummary = {
                     ...(base.find((c) => c.id === e.conversation.id) ?? {
                         id: e.conversation.id,
-                        visitor_name: e.conversation.visitor_name,
-                        visitor_email: e.conversation.visitor_email ?? '',
+                        name: e.conversation.visitor_name,
                         status: 'open',
                         channel_id: e.conversation.channel_id,
                         channel_name: e.conversation.channel_name,
                     }),
                     last_message_at: e.conversation.last_message_at ?? e.message.created_at ?? null,
-                    unread_by_admin: e.message.role === 'user'
-                        ? (e.conversation.unread_by_admin ?? ((base.find((c) => c.id === e.conversation.id)?.unread_by_admin ?? 0) + 1))
-                        : (base.find((c) => c.id === e.conversation.id)?.unread_by_admin ?? 0),
+                    unread: e.message.role === 'user'
+                        ? (e.conversation.unread ?? ((base.find((c) => c.id === e.conversation.id)?.unread ?? 0) + 1))
+                        : (base.find((c) => c.id === e.conversation.id)?.unread ?? 0),
                     messages_count: (base.find((c) => c.id === e.conversation.id)?.messages_count ?? 0) + 1,
                 };
                 const without = base.filter((c) => c.id !== e.conversation.id);
@@ -169,7 +172,12 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
     });
 
     useEffect(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        const el = scrollRef.current;
+        if (!el) return;
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (distanceFromBottom < 120) {
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        }
     }, [activeConv?.messages.length, activeConv?.messages[activeConv.messages.length - 1]?.id]);
 
     useEffect(() => {
@@ -187,6 +195,7 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
         if (active?.id) {
             setActiveId(active.id);
             setActiveConv(active);
+            setHasMore(active.has_more_messages ?? false);
         }
     }, [active?.id, active?.last_message_at, active?.messages_count]);
 
@@ -194,6 +203,64 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
         if (!activeId) return;
         fetch(`/admin/chats/${activeId}/read`, { method: 'POST', headers: csrfHeaders(), credentials: 'same-origin' }).catch(() => {});
     }, [activeId]);
+
+    // Infinite scroll up: when scrollTop is near the top, load 10 older messages
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+
+        function handleScroll(): void {
+            if (loadingMore || !hasMore || !activeConv) return;
+            if (el!.scrollTop <= 80) {
+                void loadOlderMessages();
+            }
+        }
+
+        el.addEventListener('scroll', handleScroll, { passive: true });
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, [loadingMore, hasMore, activeConv?.id, activeConv?.messages.length]);
+
+    async function loadOlderMessages(): Promise<void> {
+        if (!activeConv || loadingMore || !hasMore) return;
+        const oldest = activeConv.messages[0];
+        if (!oldest) return;
+        const beforeId = oldest.id;
+
+        const previousScrollHeight = scrollRef.current?.scrollHeight ?? 0;
+        const previousScrollTop = scrollRef.current?.scrollTop ?? 0;
+        setLoadingMore(true);
+        try {
+            const res = await fetch(`/admin/chats/${activeConv.id}/messages?before_id=${beforeId}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data: { messages: ChatMessage[]; has_more: boolean; oldest_loaded_id: number | null } = await res.json();
+
+            setActiveConv((prev) => {
+                if (!prev) return prev;
+                const existingIds = new Set(prev.messages.map((m) => m.id));
+                const newOnes = data.messages.filter((m) => !existingIds.has(m.id));
+                return {
+                    ...prev,
+                    messages: [...newOnes, ...prev.messages],
+                };
+            });
+            setHasMore(data.has_more);
+
+            requestAnimationFrame(() => {
+                const el2 = scrollRef.current;
+                if (!el2) return;
+                const newScrollHeight = el2.scrollHeight;
+                const delta = newScrollHeight - previousScrollHeight;
+                el2.scrollTop = previousScrollTop + delta;
+            });
+        } catch (err) {
+            console.error('Failed to load older messages', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    }
 
     useEffect(() => {
         if (attachment && attachment.type.startsWith('image/')) {
@@ -210,7 +277,7 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
         setFilteredConversations((prevList) => {
             const base = prevList ?? (Array.isArray(safeConversations.data) ? safeConversations.data : []);
 
-            return base.map((c) => (c.id === conv.id ? { ...c, unread_by_admin: 0 } : c));
+            return base.map((c) => (c.id === conv.id ? { ...c, unread: 0 } : c));
         });
         const params: Record<string, string | number> = { active: conv.id };
         if (safeFilters.search) params.search = safeFilters.search;
@@ -380,16 +447,30 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
 
     function confirmDeleteConversation(): void {
         if (!activeId) return;
-        setPendingId(activeId);
+        const idToDelete = activeId;
+        setPendingId(idToDelete);
         setDeleteDialogOpen(false);
-        router.delete(`/admin/chats/${activeId}`, {
+
+        // Remover del estado local inmediatamente (UX optimista)
+        setFilteredConversations((prevList) => {
+            const base = prevList ?? (Array.isArray(safeConversations.data) ? safeConversations.data : []);
+            return base.filter((c) => c.id !== idToDelete);
+        });
+
+        router.delete(`/admin/chats/${idToDelete}`, {
             preserveScroll: true,
             onSuccess: () => {
                 setActiveId(null);
                 setActiveConv(null);
                 setPendingId(null);
+                // Refrescar la lista desde el servidor para sincronizar contadores
+                router.reload({ only: ['conversations', 'stats'], preserveState: true, preserveScroll: true });
             },
-            onError: () => setPendingId(null),
+            onError: () => {
+                setPendingId(null);
+                // Si falla, recargar para re-sincronizar el estado
+                router.reload({ only: ['conversations', 'stats'], preserveState: true, preserveScroll: true });
+            },
         });
     }
 
@@ -496,9 +577,9 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-baseline justify-between gap-2">
                                                     <p className="truncate text-sm font-medium">{c.name}</p>
-                                                    {c.unread_by_admin > 0 ? (
+                                                    {c.unread > 0 ? (
                                                         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-                                                            {c.unread_by_admin}
+                                                            {c.unread}
                                                         </span>
                                                     ) : (
                                                         <p className="shrink-0 text-[10px] text-muted-foreground">{c.last_message_at_diff ?? ''}</p>
@@ -576,6 +657,17 @@ export default function ChatsIndex({ conversations, stats, channels, filters, ac
                                 </button>
 
                                 <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto bg-muted/30 p-4">
+                                    {loadingMore && (
+                                        <div className="flex items-center justify-center py-2 text-xs text-muted-foreground">
+                                            <Loader2 className="mr-2 size-3 animate-spin" />
+                                            Cargando mensajes anteriores...
+                                        </div>
+                                    )}
+                                    {!hasMore && activeConv.messages.length > 0 && (
+                                        <div className="flex items-center justify-center py-2 text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                                            Inicio de la conversación
+                                        </div>
+                                    )}
                                     {activeConv.messages.length === 0 ? (
                                         <p className="text-center text-sm text-muted-foreground">Aún no hay mensajes</p>
                                     ) : (

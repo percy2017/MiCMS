@@ -5,16 +5,16 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Modules\ChatBot\Models\QuickReply;
 
-class QuickRepliesSeeder extends Seeder
+class ChatbotSeeder extends Seeder
 {
     /**
      * @var list<array<string, mixed>>
      */
-    public const DEFAULTS = [
+    public const QUICK_REPLIES = [
         [
             'shortcut' => 'saludo',
             'title' => 'Saludo inicial',
-            'content' => "¡Hola! 👋 Bienvenido a *Hostbol*.\n\n¿En qué podemos ayudarte hoy?",
+            'content' => "¡Hola! 👋 Bienvenido/a.\n\n¿En qué podemos ayudarte hoy?",
             'category' => 'saludos',
             'sort' => 1,
         ],
@@ -36,15 +36,13 @@ class QuickRepliesSeeder extends Seeder
 
     public function run(): void
     {
-        $count = 0;
-        foreach (self::DEFAULTS as $row) {
+        foreach (self::QUICK_REPLIES as $row) {
             QuickReply::updateOrCreate(
                 ['shortcut' => $row['shortcut']],
                 $row + ['enabled' => true, 'created_by' => null],
             );
-            $count++;
         }
 
-        $this->command?->info("Respuestas rápidas por defecto: {$count} creadas/actualizadas.");
+        $this->command?->info('ChatBot seedeado: '.count(self::QUICK_REPLIES).' respuestas rápidas. (Canales: 0, el admin los crea desde /admin/canales.)');
     }
 }
